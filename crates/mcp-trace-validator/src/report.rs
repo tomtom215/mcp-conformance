@@ -13,6 +13,7 @@ use core::fmt;
 use mcp_conformance_core::requirement::Actor;
 use serde::{Deserialize, Serialize};
 
+pub mod capture;
 mod clause;
 mod human;
 mod party;
@@ -282,6 +283,15 @@ pub struct Report {
     /// [`Self::verdict`] ([`crate::report::UnansweredRequests`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unanswered_requests: Option<UnansweredRequests>,
+    /// What the trace's recorder says it left out, when the trace's closing
+    /// event carries a note ([`mcp_conformance_core::trace::CaptureNote`]):
+    /// present for a note that says nothing was left out too, so a reader can
+    /// tell a recorder that said it was complete from a trace that says
+    /// nothing. A note, never a verdict: moving neither [`Self::totals`] nor
+    /// [`Self::verdict`]. The text, HTML, `JUnit` and SARIF reports show it
+    /// only when it reports something left out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capture: Option<mcp_conformance_core::trace::CaptureNote>,
     /// The clauses of each extension the session exercised, judged and never
     /// scored: nothing here moves [`Self::totals`] or [`Self::verdict`]
     /// (ADR-0023). An extension appears once one of its clauses judged

@@ -12,7 +12,7 @@
 //! | 0    | `http`: stopped with a complete trace |
 //! | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests |
 //! | 2    | Invocation problem: bad arguments, an existing output file, a misplaced `{session}` or a missing directory for it, a server that would not start, an address that would not bind (no trace file is created); also `http` serving failed after it started |
-//! | 3    | The session ran but a trace is incomplete (a write failed); only when the exit code would otherwise be 0 |
+//! | 3    | The session ran but a trace is incomplete (a write failed), or, with `--fail-on-unrecorded`, holds less than the session carried; only when the exit code would otherwise be 0 |
 
 // `unreachable_pub` (rustc) and `redundant_pub_crate` (clippy nursery) make
 // opposite demands about items in a binary crate's private modules; this follows
@@ -50,6 +50,7 @@ fn main() -> ExitCode {
     let mut recording = Recording::new(&target);
     recording.force = cli.force;
     recording.max_message = cli.max_message_bytes;
+    recording.fail_on_unrecorded = cli.fail_on_unrecorded;
     let code = match &cli.mode {
         Mode::Stdio { command } => runtime.block_on(run::stdio(recording, command)),
         Mode::Http {

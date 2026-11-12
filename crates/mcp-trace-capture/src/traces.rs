@@ -229,7 +229,7 @@ impl Traces {
                 .collect(),
         };
         for recorder in recorders {
-            let _ = recorder.close(
+            let _ = recorder.close_with_note(
                 Direction::ClientToServer,
                 TransportKind::StreamableHttp,
                 event,

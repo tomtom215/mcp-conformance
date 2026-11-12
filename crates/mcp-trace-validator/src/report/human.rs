@@ -125,6 +125,9 @@ impl Report {
         if let Some(unanswered) = &self.unanswered_requests {
             unanswered.write_human(&mut out);
         }
+        if let Some(capture) = &self.capture {
+            super::capture::write_human(capture, &mut out);
+        }
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
         // destructuring is what keeps that true as outcomes are added.

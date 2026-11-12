@@ -83,6 +83,13 @@ Exit codes: `0` pass (warnings allowed unless `--strict`), `1` a clause failed, 
 bad invocation or nothing judgeable or output not written, `3` malformed trace.
 `--version` prints the protocol revisions the build judges.
 
+A trace recorded by `mcp-trace-capture` ends with a `capture` note saying what the
+recording left out (a message over its size limit, say); the report shows a note that
+reports a loss, in every format, and the verdict is unchanged. The note is the
+recorder's own statement and nothing authenticates it, and a trace without one says
+nothing. `validate --require-complete-capture` is the opt-in gate: exit `2` for a
+trace with no note or one that reports a loss, the report still written.
+
 The built-in registries are the default. To judge against your own requirement
 data — a registry you are drafting, or a subset of the clauses — `validate
 --registry <file>` takes a single-revision registry document (the shape

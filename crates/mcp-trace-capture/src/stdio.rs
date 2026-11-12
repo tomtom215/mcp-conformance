@@ -24,7 +24,7 @@ use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::process::{ChildStdin, ChildStdout};
 
 use crate::framing::{Line, LineSplitter, Parsed, parse_message};
-use crate::recorder::{NotRecorded, Recorder};
+use crate::recorder::{Loss, NotRecorded, Recorder};
 use crate::signals::{Signals, Stop};
 use process::ServerProcess;
 
@@ -153,6 +153,7 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
         Line::Unterminated(bytes) => (bytes, true),
         Line::Oversized => {
             tally.oversized.fetch_add(1, Ordering::Relaxed);
+            recorder.note_unrecorded(Loss::Oversized, 1);
             return;
         }
     };
@@ -179,6 +180,8 @@ fn record_line(recorder: &Recorder, direction: Direction, line: Line, tally: &Ta
         EventBody::Message { payload },
     );
     match outcome {
+        // The recorder counts what it refuses for length in the trace's own
+        // account; only the summary's tally is kept here.
         Err(NotRecorded::TooLong) => {
             tally.oversized.fetch_add(1, Ordering::Relaxed);
         }
@@ -414,8 +417,10 @@ fn close(recorder: &Recorder, end: &ending::End) {
     } else {
         LifecycleEvent::TransportAbort
     };
-    let _ = recorder.close(closer, TransportKind::Stdio, event);
+    let _ = recorder.close_with_note(closer, TransportKind::Stdio, event);
 }
 
+#[cfg(test)]
+mod note_tests;
 #[cfg(test)]
 mod tests;

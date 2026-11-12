@@ -204,3 +204,79 @@ fn an_envelope_that_hides_an_unjudged_trace_is_caught() {
         assert!(!validator.is_valid(&document), "{what} was accepted");
     }
 }
+
+/// A passing corpus session whose closing event carries `capture`.
+fn trace_noting(capture: &str) -> PathBuf {
+    let text = std::fs::read_to_string(corpus().join("good/stdio-full-session.jsonl")).unwrap();
+    let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    let last = lines.pop().unwrap();
+    lines.push(format!(
+        r#"{},"capture":{capture}}}"#,
+        last.trim_end_matches('}')
+    ));
+    let path = std::env::temp_dir().join(format!(
+        "mcp-trace-validator-report-schema-{}.jsonl",
+        std::process::id()
+    ));
+    std::fs::write(&path, lines.join("\n") + "\n").unwrap();
+    path
+}
+
+/// The `capture` member is documented, in both report shapes, for a note that
+/// reports a loss and for one that says nothing was left out; the closed schema
+/// refuses what the recorder did not write.
+#[test]
+fn the_capture_note_is_documented_in_both_shapes() {
+    let validator = validator();
+    for capture in [
+        r#"{"unrecorded":{"oversized":2,"over_budget":1}}"#,
+        r#"{"unrecorded":{}}"#,
+        "{}",
+    ] {
+        let trace = trace_noting(capture);
+        let path = trace.to_str().unwrap();
+        let single = cli_json(path, &[]);
+        let multi = cli_json(
+            path,
+            &["--revision", "2025-11-25", "--revision", "2026-07-28"],
+        );
+        for (shape, report) in [("single", &single), ("multi", &multi)] {
+            assert!(report.get("capture").is_some(), "{shape}: {report}");
+            let found = errors(&validator, report);
+            assert!(found.is_empty(), "{shape} {capture}: {found:#?}");
+        }
+        let parsed: Report = serde_json::from_value(single.clone()).unwrap();
+        assert_eq!(
+            parsed
+                .capture
+                .as_ref()
+                .map(mcp_conformance_core::trace::CaptureNote::is_complete),
+            Some(capture != r#"{"unrecorded":{"oversized":2,"over_budget":1}}"#)
+        );
+        std::fs::remove_file(&trace).ok();
+    }
+
+    let trace = trace_noting(r#"{"unrecorded":{"oversized":2}}"#);
+    let report = cli_json(trace.to_str().unwrap(), &[]);
+    std::fs::remove_file(&trace).ok();
+    for (what, change) in [
+        (
+            "a count below zero",
+            (|report: &mut Value| report["capture"]["unrecorded"]["oversized"] = json!(-1))
+                as fn(&mut Value),
+        ),
+        ("a member the recorder never writes", |report| {
+            report["capture"]["verdict"] = json!("pass");
+        }),
+        ("a count that is not a number", |report| {
+            report["capture"]["unrecorded"]["oversized"] = json!("two");
+        }),
+    ] {
+        let mut broken = report.clone();
+        change(&mut broken);
+        assert!(
+            !errors(&validator, &broken).is_empty(),
+            "{what} is accepted"
+        );
+    }
+}

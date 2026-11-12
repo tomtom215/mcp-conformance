@@ -27,8 +27,7 @@ cargo install mcp-trace-capture mcp-trace-validator
 > - the client URL printed at start, the non-2xx and 404 summary at exit, hints for
 >   near-miss arguments, and the exit codes in `--help`;
 > - a forced HTTP stop ending the trace with `transport-abort`; SSE events of a type
->   other than `message` left out; unfaithful JSON recorded as its raw line (stdio) or
->   left out (HTTP);
+>   other than `message` left out; unfaithful JSON recorded as its raw line;
 > - on Windows, the server's whole exit code;
 > - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
 >   string;
@@ -43,7 +42,13 @@ cargo install mcp-trace-capture mcp-trace-validator
 >   lines saying which;
 > - every trace file created readable by its owner alone (`0600` on Unix), a
 >   symbolic link at `-o` refused even with `--force`, and a `{session}` file
->   written through the handle that created it rather than by its path.
+>   written through the handle that created it rather than by its path;
+> - over HTTP, a request body, `2xx` response body or SSE `message` event that is not
+>   JSON recorded as the text that was sent, as over stdio (`0.6.0` left it out of the
+>   trace and the validator read a `pass`: a declared verdict change); every trace's
+>   closing event carrying a `capture` note of what the trace leaves out, and
+>   `--fail-on-unrecorded`, which exits 3 in place of 0 for a run that left anything
+>   out.
 > - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
 >   caller supplies) and `Signals::requested` (stops a program asks for, not the
 >   operating system) — what `mcp-conformance test` runs a stdio server with;
@@ -300,13 +305,28 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   forwarded, so a response is never recorded ahead of its request.
 - **Nothing altered to fit the trace.** A message larger than `--max-message-bytes`
   (default 64 MiB) is forwarded intact, left out of the trace, and counted in the
-  summary printed at exit. So is the rare message within the limit whose recorded
-  line would not be (below), and, over HTTP, a body or SSE event that is not JSON or
-  is JSON the trace cannot hold as sent (below), an SSE event whose `event` type
-  is not `message` — MCP clients, both official SDKs' among them, act on no other —
-  and a body or SSE event that arrives while the proxy's buffer budget is spent
-  (below).
-- **Nothing on a stdio stream goes unjudged.** A stdio line that is not JSON — a log
+  summary printed at exit and in the trace itself (next item). So is the rare
+  message within the limit whose recorded line would not be (below), and, over HTTP,
+  an SSE event whose `event` type is not `message` — MCP clients, both official
+  SDKs' among them, act on no other — and a body or SSE event that arrives while the
+  proxy's buffer budget is spent (below).
+- **The trace says what it left out.** The trace's closing event carries a `capture`
+  note counting, by kind, what its session carried that the trace does not hold:
+  `oversized` (a message over the limit), `over_budget` (a body or event that arrived
+  while the buffer budget was spent) and `other_events` (SSE events that are not
+  `message`). `"capture":{"unrecorded":{}}` says nothing was left out as of the
+  close; no `capture` member says nothing either way (a hand-written trace, a
+  recorder that writes none, a capture cut off before its close). With `{session}`
+  each session's trace counts its own. The note is the recorder's own statement and
+  nothing authenticates it, and it cannot count what happens after the close (the
+  stop-grace traffic, reported on stderr) or a request the proxy refused on its own
+  (a `.`/`..` path segment, `CONNECT`: no server saw it, so it is in no session's
+  trace, and is reported on stderr). `mcp-trace-validator` reports the note on every
+  format; `validate --require-complete-capture` fails a trace that has none or that
+  reports a loss, and `--fail-on-unrecorded` here exits 3 in place of 0 for a run
+  that left anything out, refused requests and the after-close traffic included. A
+  failed write ends the trace without a close, so it has no note (exit 3, as before).
+- **Nothing on the wire goes unjudged.** A stdio line that is not JSON — a log
   line on the server's stdout, a blank line, a truncated message — is forwarded
   intact and recorded as a message whose payload is the line as a JSON string
   (invalid UTF-8 replaced, line terminator removed). The validator reports it as
@@ -314,7 +334,12 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   2026-07-28), and the exit summary counts it. So is a line of JSON the trace cannot
   hold as sent (below), counted apart, and what a stream ends with after its last
   newline — JSON or not: stdio frames a message by its newline, so the peer never
-  received it as one.
+  received it as one. Over HTTP a request body, a `2xx` response body and an SSE
+  `message` event that is not JSON, or is JSON the trace cannot hold as sent, are
+  recorded the same way, as the text that was sent: a malformed `200` body used to
+  reach the client, vanish from the trace and leave a `pass`. An error response
+  (a status outside `2xx`) is recorded that way only when its `Content-Type` says
+  it is JSON; an HTML `404` page is not a message and is not recorded as one.
 - **Readable by the validator as recorded.** No trace line is longer than
   `--max-message-bytes` plus 1 MiB, checked on the line as written — which, at the
   default, is exactly the longest line `mcp-trace-validator` accepts by default. With
@@ -343,8 +368,8 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   bits, which would come back as a non-integer), or a member name repeated in one
   object (only the last would remain) — is never recorded as parsed JSON: the
   validator reads payloads the same way, so no recorded value could say what was
-  sent. It is treated as the transport treats non-JSON: over stdio, recorded as the
-  line, over HTTP, left out; counted in the summary either way.
+  sent. It is treated as the transport treats non-JSON: recorded as the text that was
+  sent, over stdio and over HTTP alike, and counted in the summary.
 - **Crash-safe.** Every event is flushed as it is written; a capture killed with
   `SIGKILL` keeps what it recorded. Any other request to stop closes the trace first.
 
@@ -381,7 +406,8 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
   of 4 × `--max-message-bytes` (256 MiB at the default) across every exchange in
   flight, not `--max-message-bytes` for each of them. A body or event that arrives
   while the budget is spent is not held up: it is streamed on as one over the limit
-  is, left out of the trace, and counted in the summary. Ordinary MCP traffic, whose
+  is, left out of the trace, and counted in the summary and the closing event's note.
+  Ordinary MCP traffic, whose
   messages are small, never comes near it.
 - **Writing a message costs far more than its size, for a moment.** Outside the
   budget, recording a message holds its parsed value — 32 bytes per array element
@@ -410,10 +436,10 @@ process groups, the SDKs' shutdown sequence — run only on Unix.
 
 | Code | Meaning |
 |------|---------|
-| 0 | `http`: stopped with a complete trace |
+| 0 | `http`: stopped; every trace holds what its session carried unless the summary says it left something out (`--fail-on-unrecorded` turns that into 3) |
 | 1 | `stdio`: waiting for the server failed (an operating-system error); the trace keeps what it recorded, without a closing event unless a stop wrote one |
 | 2 | A run that could not start: bad arguments (`-o -` among them: the trace needs a path; an `--upstream` that is not an absolute `http`/`https` URL, carries credentials, or whose root certificates cannot be loaded), an existing output file (`--force` overwrites), `{session}` outside the file name or more than once, a `{session}` path whose directory does not exist, a server that would not start, an address that would not bind. No trace file is created: the file is made only once the session can start. Also `http`, after it started: serving failed (the error is printed; the trace keeps what it recorded, without a closing event) |
-| 3 | The session ran but a trace is incomplete (a write failed), when the code would otherwise be 0 |
+| 3 | The session ran but a trace is incomplete (a write failed), or, with `--fail-on-unrecorded`, holds less than its session carried or a request was refused by the proxy; only when the code would otherwise be 0 |
 | 128 + signal | `http`: a second signal stopped the proxy without waiting for open requests; the trace ends with `transport-abort` |
 | server's | `stdio`: the wrapped server's exit code — on Unix 128 + signal if a signal ended it (137 for a server killed at the end of the grace period); on Windows the whole code |
 

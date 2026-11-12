@@ -245,6 +245,18 @@
         }
       }
     },
+    "captureNote": {
+      "description": "What the trace's recorder says it left out, as of the moment it closed the trace: the `capture` member of the trace's closing lifecycle event, as written. A note, never a verdict: it moves neither the totals nor the verdict, and it is the recorder's own statement, which nothing authenticates. Present for a note that says nothing was left out too (an empty `unrecorded`), so a reader can tell a recorder that said it was complete from a trace that says nothing; absent when the trace carries no note. `validate --require-complete-capture` is the opt-in exit-status gate.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unrecorded": {
+          "description": "What the session carried that is not in the trace, counted by the recorder's own kind names (`mcp-trace-capture` writes `oversized`, `over_budget` and `other_events`); a reader must accept a kind it does not know. A kind that did not occur is left out.",
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
     "report": {
       "description": "One trace judged against one revision.",
       "type": "object",
@@ -260,6 +272,7 @@
         "requirements": { "type": "array", "items": { "$ref": "#/$defs/row" } },
         "wire_schema": { "$ref": "#/$defs/wireSchema" },
         "unanswered_requests": { "$ref": "#/$defs/unansweredRequests" },
+        "capture": { "$ref": "#/$defs/captureNote" },
         "extensions": { "$ref": "#/$defs/extensions" }
       }
     },
@@ -348,6 +361,10 @@
         "unanswered_requests": {
           "description": "The trace's unanswered requests, the same under every revision, so carried once.",
           "$ref": "#/$defs/unansweredRequests"
+        },
+        "capture": {
+          "description": "What the trace's recorder says it left out, the same under every revision, so carried once.",
+          "$ref": "#/$defs/captureNote"
         }
       }
     }

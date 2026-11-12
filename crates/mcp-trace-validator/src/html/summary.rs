@@ -336,6 +336,38 @@ pub(super) fn unanswered_note(out: &mut String, scope: &Scope<'_>) {
     out.push_str("</aside>\n");
 }
 
+/// The note for what the trace's recorder says it left out, when it says
+/// something was: once, since every revision's report of one trace carries the
+/// same one. Its list takes the unanswered note's `unanswered` class, which is
+/// only a note's list style.
+pub(super) fn capture_note(out: &mut String, scope: &Scope<'_>) {
+    use crate::report::capture::{CAPTURE_WHY, gloss, summary};
+    let Some(note) = scope
+        .reports
+        .iter()
+        .find_map(|report| report.capture.as_ref())
+        .filter(|note| !note.is_complete())
+    else {
+        return;
+    };
+    let _ = write!(
+        out,
+        "<aside class=\"note\" role=\"note\"><strong>{}.</strong> {}<ul class=\"unanswered\">",
+        Text(&summary(note)),
+        Text(CAPTURE_WHY)
+    );
+    for (kind, count) in note.left_out() {
+        let meaning = gloss(kind).map_or_else(String::new, |gloss| format!(" ({gloss})"));
+        let _ = write!(
+            out,
+            "<li><code>{}</code>: {count}{}</li>",
+            Text(kind),
+            Text(&meaning)
+        );
+    }
+    out.push_str("</ul></aside>\n");
+}
+
 /// The section links under the verdict.
 pub(super) fn contents(out: &mut String, scope: &Scope<'_>) {
     let attention: usize = scope

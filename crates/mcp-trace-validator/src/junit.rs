@@ -227,14 +227,29 @@ fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u
         escape(suite),
         escape(&report.revision)
     );
-    // A note on the suite, where `JUnit` keeps what is not a test case: the
-    // requests the trace ended without answering, failing nothing.
+    // Notes on the suite, where `JUnit` keeps what is not a test case: the
+    // requests the trace ended without answering, and what its recorder says it
+    // left out, failing nothing.
+    let mut notes = Vec::new();
     if let Some(unanswered) = &report.unanswered_requests {
-        let _ = writeln!(
-            out,
-            r#"    <properties><property name="unanswered-requests" value="{}"/></properties>"#,
-            escape(&unanswered.one_line())
-        );
+        notes.push(("unanswered-requests", unanswered.one_line()));
+    }
+    if let Some(capture) = report.capture.as_ref().filter(|note| !note.is_complete()) {
+        notes.push((
+            "capture-unrecorded",
+            crate::report::capture::one_line(capture),
+        ));
+    }
+    if !notes.is_empty() {
+        out.push_str("    <properties>");
+        for (name, value) in &notes {
+            let _ = write!(
+                out,
+                r#"<property name="{name}" value="{}"/>"#,
+                escape(value)
+            );
+        }
+        out.push_str("</properties>\n");
     }
     for row in &report.requirements {
         render_row(out, report, row, options);

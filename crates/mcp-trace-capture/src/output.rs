@@ -281,12 +281,42 @@ pub fn finish(
     code: i32,
     ended: Option<std::process::ExitStatus>,
 ) -> i32 {
-    report(&recorder.finish(), Some(path), code, Hint::None, ended)
+    finish_with(recorder, path, code, ended, false)
+}
+
+/// [`finish`], and with `fail_on_unrecorded` also [`EXIT_INCOMPLETE`] in place
+/// of a 0 when the session carried anything the trace does not hold.
+pub fn finish_with(
+    recorder: &Recorder,
+    path: &Path,
+    code: i32,
+    ended: Option<std::process::ExitStatus>,
+    fail_on_unrecorded: bool,
+) -> i32 {
+    report(
+        &recorder.finish(),
+        Some(path),
+        code,
+        Hint::None,
+        ended,
+        fail_on_unrecorded,
+    )
 }
 
 /// Flushes every trace the proxy wrote and reports each; the exit code is
 /// [`EXIT_INCOMPLETE`] in place of a 0 when any is incomplete.
 pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: i32) -> i32 {
+    finish_traces_with(traces, path, code, false)
+}
+
+/// [`finish_traces`], and with `fail_on_unrecorded` also [`EXIT_INCOMPLETE`] in
+/// place of a 0 when any trace does not hold something its session carried.
+pub fn finish_traces_with(
+    traces: &Traces,
+    path: Option<&Path>,
+    code: i32,
+    fail_on_unrecorded: bool,
+) -> i32 {
     let finished = traces.finish();
     if traces.is_per_session() && finished.is_empty() {
         eprintln!("mcp-trace-capture: no session began; no trace was written");
@@ -304,6 +334,7 @@ pub fn finish_traces(traces: &Traces, path: Option<&Path>, code: i32) -> i32 {
             code,
             hint,
             None,
+            fail_on_unrecorded,
         )
     })
 }
@@ -322,6 +353,7 @@ fn report(
     code: i32,
     hint: Hint,
     ended: Option<std::process::ExitStatus>,
+    fail_on_unrecorded: bool,
 ) -> i32 {
     let shown = path.map_or_else(
         || "a session's trace, whose file could not be created,".to_owned(),
@@ -356,7 +388,7 @@ fn report(
              and nothing to validate",
             summary.recorded
         );
-        return code;
+        return gated(summary, &shown, fail_on_unrecorded, code);
     }
     let word = path.map_or_else(
         || "<trace>".to_owned(),
@@ -367,7 +399,30 @@ fn report(
          `mcp-trace-validator validate {word}`",
         summary.recorded
     );
-    code
+    gated(summary, &shown, fail_on_unrecorded, code)
+}
+
+/// `code`, or [`EXIT_INCOMPLETE`] in place of a 0 when `--fail-on-unrecorded`
+/// is on and the trace does not hold something its session carried — said on
+/// stderr, with what and how many.
+fn gated(summary: &Summary, shown: &str, fail_on_unrecorded: bool, code: i32) -> i32 {
+    let mut left_out: Vec<String> = summary
+        .unrecorded
+        .iter()
+        .map(|(loss, count)| format!("{} {count}", loss.name()))
+        .collect();
+    if summary.after_close > 0 {
+        left_out.push(format!("after_close {}", summary.after_close));
+    }
+    if !fail_on_unrecorded || left_out.is_empty() {
+        return code;
+    }
+    eprintln!(
+        "mcp-trace-capture: --fail-on-unrecorded: the trace at {shown} does not hold everything \
+         the session carried ({})",
+        left_out.join(", ")
+    );
+    if code == 0 { EXIT_INCOMPLETE } else { code }
 }
 
 /// `text` as one word for a POSIX shell: as it is when every character is

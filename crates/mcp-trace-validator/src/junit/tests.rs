@@ -165,6 +165,7 @@ fn every_skip_variant() -> Report {
         ],
         wire_schema: None,
         unanswered_requests: None,
+        capture: None,
         extensions: vec![],
     }
 }

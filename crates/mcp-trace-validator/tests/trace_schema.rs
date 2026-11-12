@@ -152,6 +152,26 @@ const REJECTED: &[(&str, &str)] = &[
         "ts is a string",
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open","ts":1}"#,
     ),
+    (
+        "capture is an object",
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":5}"#,
+    ),
+    (
+        "capture's unrecorded is an object",
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{"unrecorded":[1]}}"#,
+    ),
+    (
+        "a count left out is not negative",
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{"unrecorded":{"oversized":-1}}}"#,
+    ),
+    (
+        "a count left out is a number",
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{"unrecorded":{"oversized":"two"}}}"#,
+    ),
+    (
+        "a count left out is whole",
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{"unrecorded":{"oversized":1.5}}}"#,
+    ),
     ("an event is an object", "[0]"),
 ];
 
@@ -180,7 +200,11 @@ fn both_accept_extensions_nulls_and_http_without_detail() {
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open","x-producer":{"v":1}}"#,
         // Optional members may be null.
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"lifecycle","event":"transport-open","ts":null}"#,
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":null}"#,
         r#"{"seq":0,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":null,"method":null}"#,
+        // A recorder's account of what it left out, from nothing to a kind nobody knows.
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{}}"#,
+        r#"{"seq":0,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-close","capture":{"unrecorded":{"oversized":2,"a-future-kind":1,"none":0}}}"#,
         // Any JSON is a payload, including null: judging it is the validator's job.
         r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":null}"#,
         r#"{"seq":18446744073709551615,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{}}"#,

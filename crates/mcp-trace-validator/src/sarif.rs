@@ -17,6 +17,7 @@
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | the requests a trace ended without answering ([`Report::unanswered_requests`]) | an invocation notification at level `note`, located at the trace, with the requests in its `properties`; `executionSuccessful` is untouched |
+//! | what the trace's recorder says it left out ([`Report::capture`]), when it says something was | an invocation notification at level `note`, located at the trace, with the kinds and counts in its `properties`; `executionSuccessful` is untouched |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -37,6 +38,7 @@ use serde_json::{Value, json};
 use crate::report::{Outcome, Report, RequirementReport, Unjudged};
 
 mod location;
+mod notes;
 mod rule;
 
 use location::location;
@@ -256,6 +258,9 @@ impl Log<'_> {
         if let Some(unanswered) = &report.unanswered_requests {
             self.unanswered(unanswered, artifact);
         }
+        if let Some(capture) = report.capture.as_ref().filter(|note| !note.is_complete()) {
+            self.capture(capture, artifact);
+        }
         for row in &report.requirements {
             match row.outcome {
                 Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
@@ -370,32 +375,6 @@ impl Log<'_> {
             }
             self.results.push(result);
         }
-    }
-
-    /// The requests a trace ended without answering: a `note`-level
-    /// notification located at the trace, once per trace — the reports of one
-    /// trace judged under several revisions all carry the same note.
-    fn unanswered(
-        &mut self,
-        unanswered: &crate::report::UnansweredRequests,
-        artifact: Artifact<'_>,
-    ) {
-        let text = unanswered.one_line();
-        let key = (artifact.uri.unwrap_or_default().to_owned(), text.clone());
-        if !self.noted.insert(key) {
-            return;
-        }
-        self.notifications.push(json!({
-            "level": "note",
-            "message": { "text": text },
-            "locations": location(artifact, None),
-            "properties": {
-                "kind": "unanswered-requests",
-                "count": unanswered.count,
-                "ending": unanswered.ending,
-                "requests": unanswered.requests,
-            },
-        }));
     }
 
     /// A trace the run could not judge at all, located at the trace.

@@ -44,6 +44,9 @@ pub struct Recording<'a> {
     pub max_message: usize,
     /// Shown every event as it is written.
     pub observer: Option<Arc<dyn Observer>>,
+    /// Exit [`output::EXIT_INCOMPLETE`] in place of 0 when the session carried
+    /// anything a trace does not hold (`--fail-on-unrecorded`).
+    pub fail_on_unrecorded: bool,
 }
 
 impl<'a> Recording<'a> {
@@ -56,6 +59,7 @@ impl<'a> Recording<'a> {
             force: false,
             max_message: crate::DEFAULT_MAX_MESSAGE,
             observer: None,
+            fail_on_unrecorded: false,
         }
     }
 }
@@ -176,7 +180,7 @@ pub async fn stdio(recording: Recording<'_>, command: &[OsString]) -> i32 {
             (1, None)
         }
     };
-    output::finish(&recorder, &path, code, ended)
+    output::finish_with(&recorder, &path, code, ended, recording.fail_on_unrecorded)
 }
 
 /// `mcp-trace-capture http`: checks the upstream and binds, then creates the
@@ -239,9 +243,14 @@ pub async fn http(
     let served = serve_until_stopped(listener, &traces, options, signals).await;
     let code = served.map_or_else(
         |code| code,
-        |served| summary::http_summary(served, bound, upstream),
+        |served| summary::http_summary(served, bound, upstream, recording.fail_on_unrecorded),
     );
-    output::finish_traces(&traces, path.as_deref().map(Path::new), code)
+    output::finish_traces_with(
+        &traces,
+        path.as_deref().map(Path::new),
+        code,
+        recording.fail_on_unrecorded,
+    )
 }
 
 /// Serves until a request to stop, then lets the proxy stop within its grace

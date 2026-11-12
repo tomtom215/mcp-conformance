@@ -168,6 +168,11 @@ pub struct MultiReport {
     /// a fact of the trace, the same under every revision, so carried once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unanswered_requests: Option<crate::report::UnansweredRequests>,
+    /// What the trace's recorder says it left out
+    /// ([`Report::capture`](crate::report::Report::capture)): read from the
+    /// events, the same under every revision, so carried once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capture: Option<mcp_conformance_core::trace::CaptureNote>,
     /// Per-revision aggregate results, aligned by index with `revisions`.
     pub summaries: Vec<RevisionSummary>,
     /// Union of clauses across the judged revisions, in registry-union order. A clause is
@@ -176,6 +181,17 @@ pub struct MultiReport {
 }
 
 impl MultiReport {
+    /// The notes the trace carries, once, above the per-revision summaries:
+    /// what went unanswered, and what its recorder says it left out.
+    fn write_notes(&self, out: &mut String) {
+        if let Some(unanswered) = &self.unanswered_requests {
+            unanswered.write_human(out);
+        }
+        if let Some(capture) = &self.capture {
+            crate::report::capture::write_human(capture, out);
+        }
+    }
+
     /// The overall verdict: the worst across revisions, by the same severity priority a
     /// single [`Report`](crate::report::Report) uses (unsupported ≻ fail ≻ pass-with-warnings ≻ pass). A
     /// multi-revision run is only as good as its weakest revision.
@@ -249,9 +265,7 @@ impl MultiReport {
                 extension.write_human(&mut out, options, Some(&summary.revision), self.party_view);
             }
         }
-        if let Some(unanswered) = &self.unanswered_requests {
-            unanswered.write_human(&mut out);
-        }
+        self.write_notes(&mut out);
         self.write_summaries(&mut out);
         match self.party_view {
             Some(party) => {
@@ -349,7 +363,7 @@ impl MultiReport {
 impl Serialize for MultiReport {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct as _;
-        let mut report = serializer.serialize_struct("MultiReport", 8)?;
+        let mut report = serializer.serialize_struct("MultiReport", 9)?;
         report.serialize_field("revisions", &self.revisions)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -373,6 +387,11 @@ impl Serialize for MultiReport {
             report.serialize_field("unanswered_requests", unanswered)?;
         } else {
             report.skip_field("unanswered_requests")?;
+        }
+        if let Some(capture) = &self.capture {
+            report.serialize_field("capture", capture)?;
+        } else {
+            report.skip_field("capture")?;
         }
         report.end()
     }
@@ -464,6 +483,7 @@ pub fn validate_revisions(
         unanswered_requests: reports
             .first()
             .and_then(|report| report.unanswered_requests.clone()),
+        capture: reports.first().and_then(|report| report.capture.clone()),
         summaries,
         requirements: rows,
     })

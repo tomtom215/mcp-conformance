@@ -17,10 +17,10 @@ use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, Transpor
 
 use super::Proxy;
 use super::body::{self, End, Held, cut_at_stop, idle_bounded, is_stall, read_prefix, then_rest};
-use super::target::{is_event_stream, is_refused_path, location, target};
+use super::target::{claims_json, is_event_stream, is_refused_path, location, target};
 use crate::framing::{Parsed, SseParser, parse_message};
 use crate::headers;
-use crate::recorder::{NotRecorded, Recorder};
+use crate::recorder::{Loss, NotRecorded, Recorder};
 use crate::traces::Route;
 
 /// Records `request`, forwards it upstream, and records and relays the
@@ -129,11 +129,11 @@ impl Proxy {
         let route = self.traces.route(session_id, whole);
         let (message, forward) = match prefix.end {
             End::Complete => (
-                self.message_of(&prefix.bytes),
+                self.message_of(&prefix.bytes, true),
                 Ok(body::whole(prefix.bytes, prefix.held)),
             ),
             End::Over | End::OverBudget => {
-                self.count_unread(&prefix.end);
+                self.count_unread(&prefix.end, route.recorder());
                 (None, Ok(then_rest(prefix.bytes, prefix.held, stream)))
             }
             End::Failed(error) if is_stall(&error) => (None, Err(Cut::Stalled)),
@@ -204,12 +204,15 @@ impl Proxy {
             let prefix = read_prefix(&mut stream, self.options.max_message, &self.budget).await;
             match prefix.end {
                 End::Complete => {
-                    let message = self.message_of(&prefix.bytes);
+                    // A body that is not JSON is a message when a 2xx said it
+                    // answered, or when it says it is JSON; an error page is not.
+                    let text = parts.status.is_success() || claims_json(&parts.headers);
+                    let message = self.message_of(&prefix.bytes, text);
                     self.record_together(recorder, Direction::ServerToClient, http, message);
                     body::whole(prefix.bytes, prefix.held)
                 }
                 End::Over | End::OverBudget => {
-                    self.count_unread(&prefix.end);
+                    self.count_unread(&prefix.end, recorder);
                     self.record_together(recorder, Direction::ServerToClient, http, None);
                     then_rest(prefix.bytes, prefix.held, stream)
                 }
@@ -286,9 +289,12 @@ impl Proxy {
         }
     }
 
-    /// The message a complete body carries: none for an empty one; for one that
-    /// is not JSON, or JSON the trace cannot hold as sent, none, counted.
-    fn message_of(&self, body: &[u8]) -> Option<EventBody> {
+    /// The message a complete body carries: none for an empty one. A body that
+    /// is not JSON, or JSON the trace cannot hold as sent, is the string it was
+    /// when `as_text`, as stdio records its lines — what crossed the wire,
+    /// for the validator to judge — and is counted for the summary. When not
+    /// (an error page, which makes no claim to be JSON-RPC) it is no message.
+    fn message_of(&self, body: &[u8], as_text: bool) -> Option<EventBody> {
         if body.is_empty() {
             return None;
         }
@@ -297,19 +303,26 @@ impl Proxy {
             Parsed::Altered => &self.counters.altered,
             Parsed::NotJson => &self.counters.not_json,
         };
+        if !as_text {
+            return None;
+        }
         count.fetch_add(1, Ordering::Relaxed);
-        None
+        Some(EventBody::Message {
+            payload: serde_json::Value::String(String::from_utf8_lossy(body).into_owned()),
+        })
     }
 
-    /// Counts a body streamed on unrecorded: over the message limit, or past
-    /// what was left of the buffer budget.
-    fn count_unread<E>(&self, end: &End<E>) {
-        let count = if matches!(end, End::OverBudget) {
-            &self.counters.over_budget
+    /// Counts a body streamed on unrecorded — over the message limit, or past
+    /// what was left of the buffer budget — for the summary and, as a trace
+    /// loss, for the trace of the session it belongs to.
+    fn count_unread<E>(&self, end: &End<E>, recorder: &Recorder) {
+        let (count, loss) = if matches!(end, End::OverBudget) {
+            (&self.counters.over_budget, Loss::OverBudget)
         } else {
-            &self.counters.oversized
+            (&self.counters.oversized, Loss::Oversized)
         };
         count.fetch_add(1, Ordering::Relaxed);
+        recorder.note_unrecorded(loss, 1);
     }
 
     /// Counts a message the recorder refused for its length — one whose bytes fit
@@ -344,7 +357,7 @@ impl Proxy {
             .inspect_err(move |error| on_error.upstream_cut(error_route.recorder(), error))
             .inspect_ok(move |chunk| {
                 for data in parser.push(chunk) {
-                    if let Some(message) = self.message_of(&data) {
+                    if let Some(message) = self.message_of(&data, true) {
                         self.count_refused(route.recorder().record(
                             Direction::ServerToClient,
                             TransportKind::StreamableHttp,
@@ -355,6 +368,7 @@ impl Proxy {
                 if !held.resize(&self.budget, parser.buffered()) {
                     parser.drop_event();
                     self.counters.over_budget.fetch_add(1, Ordering::Relaxed);
+                    route.recorder().note_unrecorded(Loss::OverBudget, 1);
                     held.resize(&self.budget, parser.buffered());
                 }
                 // The parser's counts only grow; add what this chunk contributed.
@@ -365,6 +379,12 @@ impl Proxy {
                 self.counters
                     .other_events
                     .fetch_add(other - other_seen, Ordering::Relaxed);
+                route
+                    .recorder()
+                    .note_unrecorded(Loss::Oversized, oversized - oversized_seen);
+                route
+                    .recorder()
+                    .note_unrecorded(Loss::OtherEvents, other - other_seen);
                 (oversized_seen, other_seen) = (oversized, other);
             })
     }

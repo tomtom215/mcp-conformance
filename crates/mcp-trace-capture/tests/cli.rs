@@ -601,9 +601,8 @@ fn http_mode_announces_its_upstream_and_reports_cut_and_non_json_bodies() {
         "{stderr:?}"
     );
     assert!(
-        stderr.iter().any(
-            |line| line.contains("1 session message(s) were not JSON and are not in the trace")
-        ),
+        stderr.iter().any(|line| line
+            .contains("1 session message(s) were not JSON; each is recorded as a string payload")),
         "{stderr:?}"
     );
     std::fs::remove_file(&trace).ok();

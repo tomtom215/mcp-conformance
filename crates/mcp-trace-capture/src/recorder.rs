@@ -15,12 +15,13 @@
 //! are dropped, and [`Recorder::finish`] reports the trace as incomplete so the
 //! binary can exit non-zero.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use mcp_conformance_core::trace::{
-    DEFAULT_MAX_LINE_BYTES, Direction, EventBody, LifecycleEvent, TraceEvent, TransportKind,
+    CaptureNote, DEFAULT_MAX_LINE_BYTES, Direction, EventBody, LifecycleEvent, TraceEvent,
+    TransportKind,
 };
 
 /// Appends trace events to a sink, one JSON object per line.
@@ -60,6 +61,39 @@ pub enum NotRecorded {
     Closed,
 }
 
+/// Something a session carried that the trace does not hold, as a recorder is
+/// told of it ([`Recorder::note_unrecorded`]) and reports it in the closing
+/// event's `capture` note ([`Recorder::close_with_note`]).
+///
+/// What the recorder refuses for length is counted by the recorder itself.
+/// What it is never handed — a body streamed past the message limit, an event
+/// there was no room to buffer — only the code that saw it can say.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub enum Loss {
+    /// A message over the message limit, or whose line would pass the line
+    /// limit once written: forwarded, not recorded.
+    Oversized,
+    /// A message that arrived when the proxy already held its buffer budget:
+    /// forwarded, not recorded.
+    OverBudget,
+    /// A server-sent event of a type other than `message`, which MCP clients
+    /// ignore and a trace has no way to hold: forwarded, not recorded.
+    OtherEvents,
+}
+
+impl Loss {
+    /// The name the trace's note counts it under — the proxy's own counter's.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Oversized => "oversized",
+            Self::OverBudget => "over_budget",
+            Self::OtherEvents => "other_events",
+        }
+    }
+}
+
 struct Inner {
     sessions: Sessions,
     next_seq: u64,
@@ -69,6 +103,25 @@ struct Inner {
     closed: bool,
     after_close: u64,
     messages: u64,
+    unrecorded: BTreeMap<Loss, u64>,
+}
+
+impl Inner {
+    /// Counts `count` more of `loss`.
+    fn lose(&mut self, loss: Loss, count: u64) {
+        let counted = self.unrecorded.entry(loss).or_default();
+        *counted = counted.saturating_add(count);
+    }
+
+    /// What the trace's closing event says: everything counted so far.
+    fn note(&self) -> CaptureNote {
+        CaptureNote::new(
+            self.unrecorded
+                .iter()
+                .map(|(loss, count)| (loss.name().to_owned(), *count))
+                .collect(),
+        )
+    }
 }
 
 impl std::fmt::Debug for Inner {
@@ -98,6 +151,10 @@ pub struct Summary {
     /// relayed after a request to stop closed the trace, or that a forced stop
     /// cut off. They crossed the wire but are not in the trace.
     pub after_close: u64,
+    /// What the session carried that is not in the trace, counted by kind: at
+    /// the close, what the closing event says (if it says), and whatever came
+    /// to light after it, which only this reports.
+    pub unrecorded: BTreeMap<Loss, u64>,
     /// The sessions the recorded traffic showed.
     pub sessions: Sessions,
 }
@@ -172,6 +229,7 @@ impl Recorder {
                 closed: false,
                 after_close: 0,
                 messages: 0,
+                unrecorded: BTreeMap::new(),
             }),
             max_line,
             observer: None,
@@ -200,7 +258,7 @@ impl Recorder {
         body: EventBody,
     ) -> Result<u64, NotRecorded> {
         let mut inner = self.lock();
-        self.write(&mut inner, direction, transport, body)
+        self.write(&mut inner, direction, transport, body, None)
     }
 
     /// Records several events as adjacent lines — no other event is written
@@ -213,7 +271,9 @@ impl Recorder {
         let mut inner = self.lock();
         events
             .into_iter()
-            .map(|(direction, transport, body)| self.write(&mut inner, direction, transport, body))
+            .map(|(direction, transport, body)| {
+                self.write(&mut inner, direction, transport, body, None)
+            })
             .collect()
     }
 
@@ -232,18 +292,59 @@ impl Recorder {
         transport: TransportKind,
         event: LifecycleEvent,
     ) -> Result<u64, NotRecorded> {
+        self.seal(direction, transport, event, false)
+    }
+
+    /// [`Recorder::close`], with the closing event carrying a `capture` note of
+    /// what the recorder has been told the trace leaves out
+    /// ([`Recorder::note_unrecorded`], and the lines it refused for length
+    /// itself): an empty note when nothing was, which says that the capture was
+    /// complete as of now. Only a caller that reports everything its trace
+    /// leaves out should use it; [`Recorder::close`] makes no such claim.
+    ///
+    /// # Errors
+    ///
+    /// As [`Recorder::record`].
+    pub fn close_with_note(
+        &self,
+        direction: Direction,
+        transport: TransportKind,
+        event: LifecycleEvent,
+    ) -> Result<u64, NotRecorded> {
+        self.seal(direction, transport, event, true)
+    }
+
+    fn seal(
+        &self,
+        direction: Direction,
+        transport: TransportKind,
+        event: LifecycleEvent,
+        noting: bool,
+    ) -> Result<u64, NotRecorded> {
         let mut inner = self.lock();
         if inner.closed {
             return Err(NotRecorded::Closed);
         }
+        let note = noting.then(|| inner.note());
         let written = self.write(
             &mut inner,
             direction,
             transport,
             EventBody::Lifecycle { event },
+            note,
         );
         inner.closed = true;
         written
+    }
+
+    /// Says that the session carried `count` more of `loss` than the trace
+    /// holds. Counted whether or not the trace is closed; what is counted
+    /// before the close is what the closing event says
+    /// ([`Recorder::close_with_note`]).
+    pub fn note_unrecorded(&self, loss: Loss, count: u64) {
+        if count > 0 {
+            self.lock().lose(loss, count);
+        }
     }
 
     /// Whether [`Recorder::close`] has been called.
@@ -263,6 +364,7 @@ impl Recorder {
         direction: Direction,
         transport: TransportKind,
         body: EventBody,
+        capture: Option<CaptureNote>,
     ) -> Result<u64, NotRecorded> {
         if inner.closed {
             inner.after_close += 1;
@@ -277,9 +379,11 @@ impl Recorder {
         }
         let seq = inner.next_seq;
         let message = matches!(body, EventBody::Message { .. });
-        let event = TraceEvent::new(seq, direction, transport, body);
+        let mut event = TraceEvent::new(seq, direction, transport, body);
+        event.capture = capture;
         let line = serde_json::to_vec(&event).map_err(io::Error::other);
         if line.as_ref().is_ok_and(|line| line.len() > self.max_line) {
+            inner.lose(Loss::Oversized, 1);
             return Err(NotRecorded::TooLong);
         }
         match line.and_then(|mut line| write_line(&mut inner.sink, &mut line).map(|()| line)) {
@@ -318,6 +422,7 @@ impl Recorder {
             dropped: inner.dropped,
             error: inner.failed.take(),
             after_close: inner.after_close,
+            unrecorded: inner.unrecorded.clone(),
             sessions: inner.sessions.clone(),
         }
     }

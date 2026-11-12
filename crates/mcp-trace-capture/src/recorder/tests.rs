@@ -349,3 +349,141 @@ fn a_failed_write_is_not_shown_to_the_observer() {
     );
     assert!(seen.0.lock().unwrap().is_empty());
 }
+
+/// The trace's lines, parsed.
+fn lines_of(sink: &Shared) -> Vec<serde_json::Value> {
+    let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
+    text.lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect()
+}
+
+fn ping() -> EventBody {
+    EventBody::Message {
+        payload: serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+    }
+}
+
+fn close_noting(recorder: &Recorder) -> Result<u64, NotRecorded> {
+    recorder.close_with_note(
+        Direction::ServerToClient,
+        TransportKind::Stdio,
+        LifecycleEvent::TransportClose,
+    )
+}
+
+#[test]
+fn the_closing_event_says_what_the_recorder_was_told_it_left_out() {
+    let sink = Shared::default();
+    let recorder = Recorder::new(sink.clone());
+    recorder
+        .record(Direction::ClientToServer, TransportKind::Stdio, ping())
+        .unwrap();
+    recorder.note_unrecorded(Loss::Oversized, 2);
+    recorder.note_unrecorded(Loss::OverBudget, 1);
+    recorder.note_unrecorded(Loss::Oversized, 1);
+    assert_eq!(close_noting(&recorder), Ok(1));
+    let lines = lines_of(&sink);
+    assert_eq!(
+        lines[1],
+        serde_json::json!({
+            "seq": 1, "direction": "server-to-client", "transport": "stdio",
+            "kind": "lifecycle", "event": "transport-close",
+            "capture": {"unrecorded": {"over_budget": 1, "oversized": 3}}
+        })
+    );
+    assert!(
+        lines[0].get("capture").is_none(),
+        "only the closing event carries it"
+    );
+}
+
+#[test]
+fn a_recorder_told_nothing_was_left_out_says_so() {
+    // `{}` is a statement (nothing was left out); no member would be silence.
+    let sink = Shared::default();
+    let recorder = Recorder::new(sink.clone());
+    recorder
+        .record(Direction::ClientToServer, TransportKind::Stdio, ping())
+        .unwrap();
+    close_noting(&recorder).unwrap();
+    assert_eq!(
+        lines_of(&sink)[1]["capture"],
+        serde_json::json!({"unrecorded": {}})
+    );
+}
+
+#[test]
+fn a_plain_close_makes_no_claim_about_completeness() {
+    // `close` is every caller's that was never told to report what it left
+    // out; writing `{}` for them would assert a completeness nobody checked.
+    let sink = Shared::default();
+    let recorder = Recorder::new(sink.clone());
+    recorder.note_unrecorded(Loss::Oversized, 5);
+    recorder
+        .close(
+            Direction::ServerToClient,
+            TransportKind::Stdio,
+            LifecycleEvent::TransportClose,
+        )
+        .unwrap();
+    assert!(lines_of(&sink)[0].get("capture").is_none());
+}
+
+#[test]
+fn a_line_the_recorder_refuses_for_length_is_counted_as_oversized_by_the_recorder() {
+    let sink = Shared::default();
+    let recorder = Recorder::with_max_line(sink.clone(), 200);
+    let big = EventBody::Message {
+        payload: serde_json::Value::String("x".repeat(300)),
+    };
+    assert_eq!(
+        recorder.record(Direction::ClientToServer, TransportKind::Stdio, big),
+        Err(NotRecorded::TooLong)
+    );
+    assert_eq!(
+        recorder.record(Direction::ClientToServer, TransportKind::Stdio, ping()),
+        Ok(0)
+    );
+    close_noting(&recorder).unwrap();
+    assert_eq!(
+        lines_of(&sink)[1]["capture"]["unrecorded"],
+        serde_json::json!({"oversized": 1})
+    );
+}
+
+#[test]
+fn what_is_left_out_after_the_close_is_in_the_summary_and_not_in_the_note() {
+    let sink = Shared::default();
+    let recorder = Recorder::new(sink.clone());
+    recorder
+        .record(Direction::ClientToServer, TransportKind::Stdio, ping())
+        .unwrap();
+    recorder.note_unrecorded(Loss::OtherEvents, 1);
+    close_noting(&recorder).unwrap();
+    recorder.note_unrecorded(Loss::OtherEvents, 2);
+    recorder.note_unrecorded(Loss::Oversized, 4);
+    assert_eq!(
+        lines_of(&sink)[1]["capture"]["unrecorded"],
+        serde_json::json!({"other_events": 1}),
+        "the close is the last event and says what had happened by then"
+    );
+    let summary = recorder.finish();
+    assert_eq!(summary.unrecorded.get(&Loss::OtherEvents).copied(), Some(3));
+    assert_eq!(summary.unrecorded.get(&Loss::Oversized).copied(), Some(4));
+    assert!(!summary.unrecorded.contains_key(&Loss::OverBudget));
+}
+
+#[test]
+fn a_loss_counted_at_zero_is_not_a_loss() {
+    let recorder = Recorder::new(Shared::default());
+    recorder.note_unrecorded(Loss::Oversized, 0);
+    assert!(recorder.finish().unrecorded.is_empty());
+}
+
+#[test]
+fn the_names_a_trace_carries_are_the_counters_names() {
+    assert_eq!(Loss::Oversized.name(), "oversized");
+    assert_eq!(Loss::OverBudget.name(), "over_budget");
+    assert_eq!(Loss::OtherEvents.name(), "other_events");
+}

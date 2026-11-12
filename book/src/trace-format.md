@@ -19,6 +19,16 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
   failed or was torn down abnormally — an unreachable upstream, a response cut off, a
   forced stop).
 
+A recorder may say, on the closing `lifecycle` event, what its trace leaves out: an
+optional `capture` member holding an `unrecorded` object that counts, by the
+recorder's own kind names, what the session carried that the trace does not hold
+(`mcp-trace-capture` writes `oversized`, `over_budget` and `other_events`).
+`"capture":{"unrecorded":{}}` says nothing was left out when the recorder closed the
+trace; no member says nothing either way. It is the recorder's own statement and
+nothing authenticates it, and no verdict depends on it: the validator reports it as a
+note, and `validate --require-complete-capture` is the opt-in way to fail a trace
+that does not say it is complete.
+
 The format is published as a JSON Schema (draft 2020-12),
 [`trace-event.schema.json`](https://github.com/tomtom215/mcp-conformance/blob/main/crates/mcp-conformance-core/schema/trace-event.schema.json),
 for recorders written in any language. It states every rule the validator's

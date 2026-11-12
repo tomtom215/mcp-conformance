@@ -24,6 +24,10 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
+mod capture;
+
+pub use capture::CaptureNote;
+
 /// Deserializes an HTTP-headers map with field names normalized to lowercase.
 ///
 /// HTTP field names are case-insensitive (RFC 9110 §5.1); the checks compare
@@ -170,6 +174,11 @@ pub struct TraceEvent {
     /// Optional informational timestamp (RFC 3339). Never consulted by checks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ts: Option<String>,
+    /// What the recorder says it left out, on the closing lifecycle event of a
+    /// trace whose recorder says so ([`CaptureNote`]). Never consulted by the
+    /// verdict.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capture: Option<CaptureNote>,
 }
 
 impl TraceEvent {
@@ -189,6 +198,7 @@ impl TraceEvent {
             transport,
             body,
             ts: None,
+            capture: None,
         }
     }
 
@@ -362,6 +372,7 @@ mod tests {
                 headers: BTreeMap::new(),
             },
             ts: None,
+            capture: None,
         };
         let serialized = serde_json::to_string(&event).unwrap();
         assert!(!serialized.contains("headers"), "{serialized}");

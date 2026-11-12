@@ -152,6 +152,7 @@ fn trace_body(out: &mut String, scope: &Scope<'_>) {
     summary::verdict(out, scope);
     summary::mismatch_notes(out, scope);
     summary::unanswered_note(out, scope);
+    summary::capture_note(out, scope);
     summary::contents(out, scope);
     clauses::attention(out, scope);
     extensions::write(out, scope);

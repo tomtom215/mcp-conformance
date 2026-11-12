@@ -4,7 +4,7 @@
 #![allow(clippy::unwrap_used)]
 
 use super::body::{End, idle_bounded, is_stall, read_prefix};
-use super::target::{is_event_stream, is_refused_path, location, target};
+use super::target::{claims_json, is_event_stream, is_refused_path, location, target};
 use super::*;
 use axum::body::Bytes;
 use axum::http::uri::PathAndQuery;
@@ -217,6 +217,24 @@ fn event_streams_are_recognised_with_parameters_and_any_case() {
     assert!(is_event_stream(&with("Text/Event-Stream; charset=utf-8")));
     assert!(!is_event_stream(&with("application/json")));
     assert!(!is_event_stream(&HeaderMap::new()));
+}
+
+#[test]
+fn a_body_claims_to_be_json_by_its_media_type_alone() {
+    let claims = |value: &str| {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, value.parse().unwrap());
+        claims_json(&headers)
+    };
+    assert!(claims("application/json"));
+    assert!(claims("Application/JSON; charset=utf-8"));
+    assert!(claims("application/problem+json"));
+    assert!(claims("application/vnd.api+JSON; v=1"));
+    assert!(!claims("text/html"));
+    assert!(!claims("text/event-stream"));
+    assert!(!claims("application/jsonx"));
+    assert!(!claims("text/plain; charset=json"));
+    assert!(!claims_json(&HeaderMap::new()));
 }
 
 #[test]

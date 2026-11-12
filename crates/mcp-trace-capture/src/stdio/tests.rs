@@ -15,14 +15,14 @@ use crate::recorder::Recorder;
 /// Runs a test body with a deadline, so a regression that stops data flowing fails
 /// the test instead of hanging it (mutation testing counts a hang as a timeout,
 /// which fails CI without saying why).
-async fn bounded(body: impl std::future::Future<Output = ()>) {
+pub(super) async fn bounded(body: impl std::future::Future<Output = ()>) {
     tokio::time::timeout(std::time::Duration::from_secs(20), body)
         .await
         .expect("the test finished within 20 s");
 }
 
 #[derive(Clone, Default)]
-struct Shared(Arc<Mutex<Vec<u8>>>);
+pub(super) struct Shared(pub(super) Arc<Mutex<Vec<u8>>>);
 
 impl Write for Shared {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
@@ -34,7 +34,7 @@ impl Write for Shared {
     }
 }
 
-fn events(sink: &Shared) -> Vec<TraceEvent> {
+pub(super) fn events(sink: &Shared) -> Vec<TraceEvent> {
     String::from_utf8(sink.0.lock().unwrap().clone())
         .unwrap()
         .lines()

@@ -27,6 +27,21 @@
     "ts": {
       "description": "Informational timestamp (RFC 3339). No check reads it.",
       "type": ["string", "null"]
+    },
+    "capture": {
+      "description": "What the recorder says it left out of the trace, as of the moment it closed it. Written by a recorder that reports it, on the closing lifecycle event (`kind` `lifecycle`) only; read from a lifecycle event only. The recorder's own statement, which nothing authenticates, and no verdict depends on it. A trace without one says nothing about what was left out.",
+      "type": ["object", "null"],
+      "properties": {
+        "unrecorded": {
+          "description": "What the session carried that is not in the trace, counted by kind. The kinds are the recorder's own names (`mcp-trace-capture` writes `oversized`, `over_budget` and `other_events`); a reader must accept a kind it does not know. A kind that did not occur is left out, so an empty object reports that nothing was.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          }
+        }
+      }
     }
   },
   "allOf": [

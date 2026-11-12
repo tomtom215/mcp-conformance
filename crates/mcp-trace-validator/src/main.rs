@@ -9,7 +9,7 @@
 //! |------|---------|
 //! | 0    | Validation ran; no MUST-level violations (warnings allowed unless `--strict`) |
 //! | 1    | MUST-level violations — or SHOULD-level ones under `--strict`, which says so on stderr |
-//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes), a trace that judges nothing, or output not written |
+//! | 2    | Invocation, registry, or check-inventory problem (including `unsupported` outcomes), a trace that judges nothing, output not written, or — with `--require-complete-capture` — a trace whose recorder does not say it left nothing out |
 //! | 3    | The trace document itself was malformed |
 
 use std::fs;
@@ -50,7 +50,8 @@ enum Command {
     /// several judges the trace under each, clause by clause.
     #[command(
         after_help = "Exit status: 0 pass (warnings pass unless --strict), 1 a clause \
-        failed, 2 bad invocation or nothing judgeable or output not written, 3 malformed trace."
+        failed, 2 bad invocation or nothing judgeable or output not written (or, with \
+        --require-complete-capture, a capture not known complete), 3 malformed trace."
     )]
     Validate {
         /// Paths to the trace documents (one or more), or `-` for stdin alone.
@@ -73,6 +74,14 @@ enum Command {
         /// suite's client tested.
         #[arg(long, value_enum, value_name = "PARTY")]
         party: Option<PartyArg>,
+        /// Exit 2 for any trace whose recorder does not say, in the `capture`
+        /// note on its closing event, that it left nothing out: a trace with no
+        /// note (hand-written, from a recorder that writes none, or cut off
+        /// before its close) fails it as one that reports a loss does. The
+        /// report is written and its verdict unchanged; only the exit status
+        /// says the capture could not be relied on.
+        #[arg(long)]
+        require_complete_capture: bool,
         /// Human output: list every clause with its outcome, every finding,
         /// and the reason for each exclusion. By default only failing, warning
         /// and unsupported clauses are listed, each with its first 20 findings
@@ -173,6 +182,7 @@ fn main() -> ExitCode {
             format,
             strict,
             party,
+            require_complete_capture,
             all,
             quiet: _,
             registry,
@@ -188,6 +198,7 @@ fn main() -> ExitCode {
                 strict,
                 all,
                 party: party.map(PartyArg::party),
+                require_complete_capture,
             },
             &validate::Sources {
                 registry: registry.as_deref(),

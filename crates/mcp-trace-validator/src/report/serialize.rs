@@ -16,7 +16,7 @@ use super::{ExtensionReport, Report};
 
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut report = serializer.serialize_struct("Report", 10)?;
+        let mut report = serializer.serialize_struct("Report", 11)?;
         report.serialize_field("revision", &self.revision)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -47,6 +47,11 @@ impl Serialize for Report {
             report.serialize_field("unanswered_requests", unanswered)?;
         } else {
             report.skip_field("unanswered_requests")?;
+        }
+        if let Some(capture) = &self.capture {
+            report.serialize_field("capture", capture)?;
+        } else {
+            report.skip_field("capture")?;
         }
         if self.extensions.is_empty() {
             report.skip_field("extensions")?;

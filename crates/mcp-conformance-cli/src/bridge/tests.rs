@@ -295,15 +295,12 @@ async fn a_server_ignoring_end_of_input_is_stopped() {
         );
         let trace = std::fs::read_to_string(dir.join("001.jsonl")).unwrap();
         assert!(trace.lines().count() >= 3, "{trace}");
-        // Stopping waited for the relay, which closed the trace.
-        assert!(
-            trace
-                .lines()
-                .last()
-                .unwrap()
-                .ends_with(r#""kind":"lifecycle","event":"transport-close"}"#),
-            "{trace}"
-        );
+        // Stopping waited for the relay, which closed the trace — with the note
+        // that says nothing was left out.
+        let last: serde_json::Value = serde_json::from_str(trace.lines().last().unwrap()).unwrap();
+        assert_eq!(last["kind"], "lifecycle", "{trace}");
+        assert_eq!(last["event"], "transport-close", "{trace}");
+        assert_eq!(last["capture"], serde_json::json!({"unrecorded": {}}), "{trace}");
         std::fs::remove_dir_all(&dir).ok();
     })
     .await;

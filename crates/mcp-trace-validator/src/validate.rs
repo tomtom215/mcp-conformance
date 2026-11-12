@@ -52,6 +52,9 @@ pub(crate) struct Output {
     /// Only this party's findings (and findings held against nobody) count
     /// toward the verdict and the exit status (`--party`).
     pub(crate) party: Option<Party>,
+    /// A trace whose recorder does not say it left nothing out fails the run
+    /// (`--require-complete-capture`).
+    pub(crate) require_complete_capture: bool,
 }
 
 /// Where the registries come from, resolved once for every trace in the run.
@@ -150,7 +153,37 @@ pub(crate) fn run(
     } else {
         return code; // The one trace could not be judged; its error is printed.
     };
-    rendered.map_or(EXIT_USAGE, |rendered| code.max(rendered))
+    // Judged and rendered either way: the report is the trace's, and only the
+    // exit status says the capture could not be relied on.
+    let unreliable = output.require_complete_capture && incomplete_captures(&judged, many);
+    rendered.map_or(EXIT_USAGE, |rendered| {
+        code.max(rendered)
+            .max(if unreliable { EXIT_USAGE } else { EXIT_OK })
+    })
+}
+
+/// Says on stderr, for each judged trace, why its capture is not known to be
+/// complete (`--require-complete-capture`); whether any was not.
+fn incomplete_captures(judged: &[Judged], many: bool) -> bool {
+    let mut incomplete = false;
+    for one in judged {
+        let why = match one.reports[0].capture.as_ref() {
+            None => "the trace carries no capture note, so nothing says what its recorder \
+                     left out (mcp-trace-capture writes one on the closing event; a \
+                     hand-written trace, or one from a recorder that writes none, has none)"
+                .to_owned(),
+            Some(note) if note.is_complete() => continue,
+            Some(note) => mcp_trace_validator::report::capture::one_line(note),
+        };
+        incomplete = true;
+        let name = if many {
+            format!("{}: ", one.trace)
+        } else {
+            String::new()
+        };
+        eprintln!("error: {name}--require-complete-capture: {why}");
+    }
+    incomplete
 }
 
 fn resolve(sources: &Sources<'_>) -> Result<Registries, String> {

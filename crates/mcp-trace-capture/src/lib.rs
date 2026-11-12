@@ -30,7 +30,7 @@ pub mod signals;
 pub mod stdio;
 pub mod traces;
 
-pub use recorder::{NotRecorded, Observer, Recorder, Summary};
+pub use recorder::{Loss, NotRecorded, Observer, Recorder, Summary};
 pub use signals::{SERVER_STOP_GRACE, STOP_GRACE, Signals, Stop, StopRequests};
 
 /// A future that resolves at the first request to stop: SIGINT, SIGTERM, SIGHUP

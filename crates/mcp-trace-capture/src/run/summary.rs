@@ -7,6 +7,7 @@
 use std::net::SocketAddr;
 
 use super::{EXIT_USAGE, HostHeader};
+use crate::output::EXIT_INCOMPLETE;
 use crate::{http, stdio};
 
 /// The upstream as announced: without its query, which can carry credentials.
@@ -44,16 +45,19 @@ pub(super) fn http_summary(
     served: std::io::Result<http::Unrecorded>,
     bound: SocketAddr,
     upstream: &axum::http::Uri,
+    fail_on_unrecorded: bool,
 ) -> i32 {
     match served {
         Ok(unrecorded) => {
-            let unrecorded_lines =
-                unrecorded_lines("session", unrecorded.not_json, unrecorded.oversized);
-            for line in unrecorded_lines.into_iter().chain(http_gaps(&unrecorded)) {
+            let lines = http_text_lines(&unrecorded)
+                .into_iter()
+                .chain(unrecorded_lines("session", unrecorded.oversized))
+                .chain(http_gaps(&unrecorded));
+            for line in lines {
                 eprintln!("mcp-trace-capture: {line}");
             }
             report_statuses(unrecorded, bound, upstream);
-            0
+            refused_requests_code(&unrecorded, fail_on_unrecorded)
         }
         Err(error) => {
             eprintln!("mcp-trace-capture: {error}");
@@ -62,19 +66,22 @@ pub(super) fn http_summary(
     }
 }
 
+/// What the proxy recorded as the text it was, one line per kind that
+/// occurred: a body that is not JSON, and JSON the trace cannot hold as sent.
+fn http_text_lines(unrecorded: &http::Unrecorded) -> Vec<String> {
+    text_lines(
+        "session message(s)",
+        unrecorded.not_json,
+        unrecorded.altered,
+    )
+}
+
 /// What the proxy forwarded but did not record, or answered itself, one line
-/// per kind that occurred: the messages the trace cannot hold, those past the
-/// buffer budget, SSE events of another type, and the requests the upstream
-/// never answered in full or never saw.
+/// per kind that occurred: the messages past the buffer budget, SSE events of
+/// another type, and the requests the upstream never answered in full or never
+/// saw.
 fn http_gaps(unrecorded: &http::Unrecorded) -> Vec<String> {
     let mut lines = Vec::new();
-    if unrecorded.altered > 0 {
-        lines.push(format!(
-            "{} session message(s) were JSON the trace cannot hold as sent ({ALTERED}) and are \
-             not in the trace (forwarded unchanged)",
-            unrecorded.altered
-        ));
-    }
     if unrecorded.over_budget > 0 {
         lines.push(format!(
             "{} session message(s) arrived while the proxy already held its buffer budget \
@@ -128,6 +135,21 @@ fn http_gaps(unrecorded: &http::Unrecorded) -> Vec<String> {
     lines
 }
 
+/// The exit code for what the proxy refused on its own: [`EXIT_INCOMPLETE`] with
+/// `--fail-on-unrecorded`, since those requests are in no session's trace (no
+/// server ever saw them), else 0.
+fn refused_requests_code(unrecorded: &http::Unrecorded, fail_on_unrecorded: bool) -> i32 {
+    let refused = unrecorded.refused_paths + unrecorded.refused_connects;
+    if fail_on_unrecorded && refused > 0 {
+        eprintln!(
+            "mcp-trace-capture: --fail-on-unrecorded: {refused} request(s) were refused by the \
+             proxy and are in no trace"
+        );
+        return EXIT_INCOMPLETE;
+    }
+    0
+}
+
 /// Says how many responses were not 2xx, and asks about the path when the
 /// server answered 404: a client pointed at the wrong path gets 404s, recorded
 /// faithfully and otherwise unremarked.
@@ -153,21 +175,11 @@ fn report_statuses(unrecorded: http::Unrecorded, bound: SocketAddr, upstream: &a
 /// they are reported as findings to look for rather than as gaps in it. One
 /// line per kind that occurred.
 pub(super) fn stdio_lines(side: &str, unrecorded: stdio::Unrecorded) -> Vec<String> {
-    let mut lines = Vec::new();
-    if unrecorded.not_json > 0 {
-        lines.push(format!(
-            "{} {side} line(s) were not JSON; each is recorded as a string payload, which the \
-             validator reports as not a valid MCP message",
-            unrecorded.not_json
-        ));
-    }
-    if unrecorded.altered > 0 {
-        lines.push(format!(
-            "{} {side} line(s) were JSON the trace cannot hold as sent ({ALTERED}); each is \
-             recorded as a string payload, which the validator reports as not a valid MCP message",
-            unrecorded.altered
-        ));
-    }
+    let mut lines = text_lines(
+        &format!("{side} line(s)"),
+        unrecorded.not_json,
+        unrecorded.altered,
+    );
     if unrecorded.unterminated > 0 {
         lines.push(format!(
             "the {side}'s output ended mid-line, without the newline that frames a stdio \
@@ -175,7 +187,27 @@ pub(super) fn stdio_lines(side: &str, unrecorded: stdio::Unrecorded) -> Vec<Stri
              reports as not a valid MCP message"
         ));
     }
-    lines.extend(unrecorded_lines(side, 0, unrecorded.oversized));
+    lines.extend(unrecorded_lines(side, unrecorded.oversized));
+    lines
+}
+
+/// What was recorded as the text it was, which the validator then judges as
+/// what it is: one line per kind that occurred. `subject` names what the counts
+/// are of (`client line(s)`, `session message(s)`).
+fn text_lines(subject: &str, not_json: u64, altered: u64) -> Vec<String> {
+    let mut lines = Vec::new();
+    if not_json > 0 {
+        lines.push(format!(
+            "{not_json} {subject} were not JSON; each is recorded as a string payload, which \
+             the validator reports as not a valid MCP message"
+        ));
+    }
+    if altered > 0 {
+        lines.push(format!(
+            "{altered} {subject} were JSON the trace cannot hold as sent ({ALTERED}); each is \
+             recorded as a string payload, which the validator reports as not a valid MCP message"
+        ));
+    }
     lines
 }
 
@@ -183,16 +215,9 @@ pub(super) fn stdio_lines(side: &str, unrecorded: stdio::Unrecorded) -> Vec<Stri
 const ALTERED: &str = "a number a double cannot hold exactly, such as an integer past 64 bits, or a repeated \
      member name";
 
-/// Messages forwarded but left out of the trace: not JSON, or over the size
-/// limit; one line per kind that occurred.
-fn unrecorded_lines(side: &str, not_json: u64, oversized: u64) -> Vec<String> {
+/// Messages forwarded but left out of the trace for their size.
+fn unrecorded_lines(side: &str, oversized: u64) -> Vec<String> {
     let mut lines = Vec::new();
-    if not_json > 0 {
-        lines.push(format!(
-            "{not_json} {side} message(s) were not JSON and are not in the trace (forwarded \
-             unchanged)"
-        ));
-    }
     if oversized > 0 {
         lines.push(format!(
             "{oversized} {side} message(s) were over the size limit (--max-message-bytes) and \
@@ -267,10 +292,6 @@ mod tests {
         let none = http::Unrecorded::default();
         for (unrecorded, start) in [
             (
-                http::Unrecorded { altered: 2, ..none },
-                "2 session message(s) were JSON the trace cannot hold",
-            ),
-            (
                 http::Unrecorded {
                     over_budget: 2,
                     ..none
@@ -327,6 +348,7 @@ mod tests {
         // Counts that are recorded elsewhere name no gap here.
         let reported_elsewhere = http::Unrecorded {
             not_json: 1,
+            altered: 1,
             oversized: 1,
             not_2xx: 1,
             not_found: 1,
@@ -336,17 +358,43 @@ mod tests {
     }
 
     #[test]
-    fn messages_left_out_are_counted_by_kind() {
+    fn messages_left_out_are_counted() {
         assert_eq!(
-            unrecorded_lines("session", 3, 4),
+            unrecorded_lines("session", 4),
             [
-                "3 session message(s) were not JSON and are not in the trace (forwarded \
-                 unchanged)",
                 "4 session message(s) were over the size limit (--max-message-bytes) and are \
                  not in the trace (forwarded unchanged)",
             ]
         );
-        assert_eq!(unrecorded_lines("session", 0, 0), Vec::<String>::new());
+        assert_eq!(unrecorded_lines("session", 0), Vec::<String>::new());
+    }
+
+    /// What the proxy records as the text it was — a body that is not JSON, or
+    /// JSON the trace cannot hold as sent — is said to be in the trace, as
+    /// stdio says it of its lines: a finding to look for, not a gap.
+    #[test]
+    fn what_the_proxy_records_as_text_is_said_to_be_in_the_trace() {
+        let none = http::Unrecorded::default();
+        assert_eq!(http_text_lines(&none), Vec::<String>::new());
+        let lines = http_text_lines(&http::Unrecorded {
+            not_json: 3,
+            altered: 2,
+            ..none
+        });
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(
+            lines[0]
+                .starts_with("3 session message(s) were not JSON; each is recorded as a string"),
+            "{lines:?}"
+        );
+        assert!(
+            lines[1].starts_with("2 session message(s) were JSON the trace cannot hold as sent")
+                && lines[1].contains("each is recorded as a string payload"),
+            "{lines:?}"
+        );
+        for line in &lines {
+            assert!(!line.contains("not in the trace"), "{line}");
+        }
     }
 
     #[test]

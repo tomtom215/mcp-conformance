@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! What the proxy leaves out of the trace rather than record wrongly: JSON
-//! whose parsed value would not say what was sent, and SSE events no MCP client
-//! reads as messages. Each is forwarded unchanged and counted.
+//! What the proxy does rather than record wrongly: JSON whose parsed value
+//! would not say what was sent is recorded as the text that was sent, as stdio
+//! records its lines, and SSE events no MCP client reads as messages are left
+//! out. Each is forwarded unchanged and counted.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -85,7 +86,7 @@ async fn post(url: String) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn altered_json_and_typed_events_are_forwarded_and_counted_not_recorded() {
+async fn altered_json_is_recorded_as_sent_and_typed_events_are_counted_not_recorded() {
     bounded(async {
         let upstream_address = upstream().await;
         let sink = Shared::default();
@@ -107,6 +108,8 @@ async fn altered_json_and_typed_events_are_forwarded_and_counted_not_recorded() 
         let unrecorded = serving.await.unwrap().unwrap();
         assert_eq!((unrecorded.altered, unrecorded.other_events), (2, 1));
         assert_eq!((unrecorded.not_json, unrecorded.oversized), (0, 0));
+        let big =
+            r#"{"jsonrpc":"2.0","method":"big","params":{"n":123456789012345678901234567890}}"#;
 
         let text = String::from_utf8(sink.0.lock().unwrap().clone()).unwrap();
         let payloads: Vec<serde_json::Value> = text
@@ -117,8 +120,19 @@ async fn altered_json_and_typed_events_are_forwarded_and_counted_not_recorded() 
             .collect();
         assert_eq!(
             payloads,
-            [serde_json::json!({"jsonrpc": "2.0", "id": 1, "result": {}})],
+            [
+                serde_json::Value::String(big.to_owned()),
+                serde_json::json!({"jsonrpc": "2.0", "id": 1, "result": {}}),
+                serde_json::Value::String(ALTERED_BODY.to_owned()),
+            ],
             "{text}"
+        );
+        // What was recorded as text is not left out; the typed event is.
+        let closing: serde_json::Value =
+            serde_json::from_str(text.lines().last().unwrap()).unwrap();
+        assert_eq!(
+            closing["capture"],
+            serde_json::json!({"unrecorded": {"other_events": 1}})
         );
     })
     .await;

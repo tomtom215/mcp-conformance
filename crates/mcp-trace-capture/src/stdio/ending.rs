@@ -101,7 +101,7 @@ pub(super) async fn wait_for_end(
 /// `SIGTERM`), and an event written later might never be written. What the
 /// session carries after it is still relayed, and counted as not recorded.
 fn begin_stop(process: &mut ServerProcess, recorder: &Recorder, stop: Stop) -> Instant {
-    let _ = recorder.close(
+    let _ = recorder.close_with_note(
         Direction::ClientToServer,
         TransportKind::Stdio,
         LifecycleEvent::TransportClose,

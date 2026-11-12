@@ -22,7 +22,8 @@ Exit status:
   http   0 after a stop; 128 + signal when a second signal cut the stop short;
          2 if serving failed
   2      bad arguments, or a run that could not start (no trace file is created)
-  3      a trace is incomplete (a write failed), in place of a 0";
+  3      a trace is incomplete (a write failed), or, with --fail-on-unrecorded, holds
+         less than the session carried, in place of a 0";
 
 /// Record a Model Context Protocol session as a trace for `mcp-trace-validator`.
 #[derive(Debug, Parser)]
@@ -48,6 +49,12 @@ pub(crate) struct Cli {
     /// The largest message recorded, in bytes; larger ones are forwarded unrecorded.
     #[arg(long, value_name = "BYTES", default_value_t = DEFAULT_MAX_MESSAGE, global = true)]
     pub(crate) max_message_bytes: usize,
+    /// Exit 3 in place of 0 when the session carried anything the trace does not
+    /// hold: a message over the limit, one past the buffer budget, an event of
+    /// another type, or a request the proxy refused. Every trace says so in its
+    /// closing event either way; this makes the exit status say it too.
+    #[arg(long, global = true)]
+    pub(crate) fail_on_unrecorded: bool,
     #[command(subcommand)]
     pub(crate) mode: Mode,
 }

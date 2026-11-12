@@ -67,6 +67,11 @@ below is stated again in its entry, with the reasoning.
 | `validate --party` | New: `--party client\|server` counts only that party's findings (and those held against nobody, which the verdict line says it counted) toward the verdict and exit status | None; without it the verdict and exit status are unchanged |
 | Rust API | `report::{Party, PartyTally, TraceEnding, UnansweredRequest, UnansweredRequests}` are new; `Report` gains `party_view` and `unanswered_requests`, `RequirementReport` gains `actor`, `Finding` gains `party` (a report written before them still deserialises, with `None`); `declared::Selection` gains `proposed`, `UnjudgeableRevisions` gains `negotiated` and `proposed` (each is `#[non_exhaustive]`) | None for callers that read; construct through the crate's functions |
 | `2025-11-25` verdict, new rows | `PING-001`, `PROG-009`–`PROG-011`, `PROG-013`–`PROG-016`, `PROG-019` and `CANC-018`–`CANC-020` are judged, in both directions: a ping answered with content or with an error (unless the error rode an HTTP error status, which is the transport refusing the request, as the `400` an unsupported `MCP-Protocol-Version` requires), a progress token that is not a string or integer, shared by two unanswered requests of one party, or never issued in the session, progress that does not strictly increase or continues after completion (`PROG-019` on stdio only) or after a task's terminal status, a task whose progress token changes, a cancellation naming a request its sender never issued, a cancelled `initialize`, and a task cancelled by notification now fail; `CANC-021` warns (stdio only) on an answer to a cancelled request once the receiver demonstrably read the cancellation | Stop doing those; re-baseline totals (every `2025-11-25` report gains 27 rows: 13 for judged clauses, 14 excluded) |
+| Verdict, now failing | Over HTTP, a request body, a `2xx` response body or an SSE `message` event that is not JSON, or is JSON the trace cannot hold as sent, is recorded as the text that was sent, as stdio has always recorded its lines, and the validator judges it (`BASE-008` at 2025-11-25, `BASE-042` at 2026-07-28); an error response's body is recorded that way only when its `Content-Type` is JSON. 0.6.0 left such a body out of the trace, and a session with a truncated `200` body read `pass` | Fix the sender; or, to see what the trace used to hold, remove the string-payload message events |
+| Trace format | An optional `capture` member on any event, written by `mcp-trace-capture` on the closing lifecycle event: what the trace leaves out, counted by kind (`CaptureNote`). A trace without it is read as before; an older validator ignores it (the schema is open) | Accept the member; a wrong shape is a malformed trace (exit 3) |
+| JSON report, text, HTML, JUnit, SARIF | A report gains `capture` when the trace carries a note, and the text, HTML, JUnit and SARIF reports show a note that reports a loss (`capture-unrecorded`); a note, never a verdict | Accept the member (adding one is not breaking, STABILITY.md) |
+| `validate --require-complete-capture`, `mcp-trace-capture --fail-on-unrecorded` | New and opt-in: the first exits `2` for a trace whose recorder does not say it left nothing out (no note, or a note that reports a loss); the second exits `3` in place of `0` for a run whose trace leaves out anything the session carried, or from which the proxy refused a request. Default exit codes are unchanged | None; use them where a `pass` on an incomplete capture must not be read |
+| Rust API | `mcp_conformance_core::trace::CaptureNote` and `TraceEvent::capture` (additive: `TraceEvent` is `#[non_exhaustive]`); `Recorder::{close_with_note, note_unrecorded}`, `Loss`, `Summary::unrecorded`, `Recording::fail_on_unrecorded`, `output::{finish_with, finish_traces_with}`, `report::capture`; `Report` and `MultiReport` gain `capture` | None for callers that read |
 
 ### Removed
 
@@ -444,9 +449,25 @@ below is stated again in its entry, with the reasoning.
   of `12345678901234567890123`) was recorded as the nearest double, then convicted
   as a non-integer id (`BASE-043`), and a member name repeated in one object kept
   only its last value. No parsed payload can be faithful to such a message, so it is
-  treated as non-JSON — recorded as the line over stdio, left out over HTTP — and
-  counted in the summary. A spelling (`1E2` for `100`) is not a change of value and
+  treated as non-JSON — recorded as the line, over stdio and (since the 2026-11-11
+  audit's A02) over HTTP — and counted in the summary. A spelling (`1E2` for `100`) is not a change of value and
   is recorded as before.
+- **A trace says what it left out, and a malformed body is no longer left out of it**
+  (the 2026-11-11 audit, A02). Over HTTP a truncated `200` body, a `202` with a text
+  body, a broken SSE event or a non-JSON request reached its peer, was counted on
+  stderr and was absent from the trace, so the validator read `pass` for a session
+  whose worst moment was not recorded (stdio already recorded such a line as a string
+  and failed it). They are now recorded as the text that was sent. What a trace still
+  cannot hold — a message over `--max-message-bytes`, one past the buffer budget, an
+  SSE event that is not `message` — is counted, per trace, in the `capture` note on
+  its closing event, so the account outlives the terminal; the validator reports it
+  in every format and moves no verdict. An error page that does not claim to be JSON
+  (an HTML `404`) is not a message and is not recorded. A note is the recorder's own
+  statement and nothing authenticates it; a trace with none says nothing, and the
+  README says what the note cannot count (what follows the close, what the proxy
+  refused). `validate --require-complete-capture` and `mcp-trace-capture
+  --fail-on-unrecorded` are the opt-in exit-status gates; `mcp-trace-capture`'s README
+  exit table no longer says `http` stops "with a complete trace".
 - **`{session}` numbers continue after the highest one present**, so files sort in
   session order (the lowest free number filled a deleted trace's gap), and a stray
   file numbered past the search bound is ignored (a hand-named `s-9999999.jsonl`

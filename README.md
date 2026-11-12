@@ -179,6 +179,14 @@ verdict: fail
   many, up to ten by method, id and `seq`, and whether the trace ended with a
   transport close, an abort, or simply stopped — carried in every format, and the
   verdict it would otherwise have earned.
+- **What a recording left out is noted, never judged.** `mcp-trace-capture` forwards
+  a message it cannot hold (over its size limit, past its buffer budget) rather than
+  break the session, and says so in a `capture` note on the trace's closing event;
+  the report carries it in every format and the verdict is unchanged, because it
+  judges what the trace holds. A trace without a note says nothing either way, and
+  the note is the recorder's own statement. `validate --require-complete-capture`
+  fails such a trace, and `mcp-trace-capture --fail-on-unrecorded` fails the run that
+  recorded it, for a pipeline that must not read a `pass` off an incomplete capture.
 - **The revision is the one the session declares** — in `initialize`, in each
   request's `_meta`, or in the `MCP-Protocol-Version` header. A session that
   completed a handshake ran under the revision the server's `initialize` result

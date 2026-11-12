@@ -143,6 +143,20 @@ const fn hex(digit: u8) -> Option<u8> {
     }
 }
 
+/// Whether `headers` say the body is JSON: `application/json`, or any media
+/// type with the `+json` structured-syntax suffix (RFC 6839).
+pub(super) fn claims_json(headers: &HeaderMap) -> bool {
+    headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .is_some_and(|media| {
+            media.eq_ignore_ascii_case("application/json")
+                || media.to_ascii_lowercase().ends_with("+json")
+        })
+}
+
 pub(super) fn is_event_stream(headers: &HeaderMap) -> bool {
     headers
         .get(header::CONTENT_TYPE)

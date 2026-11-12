@@ -181,6 +181,47 @@ async fn interleaved_and_successive_sessions_each_get_their_own_trace() {
     .await;
 }
 
+/// What a trace says it left out is its own session's: a message over the
+/// limit in one session is in that session's closing event, and the trace of a
+/// session that left nothing out says so.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_loss_is_in_the_closing_event_of_the_session_that_had_it() {
+    bounded(async {
+        let dir = scratch("loss");
+        let (address, _sessions, stop) = proxy(upstream(true).await, &dir).await;
+        let a = send(address, 10, "initialize", None).await.unwrap();
+        let b = send(address, 20, "initialize", None).await.unwrap();
+        send(address, 11, "ping", Some(&a)).await;
+        // Over the proxy's 1 MiB message limit, in session B only.
+        let pad = "x".repeat((1 << 20) + 1024);
+        let big = reqwest::Client::new()
+            .post(format!("http://{address}/mcp"))
+            .header("content-type", "application/json")
+            .header("mcp-session-id", &b)
+            .body(format!(
+                r#"{{"jsonrpc":"2.0","id":21,"method":"ping","params":{{"pad":"{pad}"}}}}"#
+            ))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(big.status(), 200, "forwarded whole");
+        stop().await.unwrap().unwrap();
+        let note_of = |name: &str| {
+            let text = std::fs::read_to_string(dir.join(name)).unwrap();
+            let last: serde_json::Value =
+                serde_json::from_str(text.lines().last().unwrap()).unwrap();
+            last["capture"].clone()
+        };
+        assert_eq!(note_of("001.jsonl"), serde_json::json!({"unrecorded": {}}));
+        assert_eq!(
+            note_of("002.jsonl"),
+            serde_json::json!({"unrecorded": {"oversized": 1}})
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    })
+    .await;
+}
+
 /// Without session ids, an `initialize` still begins a session, and what
 /// follows it belongs to it; traffic with neither (`2026-07-28`) is one session.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
