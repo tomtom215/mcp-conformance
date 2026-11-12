@@ -1136,9 +1136,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "A server that declares this extension MUST implement `skills/list` and `skills/get`.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {
@@ -1281,9 +1281,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "A server declaring this extension MUST implement the `skills/list` method, which returns entries for the skills it serves.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

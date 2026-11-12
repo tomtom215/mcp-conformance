@@ -2,7 +2,7 @@
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
 //! The skills extension (`io.modelcontextprotocol/skills`, specified in
-//! `modelcontextprotocol/ext-skills`, `specification/stable/skills.mdx`, against
+//! `modelcontextprotocol/ext-skills`, `specification/beta/skills.mdx`, against
 //! base revision `2026-07-28`): a server lists skills with `skills/list`, returns
 //! one with `skills/get`, serves their files as resources, and may list a
 //! directory with `resources/directory/read`.

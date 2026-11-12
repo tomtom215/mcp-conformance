@@ -1208,9 +1208,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "`name` SHOULD be set from the `name` field of the `SKILL.md` YAML frontmatter.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

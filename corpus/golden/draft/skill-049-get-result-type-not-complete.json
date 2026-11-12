@@ -1292,9 +1292,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "The `resultType` field MUST be set to `\"complete\"` on `GetSkillResult`, as it is the standard result shape for the `skills/get` request.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

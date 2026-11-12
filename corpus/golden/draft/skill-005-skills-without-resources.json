@@ -1154,9 +1154,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "A server declaring this extension therefore MUST also declare the `resources` capability.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

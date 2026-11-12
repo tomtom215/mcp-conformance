@@ -1178,9 +1178,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "The final segment of `<skill-path>` MUST equal the skill's `name` as declared in its `SKILL.md` frontmatter.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {
@@ -1239,9 +1239,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "The final `<skill-path>` segment of the entry's `uri` MUST equal `frontmatter.name`, per Resource Mapping.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

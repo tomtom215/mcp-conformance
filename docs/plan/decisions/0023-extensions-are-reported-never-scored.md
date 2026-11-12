@@ -25,7 +25,7 @@ primary sources say, read for this decision on 2026-10-13:
    (`extensions/skills/overview`) defer to each extension's own repository for the
    normative text: `modelcontextprotocol/ext-tasks` (`specification/2026-07-28/tasks.md`,
    41 MUST-family, 15 SHOULD-family and 15 MAY-family keywords; read at `899c1bb`) and
-   `modelcontextprotocol/ext-skills` (`specification/stable/skills.mdx`, "the source of
+   `modelcontextprotocol/ext-skills` (`specification/beta/skills.mdx`, "the source of
    truth", 80, 22 and 19; read at `167da6c`). Both are written against base revision
    `2026-07-28`; neither appears under `docs/specification/<revision>/`, so the page-set
    gate, which reads only that tree, never saw them.

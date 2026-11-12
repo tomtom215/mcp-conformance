@@ -1304,9 +1304,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "If the URI does not identify a skill the server serves, the server MUST return error `-32602` (Invalid params), the same code `resources/read` uses for unknown resources.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {
@@ -1353,9 +1353,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "Servers MUST return standard JSON-RPC errors for the following protocol error cases: `skills/get` with a `uri` that does not identify a skill the server serves: `-32602` (Invalid params).; `resources/directory/read` with a `uri` that does not exist or is not a directory resource: `-32602` (Invalid params).; `resources/read` of a skill file the server does not serve: `-32602` (Invalid params), per the base Resources specification.; Internal errors: `-32603` (Internal error).",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         }
       ]

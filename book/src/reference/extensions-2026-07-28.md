@@ -506,7 +506,7 @@ Judged by `tasks.completed-carries-result`.
 
 > Every request MUST include the required request metadata in `params._meta`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Restates the core rule the revision's own registry judges on every request (BASE-030, `meta.required-request-fields`). Judged there once, it is not judged again here, where a request missing its metadata would read as a skills defect in a session that never touched the extension.
 
@@ -516,7 +516,7 @@ Judged by `tasks.completed-carries-result`.
 
 > A server that declares this extension MUST implement `skills/list` and `skills/get`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.list-implemented`, `skills.get-implemented`.
 
@@ -526,7 +526,7 @@ Judged by `skills.list-implemented`, `skills.get-implemented`.
 
 > A server that additionally declares `directoryRead: true` MUST implement `resources/directory/read`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-read-implemented`.
 
@@ -536,7 +536,7 @@ Judged by `skills.directory-read-implemented`.
 
 > Clients MUST NOT call `resources/directory/read` against a server that has not declared `directoryRead: true`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-read-declared`.
 
@@ -546,7 +546,7 @@ Judged by `skills.directory-read-declared`.
 
 > A server declaring this extension therefore MUST also declare the `resources` capability.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.declares-resources`.
 
@@ -556,7 +556,7 @@ Judged by `skills.declares-resources`.
 
 > A skill served over MCP MUST conform to the Agent Skills specification.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** The umbrella over the format rules this page goes on to state: those it states with their own keyword are entered and judged one by one (SKILL-007, SKILL-008, SKILL-013). The rest of the Agent Skills specification is another document, outside this registry's page set.
 
@@ -566,7 +566,7 @@ Judged by `skills.declares-resources`.
 
 > Every skill MUST contain a `SKILL.md` file at its root.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.entry-uri-is-skill-md`.
 
@@ -576,7 +576,7 @@ Judged by `skills.entry-uri-is-skill-md`.
 
 > `SKILL.md` MUST begin with YAML frontmatter containing at minimum the `name` and `description` fields as defined by the Agent Skills specification.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.skill-md-frontmatter`.
 
@@ -586,7 +586,7 @@ Judged by `skills.skill-md-frontmatter`.
 
 > In the event that the Agent Skills specification changes in a backwards incompatible way, clients MUST honor any backwards compatibility mechanisms provided by the Agent Skills specification
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds a client's response to a future incompatible revision of another specification; no such revision exists, and what a client honours of one is in its code, not in what it sends.
 
@@ -596,7 +596,7 @@ Judged by `skills.skill-md-frontmatter`.
 
 > and SHOULD continue to support the Agent Skills specification as it existed prior to any incompatible change.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** As SKILL-009: support for a format revision is a property of client code.
 
@@ -606,7 +606,7 @@ Judged by `skills.skill-md-frontmatter`.
 
 > Servers SHOULD use the `skill://` URI scheme
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.skill-scheme`.
 
@@ -616,7 +616,7 @@ Judged by `skills.skill-scheme`.
 
 > The final segment of `<skill-path>` MUST equal the skill's `name` as declared in its `SKILL.md` frontmatter.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.final-segment-is-name`.
 
@@ -626,7 +626,7 @@ Judged by `skills.final-segment-is-name`.
 
 > The final segment, being the skill `name`, MUST satisfy the Agent Skills specification's naming rules.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.name-follows-naming-rules`.
 
@@ -636,7 +636,7 @@ Judged by `skills.name-follows-naming-rules`.
 
 > The first segment occupies the URI authority component and SHOULD be a valid `reg-name` per RFC 3986.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.authority-reg-name`.
 
@@ -646,7 +646,7 @@ Judged by `skills.authority-reg-name`.
 
 > Any other prefix segments SHOULD be valid URI path segments.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.prefix-segments`.
 
@@ -656,7 +656,7 @@ Judged by `skills.prefix-segments`.
 
 > The authority component carries no special semantics under this extension, and clients MUST NOT attempt DNS or network resolution of it.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Name resolution happens off the MCP connection: a recording of the session carries none of the client's DNS queries or other network traffic.
 
@@ -666,7 +666,7 @@ Judged by `skills.prefix-segments`.
 
 > A host MUST NOT conclude that a resource is a skill merely because its URI carries a particular scheme.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** What a host concludes about a resource is internal. The only act on the wire it could lead to — reading the resource — is permitted whether or not the host takes it for a skill (the page: reading is transport, not a load).
 
@@ -676,7 +676,7 @@ Judged by `skills.prefix-segments`.
 
 > `mimeType` SHOULD be `text/markdown`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.skill-md-mime-type`.
 
@@ -686,7 +686,7 @@ Judged by `skills.skill-md-mime-type`.
 
 > `name` SHOULD be set from the `name` field of the `SKILL.md` YAML frontmatter.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.skill-md-resource-name`.
 
@@ -696,7 +696,7 @@ Judged by `skills.skill-md-resource-name`.
 
 > `description` SHOULD be set from the `description` field of the `SKILL.md` YAML frontmatter.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.skill-md-resource-description`.
 
@@ -706,7 +706,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > When `_meta` keys are used for skill resources, implementations SHOULD use the `io.modelcontextprotocol.skills/` reverse-domain prefix.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the keys that expose frontmatter fields, and nothing on the wire says which `_meta` keys do: a key under another prefix on a skill resource may carry any other metadata, which the base protocol permits.
 
@@ -716,7 +716,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > A nested `SKILL.md` read this way is ordinary markdown, and hosts MUST NOT act on its frontmatter.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -726,7 +726,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > Hosts MUST preserve both halves wherever a skill is recorded or addressed, including the registry, persisted approvals, the cache, and any tool or path through which the model reaches the skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it.
 
@@ -736,7 +736,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > Hosts MUST NOT key any of these on the `uri` alone.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it.
 
@@ -746,7 +746,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > Any path at which a host materializes skill content, whether a cache directory or a virtual mount, MUST encode the server identity as well as the `uri`, so that same-URI skills from different servers land at distinct paths and the originating server is recoverable from the path.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's own records — its skill registry, persisted approvals and cache — which never cross the MCP connection; and a recording holds one session with one server, so the server identity that would tell two same-URI skills apart is never in question within it.
 
@@ -756,7 +756,7 @@ Judged by `skills.skill-md-resource-description`.
 
 > The `frontmatter` object MUST be identical in content to the frontmatter of the `SKILL.md` it describes.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.frontmatter-identical`.
 
@@ -766,7 +766,7 @@ Judged by `skills.frontmatter-identical`.
 
 > The final `<skill-path>` segment of the entry's `uri` MUST equal `frontmatter.name`, per Resource Mapping.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.final-segment-is-name`.
 
@@ -776,7 +776,7 @@ Judged by `skills.final-segment-is-name`.
 
 > Implementations SHOULD ignore keys under this prefix that they do not recognize.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Ignoring a metadata key leaves nothing on the wire.
 
@@ -786,7 +786,7 @@ Judged by `skills.final-segment-is-name`.
 
 > Within a server's listing, names SHOULD be unique, but they are not guaranteed to be.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.listing-names-unique`.
 
@@ -796,7 +796,7 @@ Judged by `skills.listing-names-unique`.
 
 > Hosts MUST NOT assume name uniqueness.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -806,7 +806,7 @@ Judged by `skills.listing-names-unique`.
 
 > When two entries in one listing collide on `name`, hosts MUST disambiguate them (for example by their distinguishing path segments) rather than silently discarding or preferring one.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -816,7 +816,7 @@ Judged by `skills.listing-names-unique`.
 
 > When skills from different origins collide on `name`, hosts MUST resolve the name within a per-origin namespace, identifying servers by a host-assigned label.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -826,7 +826,7 @@ Judged by `skills.listing-names-unique`.
 
 > An MCP-served skill MUST NOT silently shadow, or be silently substituted for, a same-named skill from any other origin, whether another server or the host's own filesystem skills.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -836,7 +836,7 @@ Judged by `skills.listing-names-unique`.
 
 > `resources` is REQUIRED on every skill entry and takes one of two forms: an array of `SkillResource` objects enumerating the skill's files (`SKILL.md` and every supporting file), or the string `"dynamic"`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.entry-resources-form`.
 
@@ -846,7 +846,7 @@ Judged by `skills.entry-resources-form`.
 
 > When `resources` is an array, it MUST be complete. It lists every file of the skill, each exactly once, including an entry whose `uri` equals the skill's top-level `uri`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.manifest-lists-skill-md`.
 
@@ -856,7 +856,7 @@ Judged by `skills.manifest-lists-skill-md`.
 
 > Each `uri` MUST be the skill's `SKILL.md` or a file within the skill's directory.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.manifest-within-skill`.
 
@@ -866,7 +866,7 @@ Judged by `skills.manifest-within-skill`.
 
 > Each entry MUST carry `size`, the length in bytes of the file's raw content (the same bytes the `digest` covers).
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.manifest-entry-size`.
 
@@ -876,7 +876,7 @@ Judged by `skills.manifest-entry-size`.
 
 > When a skill's content is generated dynamically, such that stable digests cannot be published, the server MUST set `resources` to the string `"dynamic"` instead of an array.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Its antecedent — content generated so that stable digests cannot be published — is the server's own knowledge. An array of digests and the string `"dynamic"` are both valid forms, and SKILL-034 judges that one of them is present.
 
@@ -886,7 +886,7 @@ Judged by `skills.manifest-entry-size`.
 
 > An entry with no `resources` at all, or with any value other than an array or `"dynamic"`, is invalid, and hosts MUST NOT load it.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Loading is the host placing content in the model's context, which no message marks: a `resources/read` of the skill's `SKILL.md` is transport, not a load (the page says so), so a read after an invalid entry convicts nothing. The server's half — an entry without a valid `resources` — is SKILL-034.
 
@@ -896,7 +896,7 @@ Judged by `skills.manifest-entry-size`.
 
 > Hosts MAY decline to load such skills, and server authors SHOULD expect that some hosts will.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** An expectation held by a server's author is not behaviour.
 
@@ -906,7 +906,7 @@ Judged by `skills.manifest-entry-size`.
 
 > Hosts MUST support skills up to and including these limits
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** The capacity of the host: a recording shows what was served and read, not what the host could have accepted.
 
@@ -916,7 +916,7 @@ Judged by `skills.manifest-entry-size`.
 
 > Servers SHOULD NOT serve a skill that exceeds either limit.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.within-limits`.
 
@@ -926,7 +926,7 @@ Judged by `skills.within-limits`.
 
 > A host that declines a skill on this basis SHOULD tell the user why rather than fail silently on a later read.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message.
 
@@ -936,7 +936,7 @@ Judged by `skills.within-limits`.
 
 > A server declaring this extension MUST implement the `skills/list` method, which returns entries for the skills it serves.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.list-implemented`.
 
@@ -946,7 +946,7 @@ Judged by `skills.list-implemented`.
 
 > The `resultType` field MUST be set to `"complete"` on `ListSkillsResult`, as it is the standard result shape for the `skills/list` request.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.list-result-complete`.
 
@@ -956,7 +956,7 @@ Judged by `skills.list-result-complete`.
 
 > Hosts MUST NOT treat an empty or partial listing as proof that a server has no skills, and MUST support loading a skill given only its URI
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** How a host reasons from a listing, and whether it can load a skill by URI alone, are host capabilities; a session in which it never does either is conforming, and one in which it does looks like any `skills/get`.
 
@@ -966,7 +966,7 @@ Judged by `skills.list-result-complete`.
 
 > `ListSkillsResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `tools/list` and `resources/list`, and carry the same semantics.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.list-cacheable`.
 
@@ -976,7 +976,7 @@ Judged by `skills.list-cacheable`.
 
 > A server declaring this extension MUST implement the `skills/get` method, which returns the entry for a single skill named by the URI of its `SKILL.md`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-implemented`.
 
@@ -986,7 +986,7 @@ Judged by `skills.get-implemented`.
 
 > The `resultType` field MUST be set to `"complete"` on `GetSkillResult`, as it is the standard result shape for the `skills/get` request.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-result-complete`.
 
@@ -996,7 +996,7 @@ Judged by `skills.get-result-complete`.
 
 > `params.uri` MUST be the URI of a skill's `SKILL.md`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-uri-names-skill-md`.
 
@@ -1006,7 +1006,7 @@ Judged by `skills.get-uri-names-skill-md`.
 
 > If the URI does not identify a skill the server serves, the server MUST return error `-32602` (Invalid params), the same code `resources/read` uses for unknown resources.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-unknown-invalid-params`.
 
@@ -1016,7 +1016,7 @@ Judged by `skills.get-unknown-invalid-params`.
 
 > A server MUST answer for every skill it serves, whether or not that skill appears in its `skills/list` result.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** What a server serves is its own state at the moment of the call: a skill listed earlier and refused later may have been withdrawn in between, which the page allows (an entry is a point-in-time snapshot), so a refusal convicts nothing.
 
@@ -1026,7 +1026,7 @@ Judged by `skills.get-unknown-invalid-params`.
 
 > `GetSkillResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `resources/read`, and carry the same semantics.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-cacheable`.
 
@@ -1036,7 +1036,7 @@ Judged by `skills.get-cacheable`.
 
 > Hosts MUST NOT treat a `resources/read` of a `SKILL.md` that arrives by any other route as a load.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Whether a host treats a read as a load is internal: the page itself says a read is transport and a load is the host placing content in the model's context, which no message marks.
 
@@ -1046,7 +1046,7 @@ Judged by `skills.get-cacheable`.
 
 > Content obtained that way is ordinary resource content, and a host that returns it to the model SHOULD do so as it would any other resource read, not as a loaded skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1056,7 +1056,7 @@ Judged by `skills.get-cacheable`.
 
 > When a host retrieves a file listed in a skill's `resources`, it MUST verify the content against that entry's `digest` and `size`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call.
 
@@ -1066,7 +1066,7 @@ Judged by `skills.get-cacheable`.
 
 > In all cases, hosts MUST NOT use the unverified content.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call.
 
@@ -1076,7 +1076,7 @@ Judged by `skills.get-cacheable`.
 
 > While acting on a skill, a host MUST resolve reads of the skill's files only to URIs listed in the held entry's `resources`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was.
 
@@ -1086,7 +1086,7 @@ Judged by `skills.get-cacheable`.
 
 > A host MUST treat a read of an unlisted file within the skill as a verification failure equivalent to a digest mismatch.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call.
 
@@ -1096,7 +1096,7 @@ Judged by `skills.get-cacheable`.
 
 > After fetching a `SKILL.md` for which the host holds an entry (digest-verified when the entry's `resources` is an array, unverifiable when it is `"dynamic"`), hosts MUST parse its YAML frontmatter and compare it field-by-field against the entry's `frontmatter`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call.
 
@@ -1106,7 +1106,7 @@ Judged by `skills.get-cacheable`.
 
 > Any discrepancy MUST be treated as a verification failure equivalent to a digest mismatch, and the skill MUST NOT be loaded.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Verification runs inside the host: comparing bytes against a digest, a size or the entry's frontmatter produces no message, and the page itself says its only wire trace is the `skills/get` or `skills/list` refresh after a failure, which looks like any other call.
 
@@ -1116,7 +1116,7 @@ Judged by `skills.get-cacheable`.
 
 > Hosts MUST NOT retrieve a skill's files ahead of need, whether on connection, on listing, or at approval.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Need is the model's or the user's request to load or read, which no recording carries: a read right after a listing is prefetching or a load the user asked for, and the wire is the same. The official suite judges this clause in a scripted scenario in which nothing asked for a load (`sep-2640-client-no-prefetch`), which a recording of an ordinary session cannot reproduce.
 
@@ -1126,7 +1126,7 @@ Judged by `skills.get-cacheable`.
 
 > Hosts SHOULD cache what they do retrieve.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 
@@ -1136,7 +1136,7 @@ Judged by `skills.get-cacheable`.
 
 > Hosts MUST NOT treat a digest match as a security boundary.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** A security policy inside the host; trusting or distrusting content produces no message.
 
@@ -1146,7 +1146,7 @@ Judged by `skills.get-cacheable`.
 
 > The `resultType` field MUST be set to `"complete"` on `ReadResourceDirectoryResult`, as it is the standard result shape for the `resources/directory/read` request.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-result-complete`.
 
@@ -1156,7 +1156,7 @@ Judged by `skills.directory-result-complete`.
 
 > If the URI does not exist, or exists but is not a directory resource, the server MUST return error `-32602` (Invalid params).
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-read-invalid-params`.
 
@@ -1166,7 +1166,7 @@ Judged by `skills.directory-read-invalid-params`.
 
 > `ReadResourceDirectoryResult` extends `CacheableResult`, so `ttlMs` and `cacheScope` are REQUIRED, as they are on `resources/list`, and carry the same semantics.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-cacheable`.
 
@@ -1176,7 +1176,7 @@ Judged by `skills.directory-cacheable`.
 
 > A server that declares `directoryRead` MUST support the method for every directory within the skill namespaces it serves as individual files.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.directory-read-every-directory`.
 
@@ -1186,7 +1186,7 @@ Judged by `skills.directory-read-every-directory`.
 
 > While acting on the skill under the held entry, the host MUST NOT read the newly listed child (an unlisted file is a verification failure) and MUST NOT surface it to the model as a file of the skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was.
 
@@ -1196,7 +1196,7 @@ Judged by `skills.directory-read-every-directory`.
 
 > Hosts SHOULD present this sequence as a skill that has changed and needs re-approval, rather than as a read error.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message.
 
@@ -1206,7 +1206,7 @@ Judged by `skills.directory-read-every-directory`.
 
 > Hosts MUST NOT treat the directory result as extending the manifest.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds reads made while the host is acting on a skill, and the acting window is host state: the same `resources/read` is permitted outside it (a generic resource read, a resource browser), and nothing on the wire marks which one a read was.
 
@@ -1216,7 +1216,7 @@ Judged by `skills.directory-read-every-directory`.
 
 > Servers MUST return standard JSON-RPC errors for the following protocol error cases: `skills/get` with a `uri` that does not identify a skill the server serves: `-32602` (Invalid params).; `resources/directory/read` with a `uri` that does not exist or is not a directory resource: `-32602` (Invalid params).; `resources/read` of a skill file the server does not serve: `-32602` (Invalid params), per the base Resources specification.; Internal errors: `-32603` (Internal error).
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-params`.
 
@@ -1226,7 +1226,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Servers SHOULD provide informative error messages to describe the cause of errors.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Informativeness is a judgment about prose; any non-empty message passes a mechanical test of it.
 
@@ -1236,7 +1236,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST treat MCP-served skill content as untrusted model input, subject to the same prompt-injection defenses applied to any server-provided text.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1246,7 +1246,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST treat MCP-served skills as a higher-risk surface than remote tool invocation.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1256,7 +1256,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST tag MCP-served skill content with its originating server identity at the point it enters model context.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1266,7 +1266,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST NOT present an MCP-served skill to the model as indistinguishable from a local filesystem skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1276,7 +1276,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST NOT allow MCP-served skill content to cause host-side code execution without explicit per-skill user approval.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -1286,7 +1286,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST ignore or approval-gate (a).
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -1296,7 +1296,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST apply the same approval gate to code-execution tool calls issued while the model is acting on an MCP-served skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -1306,7 +1306,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST bind such reads to the skill's originating server.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it.
 
@@ -1316,7 +1316,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > A skill served by server A MUST NOT cause a `resources/read` against server B.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it.
 
@@ -1326,7 +1326,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST identify servers by a host-assigned label, not the server's self-reported `serverInfo.name`.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it.
 
@@ -1336,7 +1336,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Any cross-origin read MUST be gated behind explicit per-call user approval naming both servers.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Concerns reads across two servers, or the labels the host gives them: a recording holds one session with one server, so neither the second server nor the host's labels are in it.
 
@@ -1346,7 +1346,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST resolve skill names within a per-origin namespace, identifying servers by a host-assigned label.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -1356,7 +1356,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST NOT let an MCP-served skill silently shadow, replace, or intercept invocations of a same-named skill from any other origin, including the host's filesystem skills.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host resolves skill names against other servers and its own filesystem skills: a recording holds one session with one server and none of the host's other origins, and name resolution produces no message.
 
@@ -1366,7 +1366,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts SHOULD surface collisions to the user.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message.
 
@@ -1376,7 +1376,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST NOT honor frontmatter fields that widen the model's tool or filesystem permissions when the skill arrives over MCP.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -1386,7 +1386,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > In particular, the Agent Skills `allowed-tools` field MUST be ignored for MCP-origin skills unless the user has explicitly approved that grant for that skill.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host lets the model execute and which permissions it grants, decided inside the host; a tool the model then runs on the host is not an MCP message to this server.
 
@@ -1396,7 +1396,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST NOT treat skill resources as higher-authority than other context.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds how the host treats skill content inside the model's context — its trust, its provenance tags, its authority, how it is presented — which strategy rule 2 keeps out: none of it is a message to the server.
 
@@ -1406,7 +1406,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts SHOULD indicate which server a skill originates from when presenting it.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message.
 
@@ -1416,7 +1416,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts SHOULD let users inspect a skill's content before it is loaded into model context.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds what the host shows its user, which strategy rule 2 keeps out: none of it is a message.
 
@@ -1426,7 +1426,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > When a host persists any per-skill user approval, it MUST be bound to the entry's `resources` set (every `uri` and `digest`) observed at the moment of approval.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one.
 
@@ -1436,7 +1436,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > If a subsequent entry for that skill, from `skills/list` or `skills/get`, advertises a different set, whether a file was rotated, added, or removed, the host MUST treat the prior approval as revoked and re-prompt before loading or executing.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one.
 
@@ -1446,7 +1446,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MAY decline to load it, and MUST NOT treat a persisted approval as covering whatever content the server currently serves.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Approval, its persistence and its revocation are host state and user interaction; a re-prompt is not a message, so a recording cannot tell a host that revoked an approval from one that never had one.
 
@@ -1456,7 +1456,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts SHOULD cache verified skill content locally, populated on demand as files are read rather than in bulk.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 
@@ -1466,7 +1466,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts that cache skill content on disk MUST do one of the following for every file served from the cache.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 
@@ -1476,7 +1476,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts that cache MCP-served skill content on disk MUST do so in a location excluded from every filesystem-skill discovery path.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 
@@ -1486,7 +1486,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts MUST treat content loaded from that location as having arrived over MCP for all purposes of the no-implicit-local-execution rule above, including after host restart and after the originating server is disconnected.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 
@@ -1496,7 +1496,7 @@ Judged by `skills.get-unknown-invalid-params`, `skills.directory-read-invalid-pa
 
 > Hosts SHOULD remove a server's cached skill content when the user removes that server.
 
-[`specification/stable/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx)
+[`specification/beta/skills.mdx`](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
 
 **Excluded.** Binds the host's disk cache — where it lives, who may write it, how its bytes are checked and when they are removed — none of which crosses the MCP connection.
 

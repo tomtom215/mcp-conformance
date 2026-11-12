@@ -24,7 +24,7 @@
 /// this prefix.
 ///
 /// The tasks extension publishes a rendered site whose heading ids anchor each
-/// section. The skills extension's source of truth (`specification/stable/skills.mdx`)
+/// section. The skills extension's source of truth (`specification/beta/skills.mdx`)
 /// has no rendered publication — its documentation site is not deployed — so its
 /// sections name the file, and the link opens it where the repository serves it.
 const PUBLISHED: [(&str, &str); 2] = [
@@ -96,11 +96,11 @@ mod tests {
         assert_eq!(
             published_url(
                 "io.modelcontextprotocol/skills",
-                "specification/stable/skills.mdx"
+                "specification/beta/skills.mdx"
             )
             .as_deref(),
             Some(
-                "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+                "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
             )
         );
         assert_eq!(published_url("com.example/x", "a#b"), None);

@@ -900,7 +900,7 @@ files only, no GitHub setting was changed)
 - **The tasks and skills extensions are judged beside `2026-07-28`, and never scored**
   (review item 2.6, [ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)).
   Every MUST- and SHOULD-family keyword of `io.modelcontextprotocol/tasks` (ext-tasks,
-  its `2026-07-28` text) and `io.modelcontextprotocol/skills` (ext-skills, stable) is
+  its `2026-07-28` text) and `io.modelcontextprotocol/skills` (ext-skills; upstream lists it Beta, and its page moved from `stable/` to `beta/` before 2026-11-11) is
   entered: 49 `TASK` entries (25 judged by 18 checks) and 99 `SKILL` entries (34 judged
   by 31 checks), each check with a violating corpus trace, plus three conforming
   sessions. They sit in `registry/2026-07-28/extensions/` and the registry keeps them

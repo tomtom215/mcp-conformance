@@ -1238,9 +1238,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "`resources` is REQUIRED on every skill entry and takes one of two forms: an array of `SkillResource` objects enumerating the skill's files (`SKILL.md` and every supporting file), or the string `\"dynamic\"`.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {
