@@ -63,7 +63,10 @@ The repository is itself an action. After the step that records the traces:
 ```
 
 The action builds `mcp-trace-validator` from the ref you name (or, with
-`version: 0.6.0`, downloads that release's prebuilt binary and checks its checksum),
+`version: 0.6.0`, downloads that release's prebuilt binary, checks its checksum and
+verifies its build attestation with `gh attestation verify` — the signer must be this
+repository's release workflow at that tag, and it refuses the install when it is not;
+`verify-attestation: false` skips it, for a release that predates attestations),
 prints the findings to the log and the job summary, writes `mcp-conformance.sarif` and
 `mcp-conformance-junit.xml`, and fails the step when a clause fails. Uploading the
 SARIF log needs `permissions: security-events: write` on the job; findings then appear

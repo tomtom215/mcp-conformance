@@ -541,6 +541,33 @@ below is stated again in its entry, with the reasoning.
   read and the judging do not. Not done: the validator's bounded reader is still private to its
   binary, and the workbench's memory per event is unchanged.
 
+**CI, governance and release verification** (the 2026-11-11 audit's A14 to A16; repository
+files only, no GitHub setting was changed)
+
+- **The nightly job runs nightly.** It installed nightly and then ran a bare `cargo test`,
+  which the pinned stable toolchain outranks, under a comment naming a `RUSTUP_TOOLCHAIN`
+  that was never set. It runs `cargo +nightly` and prints `-Vv` for both compilers.
+- **The full mutation sweep shards round-robin and has an aggregator.** Contiguous slices put
+  whole crates on one shard (shards 7 to 15 held 52% of the mutants on 9 Nov, and 13 to 15
+  were cancelled at the 180-minute guard; no 16-shard sweep has ever completed).
+  `--sharding round-robin` gives every shard all six crates (checked with `--list`: exact
+  cover of 6,792 mutants, 424 to 425 a shard, against 417 to 425 in one to three crates
+  each), and `Mutants (full sweep)` fails unless every shard concluded. Not run: the sweep
+  itself, which needs the scheduled runners.
+- **`ci-gate`, one check for the whole CI workflow**, fails unless every blocking job
+  succeeded; `.github/rulesets/` holds rulesets for the owner to require it and `Mutants (PR
+  diff)`, and to protect `v*` tags. GOVERNANCE.md now says what the repository enforces
+  (deletion and force pushes only; no required pull request, review or check) and
+  SECURITY.md gives a fallback while private vulnerability reporting is off. None of that
+  is applied: only the owner can change a ruleset or the setting.
+- **The Action verifies the release's attestation.** `install.sh` checked the archive
+  against `SHA256SUMS-binaries`, which comes from the same release, so whoever could replace
+  the archive could replace the list. With `version` it now also runs `gh attestation
+  verify` for this repository's release workflow at the tag, failing closed (no `gh`, or no
+  matching attestation, is no install); `verify-attestation: false` skips it and says so.
+  `action/test-install.sh`, with stand-ins for `curl` and `gh`, shows ten decisions
+  that failed on the old script. The real attestation check was not run here.
+
 **The Action**
 
 - **The Action's reports exist and parse whatever the paths** (the 2026-11-11 audit,

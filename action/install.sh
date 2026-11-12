@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-# Installs mcp-trace-validator for action.yml: the prebuilt, checksum-verified
-# release archive when VERSION is set, else a build from the action's own
+# Installs mcp-trace-validator for action.yml: the prebuilt release archive,
+# checksum- and attestation-verified, when VERSION is set, else a build from the action's own
 # source (the checkout GitHub made at the action ref). Puts it on PATH. With
 # CAPTURE set, mcp-trace-capture too (the archive carries both; a source build
 # compiles it only when it will be used).
@@ -55,6 +55,27 @@ else
   if [[ "$actual" != "$expected" ]]; then
     echo "::error::checksum mismatch for ${name}.${ext}: expected ${expected}, got ${actual}"
     exit 1
+  fi
+  # The checksum list comes from the same release as the archive, so it shows the
+  # download was not corrupted and nothing more: whoever can replace the archive
+  # can replace the list. The build attestation is what ties the archive to this
+  # repository's release workflow at this tag, so it is checked too, and
+  # failing closed: no `gh`, or an attestation that does not match, is no install.
+  # VERIFY_ATTESTATION=false skips it (a release that predates attestations).
+  if [[ "${VERIFY_ATTESTATION:-true}" == "false" ]]; then
+    echo "::warning::verify-attestation is false: ${name}.${ext} is checked against the release's own checksum list only, which does not show who built it"
+  else
+    if ! command -v gh > /dev/null; then
+      echo "::error::the GitHub CLI (gh) is needed to verify the attestation of ${name}.${ext}; install it, or set verify-attestation: false"
+      exit 1
+    fi
+    if ! gh attestation verify "${name}.${ext}" \
+      --repo "${REPOSITORY}" \
+      --signer-workflow "${REPOSITORY}/.github/workflows/release.yml" \
+      --source-ref "refs/tags/v${version}"; then
+      echo "::error::${name}.${ext} has no valid attestation from ${REPOSITORY}'s release workflow at v${version}; not installing it (verify-attestation: false skips the check, for a release that predates attestations)"
+      exit 1
+    fi
   fi
   if [[ "$ext" == zip ]]; then
     unzip -q "${name}.zip"

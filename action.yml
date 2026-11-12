@@ -80,10 +80,20 @@ inputs:
   version:
     description: >-
       A release (e.g. `0.6.0`) whose prebuilt binaries to download, verified
-      against the release's SHA256SUMS-binaries. Empty (the default) builds the
-      CLI from this action's own source, which always matches the action ref.
+      against the release's SHA256SUMS-binaries and its build attestation
+      (`gh attestation verify`, for this repository's release workflow at that
+      tag). Empty (the default) builds the CLI from this action's own source,
+      which always matches the action ref.
     required: false
     default: ""
+  verify-attestation:
+    description: >-
+      With `version`, verify the archive's build attestation and refuse it when
+      there is none that matches. `false` checks the release's own checksum list
+      only, which shows the download was not corrupted and not who built it; for
+      a release that predates attestations.
+    required: false
+    default: "true"
   revision:
     description: >-
       Protocol revisions (YYYY-MM-DD, space-separated) to judge against instead
@@ -136,8 +146,11 @@ runs:
       shell: bash
       env:
         VERSION: ${{ inputs.version }}
+        VERIFY_ATTESTATION: ${{ inputs.verify-attestation }}
         CAPTURE: ${{ inputs.capture }}
         REPOSITORY: tomtom215/mcp-conformance
+        # `gh attestation verify` reads the attestation from the GitHub API.
+        GH_TOKEN: ${{ github.token }}
       run: '"$GITHUB_ACTION_PATH/action/install.sh"'
     - name: Record the sessions
       id: capture

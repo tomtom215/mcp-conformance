@@ -149,7 +149,12 @@ jobs:
         # coverage must include feature-gated code (see mutants.yml). The flags
         # are the PR gate's and `cargo xtask mutants`'s, plus `--shard`, which
         # partitions the one deterministic (`--no-shuffle`) mutant list so the
-        # sixteen shards together cover it exactly once.
+        # sixteen shards together cover it exactly once. `--sharding
+        # round-robin` (mutant i on shard i % 16), not the default contiguous
+        # slices: a slice puts whole crates on one shard, and on 9 Nov shards
+        # 7 to 15 held 52% of the mutants and the heaviest tests, so shards 13,
+        # 14 and 15 were cancelled at the 180-minute guard and no 16-shard
+        # sweep has ever completed. Round-robin deals every crate to every shard.
         # `ulimit -d` caps each process's data segment at 6 GiB: a mutant that
         # turns a loop endless while it allocates (`j += 1` → `j *= 1` in the
         # workbench diff's alignment did) then fails its own test with an
@@ -159,7 +164,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           ulimit -d 6291456
-          cargo mutants --workspace --no-shuffle --shard "${SHARD}/16" -- --all-features
+          cargo mutants --workspace --no-shuffle --sharding round-robin --shard "${SHARD}/16" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from, and on a green run the record that it ran at all.
@@ -170,6 +175,23 @@ jobs:
           path: mutants.out/
           if-no-files-found: warn
           retention-days: 30
+
+  # One result for the sweep, so a green run means all sixteen shards concluded.
+  # A cancelled or skipped shard is not a pass (shards 13 to 15 of the 9 Nov
+  # sweep were cancelled while the run read as the sum of the others), and a
+  # `claims`-scoped dispatch, which skips the sweep, is not a failure.
+  full-mutants-gate:
+    name: Mutants (full sweep)
+    needs: full-mutants
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard concluded
+        env:
+          RESULT: ${{ needs.full-mutants.result }}
+        run: |
+          echo "shards: ${RESULT}"
+          [ "${RESULT}" = success ] || [ "${RESULT}" = skipped ]
 
   # Early warning on the suite's next line (docs/plan/03-conformance-strategy.md:
   # "track the 0.2.0-alpha line in a scheduled, non-blocking CI job"). The npm

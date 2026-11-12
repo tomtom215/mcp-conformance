@@ -91,7 +91,7 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           ulimit -d 6291456
-          cargo mutants --workspace --no-shuffle --in-diff pr.diff --shard "${SHARD}/16" -- --all-features
+          cargo mutants --workspace --no-shuffle --in-diff pr.diff --sharding round-robin --shard "${SHARD}/16" -- --all-features
       - name: Upload this shard's outcomes
         # Missed, caught and timeout lists per shard: the evidence a red shard
         # is read from.

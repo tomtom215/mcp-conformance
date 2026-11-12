@@ -400,13 +400,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Install toolchain
-        # `RUSTUP_TOOLCHAIN` below, not `rustup default`: rust-toolchain.toml is
-        # a directory override and outranks the default, so a job that wants a
-        # different toolchain has to say so in the environment.
+        # `cargo +nightly` below, not `rustup default`: rust-toolchain.toml is
+        # a directory override and outranks the default, so a bare `cargo` here
+        # ran the pinned stable toolchain after nightly was installed (the
+        # comment that stood here named a `RUSTUP_TOOLCHAIN` that was never
+        # set). ADR-0014 decision 4 says `+nightly`.
         run: rustup toolchain install nightly --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Which compiler this job runs
+        run: |
+          cargo +nightly -Vv
+          rustc +nightly -Vv
+          rustc -Vv
       - name: Test (all features, nightly)
-        run: cargo test --workspace --all-features
+        run: cargo +nightly test --workspace --all-features
 
   # Proves the `>=` floors in workspace dependency ranges are real: resolve every
   # dependency to its minimum allowed version (nightly resolver flag), then build and
@@ -765,6 +772,11 @@ jobs:
         run: |
           cargo build --locked -p mcp-trace-validator
           PATH="$CARGO_TARGET_DIR/debug:$PATH" bash action/test-validate.sh
+      # The release path of install.sh decides on stand-ins for `curl` and `gh`:
+      # an archive is installed only when its checksum matches and its build
+      # attestation is accepted, failing closed otherwise.
+      - name: The Action's install contract (checksum and attestation)
+        run: bash action/test-install.sh
       - name: Build the server and the client the recorded sessions run
         run: cargo build --locked -p mcp-everything-server -p mcp-reference-host
       - name: A stdio session, recorded and judged
@@ -962,3 +974,41 @@ jobs:
       - name: Install them from the local files and run them
         shell: bash
         run: bash tools/test-packages.sh packages "$VERSION"
+
+  # One result for the whole workflow, the check a repository rule can require
+  # ("CI gate"): it fails unless every blocking job above succeeded. A skipped or
+  # cancelled job is not a pass. The two informational jobs (`nightly` and
+  # `minimal-versions`, `continue-on-error`) are deliberately not listed. Listing
+  # the jobs here is the one place a new blocking job must be added.
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs:
+      - fmt
+      - clippy
+      - features
+      - test
+      - sarif-schema
+      - doc
+      - book
+      - fuzz-smoke
+      - deny
+      - package
+      - semver
+      - coverage
+      - conformance
+      - visual
+      - interop
+      - otlp
+      - workflow-lint
+      - action
+      - image
+      - registry-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every blocking job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null

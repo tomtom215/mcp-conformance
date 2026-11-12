@@ -30,7 +30,16 @@ releases, and administer the repository. Final decision authority rests here.
 
 ## How decisions are made
 
-1. **Reversible, in-scope changes**: normal PR review.
+What the repository **enforces**, as of the 2026-11-11 audit: the default branch cannot be
+deleted or force-pushed. It does not require a pull request, a review or a passing check
+to merge, and no merged pull request has had a review (38 of 38); a `v*` tag is not
+protected. One maintainer cannot review their own change, so the practice below is the
+author's own discipline, backed by the CI that runs on every pull request, not a control
+anyone else holds. [`.github/rulesets/`](.github/rulesets/README.md) holds rulesets the
+owner can import to require the `CI gate` and mutation-testing checks and to protect release
+tags; they are not applied.
+
+1. **Reversible, in-scope changes**: a pull request, CI green, the maintainer's own review.
 2. **Architectural decisions**: ADR in the same PR, reviewed together.
 3. **Scope changes** (anything touching the charter's goals or non-goals): ADR plus an
    explicit charter amendment — see risk R7 in

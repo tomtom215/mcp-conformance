@@ -22,9 +22,15 @@ every release.
 
 ## Reporting a vulnerability
 
-**Do not open a public issue.** Report privately via GitHub draft security advisories:
+**Do not open a public issue with the details.** Report privately via GitHub draft security advisories:
 
 <https://github.com/tomtom215/mcp-conformance/security/advisories/new>
+
+That form needs *private vulnerability reporting* switched on in the repository's
+settings, which only the owner can do, and it was off when the 2026-11-11 audit looked. If
+the link above reports that the repository does not accept private reports, open a public
+issue that says only that you have a security report, with no detail, and ask for a
+private channel; the maintainer will reply there with one.
 
 Include: a description and impact assessment, reproduction steps or a proof of
 concept (a minimal trace file, if relevant), affected crate(s), and a suggested fix if
