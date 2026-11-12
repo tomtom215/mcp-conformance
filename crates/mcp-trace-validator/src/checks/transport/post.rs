@@ -113,6 +113,19 @@ mod tests {
         assert_eq!(subjects, 1);
     }
 
+    /// RFC 9110 §9.1: a method token is case-sensitive, so `post` and `Post` are
+    /// not `POST`. The reader folded them into it, and a client that sent a
+    /// request with a different method than the one the clause requires passed.
+    #[test]
+    fn a_method_spelled_in_another_case_is_not_post() {
+        for spelled in ["post", "Post", "pOST"] {
+            let (findings, subjects) = outcome(&[http(0, Some(spelled)), message(1)]);
+            assert_eq!(findings.len(), 1, "{spelled}: {findings:?}");
+            assert!(findings[0].contains(spelled), "{findings:?}");
+            assert_eq!(subjects, 1);
+        }
+    }
+
     #[test]
     fn a_message_carried_by_another_verb_is_a_violation() {
         let (findings, _) = outcome(&[http(0, Some("PUT")), message(1)]);

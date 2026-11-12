@@ -58,7 +58,7 @@
         "description": "An HTTP-level observation (streamable HTTP only).",
         "properties": {
           "method": {
-            "description": "The request method, when the event records a client request. Read case-insensitively.",
+            "description": "The request method, when the event records a client request: the token as the request carried it, compared exactly (RFC 9110 section 9.1 makes it case-sensitive), so `post` is not `POST`.",
             "type": ["string", "null"]
           },
           "status": {

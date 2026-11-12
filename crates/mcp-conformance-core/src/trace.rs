@@ -49,21 +49,6 @@ where
         .collect())
 }
 
-/// Deserializes an HTTP request method with the token normalized to uppercase.
-///
-/// RFC 9110 §9.1 makes method tokens case-sensitive and the registered methods
-/// are all uppercase, so a capture recording `post` is describing the same
-/// request a capture recording `POST` describes — it is the capturer's casing,
-/// not the wire's. Normalizing here means a lowercasing capturer cannot make a
-/// method-gated clause silently stop being judged, which is the failure mode
-/// the header normalization above exists to prevent, one field over.
-fn deserialize_uppercase_method<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Ok(Option::<String>::deserialize(deserializer)?.map(|method| method.to_ascii_uppercase()))
-}
-
 /// Which party emitted an event.
 ///
 /// Deliberately *not* `#[non_exhaustive]`: a protocol exchange has exactly two ends,
@@ -126,12 +111,11 @@ pub enum EventBody {
         /// method-gated checks report the clause *not observed* rather than
         /// guessing: a recording that cannot tell a POST from a DELETE cannot
         /// evidence a POST-only MUST, and must not fail a DELETE with one.
-        /// Normalized to uppercase on deserialization.
-        #[serde(
-            default,
-            skip_serializing_if = "Option::is_none",
-            deserialize_with = "deserialize_uppercase_method"
-        )]
+        /// The token as the request carried it, compared exactly (RFC 9110
+        /// §9.1 makes it case-sensitive): `post` is not `POST`. The bundled
+        /// recorders write the wire's own token; an importer of a format that
+        /// does not preserve its case folds it itself.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         method: Option<String>,
         /// Response status, when this event records a response.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -430,15 +414,23 @@ mod tests {
     }
 
     #[test]
-    fn http_request_method_normalizes_to_uppercase() {
-        // A capturer that lowercases its method must not make a POST-gated
-        // clause stop being judged.
-        let line = r#"{"seq":2,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"post","headers":{}}"#;
-        let event: TraceEvent = serde_json::from_str(line).unwrap();
-        let EventBody::Http { method, .. } = event.body else {
-            panic!("expected an http event");
-        };
-        assert_eq!(method.as_deref(), Some("POST"));
+    fn http_request_method_is_kept_as_the_wire_spelled_it() {
+        // RFC 9110 §9.1: a method token is case-sensitive, and the bundled
+        // recorders write the token the request carried, so a trace that
+        // says `post` is describing a request whose method was not `POST`.
+        // Reading it as `POST` made a lowercase request pass the clause that
+        // the client MUST use POST.
+        for token in ["post", "Post", "POST", "PUT", "M-SEARCH"] {
+            let line = format!(
+                r#"{{"seq":2,"direction":"client-to-server","transport":"streamable-http","kind":"http","method":"{token}"}}"#
+            );
+            let event: TraceEvent = serde_json::from_str(&line).unwrap();
+            let EventBody::Http { method, .. } = &event.body else {
+                panic!("expected an http event");
+            };
+            assert_eq!(method.as_deref(), Some(token));
+            assert_eq!(serde_json::to_string(&event).unwrap(), line, "{token}");
+        }
     }
 
     #[test]

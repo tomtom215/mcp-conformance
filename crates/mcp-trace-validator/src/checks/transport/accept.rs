@@ -269,11 +269,20 @@ mod tests {
         }
     }
 
+    /// RFC 9110 §9.1 makes a method token case-sensitive and the bundled
+    /// recorders write the wire's own, so `post` is not `POST`: a clause about
+    /// a POST's `Accept` has no subject in it, and the clause that convicts a
+    /// request not made by POST (`TRAN-049`/`TRAN-056`) is the one that speaks.
+    /// The reader used to fold the token to uppercase, which judged a lowercase
+    /// request as a POST and passed the clause that requires one.
     #[test]
-    fn method_matching_survives_a_lowercasing_capturer() {
-        let lowercased = [request(0, "post", r#"{"accept":"application/json"}"#)];
-        let findings = run("transport.client-post-accept-header", &lowercased);
-        assert_eq!(findings.len(), 1, "{findings:?}");
+    fn a_method_in_another_case_is_not_a_post_and_is_not_judged_as_one() {
+        let check = "transport.client-post-accept-header";
+        for spelled in ["post", "Post"] {
+            let events = [request(0, spelled, r#"{"accept":"application/json"}"#)];
+            assert_eq!(run(check, &events), Vec::<String>::new(), "{spelled}");
+            assert_eq!(examined(check, &events), 0, "{spelled}");
+        }
     }
 
     #[test]

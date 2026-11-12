@@ -13,7 +13,9 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
 - **`http`** events record the conformance-relevant headers, a response's
   status, and a client request's `method` — Streamable HTTP binds different
   obligations to `POST`, `GET`, and `DELETE`, so a clause addressed to one of
-  them is judged only where the recording says which it was; and
+  them is judged only where the recording says which it was. The token is kept
+  as the request carried it and compared exactly (RFC 9110 §9.1: it is
+  case-sensitive), so `post` is not `POST`; and
 - **`lifecycle`** events mark the transport's moments: `transport-open` (it became
   usable), `transport-close` (it closed in an orderly way) and `transport-abort` (it
   failed or was torn down abnormally — an unreachable upstream, a response cut off, a
