@@ -292,14 +292,23 @@ fn fresh_trace() -> Result<PathBuf, String> {
         "mcp-conformance-check-{}-{unique}",
         std::process::id()
     ));
-    let mut builder = std::fs::DirBuilder::new();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt as _;
-        builder.mode(0o700);
-    }
-    builder
+    private_dir()
         .create(&dir)
         .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
     Ok(dir.join("session.jsonl"))
+}
+
+/// A builder for a directory only its owner can enter (mode `0700` on Unix;
+/// elsewhere the system's temporary directory is already the user's own).
+#[cfg(unix)]
+fn private_dir() -> std::fs::DirBuilder {
+    use std::os::unix::fs::DirBuilderExt as _;
+    let mut builder = std::fs::DirBuilder::new();
+    builder.mode(0o700);
+    builder
+}
+
+#[cfg(not(unix))]
+fn private_dir() -> std::fs::DirBuilder {
+    std::fs::DirBuilder::new()
 }

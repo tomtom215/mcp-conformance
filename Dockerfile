@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-# The container image: `mcp-trace-validator` and `mcp-trace-capture`, built from
+# The container image: `mcp-conformance`, `mcp-trace-validator` and `mcp-trace-capture`, built from
 # this workspace and nothing else, published as ghcr.io/tomtom215/mcp-conformance
 # by release.yml on a release tag and built (never pushed) by ci.yml's `image`
 # job on every pull request and push.
@@ -52,14 +52,14 @@ RUN cargo install cargo-auditable --version 0.7.7 --locked
 COPY . .
 RUN rustup show active-toolchain \
     && cargo auditable build --release --locked \
-        -p mcp-trace-validator -p mcp-trace-capture --bins
+        -p mcp-conformance-cli -p mcp-trace-validator -p mcp-trace-capture --bins
 
 FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2
 LABEL org.opencontainers.image.title="mcp-conformance" \
-      org.opencontainers.image.description="mcp-trace-validator and mcp-trace-capture: record Model Context Protocol sessions and judge them clause by clause" \
+      org.opencontainers.image.description="mcp-conformance, mcp-trace-validator and mcp-trace-capture: check a Model Context Protocol server, or record sessions and judge them clause by clause" \
       org.opencontainers.image.source="https://github.com/tomtom215/mcp-conformance" \
       org.opencontainers.image.licenses="MIT"
-COPY --from=build /src/target/release/mcp-trace-validator /src/target/release/mcp-trace-capture /usr/local/bin/
+COPY --from=build /src/target/release/mcp-conformance /src/target/release/mcp-trace-validator /src/target/release/mcp-trace-capture /usr/local/bin/
 COPY LICENSE /usr/share/doc/mcp-conformance/LICENSE
 USER 65532:65532
 WORKDIR /work

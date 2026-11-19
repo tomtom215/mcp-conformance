@@ -863,6 +863,9 @@ jobs:
           run() { docker run --rm -v "$PWD/corpus:/work/corpus:ro" mcp-conformance:ci "$@"; }
           validator="$(run mcp-trace-validator --version | head -n 1)"
           capture="$(run mcp-trace-capture --version | head -n 1)"
+          front="$(run mcp-conformance --version | head -n 1)"
+          [[ "$front" == "mcp-conformance ${capture#mcp-trace-capture }" ]] \
+            || { echo "::error::mcp-conformance is missing from the image or names another version: ${front}"; exit 1; }
           echo "$validator / $capture"
           [[ "$validator" == "mcp-trace-validator ${capture#mcp-trace-capture }" ]] \
             || { echo "::error::the two binaries report different versions"; exit 1; }
