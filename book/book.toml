@@ -13,7 +13,7 @@
 [book]
 title = "MCP Conformance Toolkit"
 authors = ["Tom F."]
-description = "An independent, trace-based conformance toolkit for the Model Context Protocol."
+description = "Check a Model Context Protocol (MCP) server against the specification, clause by clause: one command, or record any session and judge it offline. Revisions 2025-11-25 and 2026-07-28."
 src = "src"
 language = "en"
 

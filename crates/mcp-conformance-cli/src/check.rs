@@ -24,8 +24,8 @@ use mcp_trace_validator::cli as validator;
 use mcp_trace_validator::report::Party;
 
 use crate::EXIT_USAGE;
-use crate::args::{CheckArgs, SpecVersion};
 
+pub(crate) mod args;
 mod arguments;
 mod headers;
 mod request;
@@ -34,6 +34,7 @@ mod sse;
 mod summary;
 mod wire;
 
+use args::{CheckArgs, SpecVersion};
 use request::{Era, LEGACY, MODERN, Requests};
 use session::{Ended, Plan, Session};
 use summary::Summary;

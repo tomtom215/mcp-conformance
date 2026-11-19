@@ -7,8 +7,11 @@
 client, no MCP SDK and no Node.js.
 
 ```text
-mcp-conformance check -- python my_server.py           # a stdio server: its command after `--`
-mcp-conformance check --url http://localhost:3000/mcp   # a Streamable HTTP server: its endpoint
+# a stdio server: its command after `--`
+mcp-conformance check -- python my_server.py
+
+# a Streamable HTTP server: its endpoint
+mcp-conformance check --url http://localhost:3000/mcp
 ```
 
 It does three things, in order: starts the [recorder](trace-format.md) in front of
@@ -142,8 +145,13 @@ file in a new private directory under the system's temporary one, and its path i
 printed. It is an ordinary [trace](trace-format.md):
 
 ```text
-mcp-conformance validate session.jsonl                    # judge it again, both parties
+# judge it again, for both parties
+mcp-conformance validate session.jsonl
+
+# one self-contained page
 mcp-conformance validate --format html session.jsonl > report.html
+
+# keep it in the workbench's library
 mcp-conformance library import session.jsonl && mcp-conformance serve
 ```
 

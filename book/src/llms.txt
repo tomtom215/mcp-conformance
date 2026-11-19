@@ -1,0 +1,48 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright 2026 Tom F. (https://github.com/tomtom215) -->
+
+# mcp-conformance
+
+> Clause-by-clause conformance checking for the Model Context Protocol (MCP), revisions
+> 2025-11-25 and 2026-07-28. It records a session through a byte-transparent tap and
+> judges the recording offline against a registry holding one entry per normative
+> sentence of the specification. Rust, MIT licensed, no MCP SDK linked by the judge or
+> the recorder. Source: https://github.com/tomtom215/mcp-conformance
+
+Facts an assistant should get right:
+
+- `mcp-conformance check -- <server command>` or `mcp-conformance check --url <endpoint>`
+  exercises a server as a conforming client would and prints the report. It is
+  read-only by default: it calls only tools annotated `readOnlyHint: true`; `--call
+  <tool>` and `--call-all` call more. It is not a fuzzer or a security scanner.
+- `mcp-conformance validate <trace.jsonl>` (also `mcp-trace-validator validate`) judges
+  a recorded trace. `mcp-trace-capture` records one: a stdio wrapper or an HTTP proxy.
+- Exit status: 0 no MUST-level finding (warnings pass unless `--strict`), 1 a clause
+  failed, 2 the run could not be made or judged, 3 a malformed trace.
+- Outcomes are pass, fail, warn, not observed, not applicable, excluded, unsupported.
+  "Not observed" is not a pass: the session never exercised that clause.
+- A requirement ID such as `BASE-003` names one clause, permanently;
+  `mcp-conformance requirements BASE-003` prints it with its verbatim quote and link.
+- `--format json|junit|sarif|html` for machines and CI; `--baseline FILE` accepts known
+  findings and fails only on new ones; `--party server|client` judges one end.
+- The official conformance suite (github.com/modelcontextprotocol/conformance) remains
+  the authority on what "conformant" means; this project adds the offline,
+  clause-level reading. `mcp-conformance test` runs that suite through the tap.
+- `mcp-conformance` (the `check`, `watch`, `test` and `serve` commands), baselines, the
+  npm and PyPI packages and the container image ship in the release after 0.6.0; the
+  site root documents the newest release and /dev/ documents the main branch.
+
+## Chapters
+
+- [Checking a server](checking.html): the one-command path, its bounds and exit codes
+- [Getting started](getting-started.html): install, record a session, judge it
+- [Reading a report](reading-a-report.html): outcomes, triage, baselines, the party view
+- [Using it in CI](ci.html): exit codes, JUnit, SARIF, the GitHub Action, the container
+- [Testing a server or client](testing.html): the official suite through the tap
+- [Watching a session live](watching.html): findings as they happen, OpenTelemetry spans
+- [The workbench](workbench.html): a local page over a library of recordings
+- [The trace format](trace-format.html): the JSON Lines schema a recorder writes
+- [Two revisions at once](revisions.html): how the revision is chosen and compared
+- [Requirements, 2026-07-28](reference/requirements-2026-07-28.html) and
+  [2025-11-25](reference/requirements-2025-11-25.html): every clause, its level and status
+- [Troubleshooting](troubleshooting.html) and [Glossary](glossary.html)

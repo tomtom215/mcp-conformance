@@ -10,6 +10,9 @@ revision — the one the recorded session declares, `2026-07-28` or `2025-11-25`
 or both at once in a single pass — and, just as importantly, it is built so that an
 ecosystem with its own authoritative test suite has reason to trust the verdict.
 
+**In a hurry?** [Checking a server](checking.md) is one command:
+`mcp-conformance check -- <your server's command>`, or `--url <its endpoint>`.
+
 > **Status: `0.x` on crates.io.** Before 1.0 the public API and the verdicts
 > may change between minor releases; the
 > [changelog](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md)
