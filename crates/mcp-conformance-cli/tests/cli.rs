@@ -242,6 +242,9 @@ pub(crate) fn documented_commands(text: &str) -> Vec<String> {
         if in_block
             && line.starts_with("mcp-conformance ")
             && !line.starts_with("mcp-conformance watch")
+            // `check`'s own summary opens with its name and a colon: output
+            // shown in an example, not a command.
+            && !line.starts_with("mcp-conformance check:")
         {
             commands.push(line.to_owned());
         }
@@ -262,6 +265,8 @@ fn every_documented_command_parses() {
     let mut seen = 0;
     for document in [
         "README.md",
+        "../../README.md",
+        "../../book/src/checking.md",
         "../../book/src/testing.md",
         "../../book/src/workbench.md",
     ] {
@@ -270,8 +275,19 @@ fn every_documented_command_parses() {
         assert!(!commands.is_empty(), "{document} shows no command");
         for command in commands {
             let mut words = words(&command);
+            // A trailing `# comment` is the page's, not the command's.
+            if let Some(comment) = words.iter().position(|word| word == "#") {
+                words.truncate(comment);
+            }
             if words.get(1).is_some_and(|sub| sub != "test") {
-                words.push("--help".to_owned());
+                // Before a `--`: what follows one is the server's command
+                // (`check -- python my_server.py`), which `--help` must not
+                // join, or the test would start a server.
+                let end = words
+                    .iter()
+                    .position(|word| word == "--")
+                    .unwrap_or(words.len());
+                words.insert(end, "--help".to_owned());
             }
             let output = binary()
                 .args(&words[1..])

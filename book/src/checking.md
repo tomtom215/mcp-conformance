@@ -152,7 +152,8 @@ mcp-conformance validate session.jsonl
 mcp-conformance validate --format html session.jsonl > report.html
 
 # keep it in the workbench's library
-mcp-conformance library import session.jsonl && mcp-conformance serve
+mcp-conformance library import session.jsonl
+mcp-conformance serve
 ```
 
 ## How `check`, `test` and `watch` differ
