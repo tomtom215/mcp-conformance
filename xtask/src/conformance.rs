@@ -125,6 +125,10 @@ pub(crate) fn run() -> ExitCode {
     if capture::run(&root, &suite) != ExitCode::SUCCESS {
         return ExitCode::FAILURE;
     }
+    // Independent of the suite and its version: our own client, our own server.
+    if exerciser::run(&root) != ExitCode::SUCCESS {
+        return ExitCode::FAILURE;
+    }
     // `mcp-conformance test` runs the pin; under an override (the alpha
     // early-warning job) it would be comparing two different suites.
     if suite != SUITE_VERSION {
@@ -140,6 +144,15 @@ pub(crate) fn run() -> ExitCode {
 /// The capture leg: `mcp-trace-capture` between real endpoints — stdio sessions
 /// judged clean at both revisions, and the suite green through the HTTP proxy.
 mod capture;
+
+/// The exerciser leg: `mcp-conformance check` against the everything server,
+/// its verdict and its own conduct both held (ADR-0024).
+mod exerciser;
+
+/// `cargo xtask exerciser`: the exerciser leg alone, which needs no Node.js.
+pub(crate) fn exerciser() -> ExitCode {
+    exerciser::run(&crate::workspace_root())
+}
 
 /// The product leg: `mcp-conformance test` against the same subjects, held
 /// to the gate's own results (ADR-0021, roadmap W1).

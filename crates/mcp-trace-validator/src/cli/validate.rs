@@ -18,13 +18,13 @@
 
 use std::path::Path;
 
-use mcp_conformance_core::requirement::{Registry, RegistrySet};
-use mcp_conformance_core::revision::ProtocolRevision;
-use mcp_conformance_core::trace::TraceEvent;
 use crate::declared::{self, RevisionSource};
 use crate::multi::{self, MultiReport};
 use crate::report::{Filter, HumanOptions, Party, Report, Unjudged, Verdict};
 use crate::{engine, html, junit, reader, sarif, sessions};
+use mcp_conformance_core::requirement::{Registry, RegistrySet};
+use mcp_conformance_core::revision::ProtocolRevision;
+use mcp_conformance_core::trace::TraceEvent;
 
 use crate::cli::emit::emit;
 use crate::cli::input::Refusal;

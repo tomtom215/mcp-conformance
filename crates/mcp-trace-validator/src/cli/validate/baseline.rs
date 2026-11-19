@@ -13,9 +13,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::baseline::{
-    Baseline, BaselineError, Date, Entry, Notes, TraceReports, record,
-};
+use crate::baseline::{Baseline, BaselineError, Date, Entry, Notes, TraceReports, record};
 use crate::report::{BaselineTally, Party, Report, printable};
 use serde_json::{Value, json};
 
@@ -188,11 +186,7 @@ pub(crate) fn finish(
 }
 
 /// The line on stderr after a baseline is written.
-fn wrote(
-    path: &Path,
-    recorded: &crate::baseline::Recorded,
-    refreshed: bool,
-) -> String {
+fn wrote(path: &Path, recorded: &crate::baseline::Recorded, refreshed: bool) -> String {
     let count = recorded.baseline.entries().len();
     let mut line = format!(
         "wrote {count} {} to {}",

@@ -1164,12 +1164,17 @@ name = "mcp-conformance-cli"
 version = "0.6.0"
 dependencies = [
  "axum",
+ "base64",
  "clap",
+ "clap_complete",
  "criterion",
  "futures",
+ "jsonschema",
  "mcp-conformance-core",
+ "mcp-everything-server",
  "mcp-trace-capture",
  "mcp-trace-validator",
+ "proptest",
  "reqwest",
  "ring",
  "serde",

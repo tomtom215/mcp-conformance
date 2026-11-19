@@ -19,9 +19,12 @@ fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mcp-conformance"))
 }
 
+fn scratch_path(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("mcp-conformance-cli-{name}-{}", std::process::id()))
+}
+
 fn scratch(name: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("mcp-conformance-cli-{name}-{}", std::process::id()));
+    let dir = scratch_path(name);
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -112,10 +115,15 @@ fn watch_help_names_the_recorders_modes_and_flags() {
 
 #[test]
 fn version_is_the_crate_version() {
+    // `-V` is the one line scripts read; `--version` adds the revisions this
+    // build judges, as `mcp-trace-validator --version` does.
+    let line = format!("mcp-conformance {}", env!("CARGO_PKG_VERSION"));
+    let output = binary().arg("-V").output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), line);
     let output = binary().arg("--version").output().unwrap();
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        format!("mcp-conformance {}", env!("CARGO_PKG_VERSION"))
+        format!("{line}\njudges protocol revisions: 2025-11-25, 2026-07-28")
     );
 }
 
@@ -178,6 +186,9 @@ fn the_relay_refuses_to_run_outside_test() {
 }
 
 #[cfg(unix)]
+#[path = "cli/check.rs"]
+mod check;
+
 #[path = "cli/offline.rs"]
 mod offline;
 

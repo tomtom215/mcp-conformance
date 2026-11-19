@@ -22,13 +22,12 @@
 
 use std::process::ExitCode;
 
-use clap::Parser as _;
-
 mod args;
 mod bridge;
 // The library's own file too (its importers' timestamps), so the calendar is
 // written once.
 mod calendar;
+mod check;
 mod fixtures;
 mod judging;
 mod library_cmd;
@@ -45,7 +44,13 @@ const EXIT_FINDINGS: u8 = 1;
 const EXIT_USAGE: u8 = 2;
 
 fn main() -> ExitCode {
-    let cli = args::Cli::parse();
+    let matches = <args::Cli as clap::CommandFactory>::command()
+        .long_version(mcp_trace_validator::cli::long_version(env!(
+            "CARGO_PKG_VERSION"
+        )))
+        .get_matches();
+    let cli = <args::Cli as clap::FromArgMatches>::from_arg_matches(&matches)
+        .unwrap_or_else(|error| error.exit());
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -57,6 +62,18 @@ fn main() -> ExitCode {
         }
     };
     let code = match cli.command {
+        args::Command::Check(args) => ExitCode::from(runtime.block_on(check::run(*args))),
+        args::Command::Validate(args) => ExitCode::from(mcp_trace_validator::cli::validate(&args)),
+        args::Command::Requirements(args) => {
+            ExitCode::from(mcp_trace_validator::cli::requirements(&args))
+        }
+        args::Command::Completions { shell } => {
+            ExitCode::from(mcp_trace_validator::cli::completions(
+                shell,
+                &mut <args::Cli as clap::CommandFactory>::command(),
+                "mcp-conformance",
+            ))
+        }
         args::Command::Test(args) => ExitCode::from(runtime.block_on(run::test(*args))),
         args::Command::Watch(args) => watch::main(&runtime, &args),
         args::Command::ClientRelay { command } => {

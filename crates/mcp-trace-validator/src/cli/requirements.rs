@@ -68,7 +68,16 @@ struct Selected<'a> {
 }
 
 pub(crate) fn run(args: &Args) -> u8 {
-    let registry = match requirements_registry(args.registry.as_deref(), args.revision.as_deref()) {
+    // An ID names its revision: the two built-in registries share none, so
+    // with no `--revision` an ID is looked up where it lives rather than
+    // refused for not being in the newest one.
+    let home = (args.registry.is_none() && args.revision.is_none())
+        .then(|| args.ids.first())
+        .flatten()
+        .and_then(|id| builtin_revision_with(&id.to_ascii_uppercase()))
+        .map(|revision| revision.to_string());
+    let revision = args.revision.as_deref().or(home.as_deref());
+    let registry = match requirements_registry(args.registry.as_deref(), revision) {
         Ok(registry) => registry,
         Err(message) => {
             eprintln!("error: {message}");

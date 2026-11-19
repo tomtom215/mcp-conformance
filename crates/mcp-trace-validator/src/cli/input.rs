@@ -12,8 +12,8 @@ use std::fs;
 use std::io::{BufRead as _, Read as _};
 use std::path::Path;
 
-use mcp_conformance_core::trace::TraceEvent;
 use crate::reader::{self, Limits, TraceParseError};
+use mcp_conformance_core::trace::TraceEvent;
 
 use crate::cli::{EXIT_MALFORMED_TRACE, EXIT_USAGE};
 

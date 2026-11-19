@@ -239,10 +239,8 @@ pub fn validate(args: &ValidateArgs) -> u8 {
 /// how `mcp-conformance check` reports on the session it has just recorded.
 #[must_use]
 pub fn judge(traces: &[String], report: &ReportArgs, judging: &JudgingArgs) -> u8 {
-    let filter = crate::report::Filter::new(
-        report.selection.areas(),
-        report.selection.level_keywords(),
-    );
+    let filter =
+        crate::report::Filter::new(report.selection.areas(), report.selection.level_keywords());
     validate::run(
         traces,
         &reader::Limits::new(judging.max_events, judging.max_line_bytes),
