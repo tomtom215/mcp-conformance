@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! A baseline: the findings a server's author has accepted, so that a run can
-//! fail on a finding that is *new* ([ADR-0025](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0025-a-baseline-for-validate.md)).
+//! A baseline: the findings accepted so far, so a run can fail on a new one.
+//!
+//! The design and its limits are
+//! [ADR-0025](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0025-a-baseline-for-validate.md).
 //!
 //! A [`Baseline`] is a file of [`Entry`]s, each naming a finding by its
 //! [`fingerprint`](crate::fingerprint) — the identity SARIF already reports —

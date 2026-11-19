@@ -42,7 +42,7 @@
 # builds and the release publishes); its default target is native, so no
 # cross-compilation is involved.
 
-FROM docker.io/library/rust:1.99.1-slim-trixie@sha256:aab42391a986424e22d6a3ec14f37bc6dd3dacff4d457ca7cccd781e02297cc6 AS build
+FROM docker.io/library/rust:1.100.0-slim-trixie@sha256:6f14b2b4b278ec0d50aa1d69541c304ce0f95e0f6268487aa9924af1c2e9aebe AS build
 WORKDIR /src
 # Installed before the source is copied, so a source change does not rebuild
 # it. Pinned and built --locked: it wraps the build of a shipped artifact.
@@ -54,7 +54,7 @@ RUN rustup show active-toolchain \
     && cargo auditable build --release --locked \
         -p mcp-trace-validator -p mcp-trace-capture --bins
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2
 LABEL org.opencontainers.image.title="mcp-conformance" \
       org.opencontainers.image.description="mcp-trace-validator and mcp-trace-capture: record Model Context Protocol sessions and judge them clause by clause" \
       org.opencontainers.image.source="https://github.com/tomtom215/mcp-conformance" \

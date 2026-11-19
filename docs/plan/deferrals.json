@@ -21,6 +21,13 @@
       "why": "Review item 2.6 named tasks and skills, the two extensions the official suite and SEP-1730 single out; Apps is the third official extension and was not read for this change. Most of it binds the view-to-host bridge, which runs over postMessage inside the host and never reaches an MCP recording, but its server half — `ui://` resources and the tool metadata that points at them — does cross the MCP connection, so it cannot be excluded wholesale without reading its clauses, and an unread page is not an exclusion",
       "meanwhile": "`extensions/apps/overview` and `extensions/apps/build` sit in `site_out_of_scope` of registry/2026-07-28/extensions/sources.json naming this row, so the weekly spec-drift run keeps them decided rather than silent; the official suite runs no Apps scenario either (0.2.0-alpha.12, read 2026-10-13)",
       "review_by": "2027-01-31"
+    },
+    {
+      "id": "chrono-unmaintained",
+      "what": "Removing chrono from the dependency tree, or the `deny.toml` ignore entry for RUSTSEC-2026-0543 (\"chrono is unmaintained\", informational, every version affected, no patched release)",
+      "why": "Entered 2026-11-19. chrono 0.4.45 is in Cargo.lock only as a dependency of rmcp (`cargo tree -i chrono`, at rmcp 3.9.0), which the everything server and the reference host are built on; nothing in this workspace calls it. rmcp 3.11.0, the newest release that day, still requires it, so there is no version of our own dependencies to move to, and replacing rmcp is not on the table (ADR-0009)",
+      "meanwhile": "`cargo deny` ignores exactly this advisory id, with the reason beside it in deny.toml; every other advisory still fails the build, including a real vulnerability in chrono, which would carry its own id. The validator, the recorder and `mcp-conformance` do not link rmcp outside their tests",
+      "review_by": "2027-02-15"
     }
   ]
 }

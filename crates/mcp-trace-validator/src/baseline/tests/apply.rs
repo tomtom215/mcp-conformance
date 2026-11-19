@@ -83,14 +83,14 @@ fn a_new_finding_is_never_hidden_by_a_baseline_for_its_neighbours() {
         .iter()
         .find(|row| row.id == "BASE-086")
         .unwrap();
-    let new: Vec<&str> = row
+    let unaccepted: Vec<&str> = row
         .findings
         .iter()
         .filter(|finding| !finding.is_baselined())
         .map(|finding| finding.detail.as_str())
         .collect();
-    assert_eq!(new.len(), 1);
-    assert!(new[0].contains(r#"tool "c""#), "{new:?}");
+    assert_eq!(unaccepted.len(), 1);
+    assert!(unaccepted[0].contains(r#"tool "c""#), "{unaccepted:?}");
     assert_eq!(report.effective_verdict(), Verdict::PassWithWarnings);
     assert!(report.counts(row.findings.iter().find(|f| !f.is_baselined()).unwrap()));
 }

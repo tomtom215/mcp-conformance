@@ -119,7 +119,10 @@ impl From<bool> for HostHeader {
 /// Windows keeps a process's whole exit code, which `ExitCode` (a `u8`) cannot
 /// carry, so one that does not fit is passed with `std::process::exit` — the
 /// process ends here; everywhere else every code a run returns fits.
-#[must_use]
+// With a message: `ExitCode` is itself `#[must_use]` from Rust 1.100, where a
+// bare attribute here is redundant, and is not at the MSRV, where its absence
+// is what clippy reports.
+#[must_use = "the exit status is the run's result"]
 pub fn exit(code: i32) -> ExitCode {
     if whole_exit(code, cfg!(windows)) {
         std::process::exit(code);
