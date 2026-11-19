@@ -38,6 +38,11 @@ fn numbers_take_the_value_nearest_zero_within_their_bounds() {
     let cases = [
         (json!({"type": "integer"}), json!(0)),
         (json!({"type": "integer", "minimum": 3}), json!(3)),
+        // Bounds that meet admit exactly one value.
+        (
+            json!({"type": "integer", "minimum": 5, "maximum": 5}),
+            json!(5),
+        ),
         (json!({"type": "integer", "exclusiveMinimum": 3}), json!(4)),
         (json!({"type": "number", "maximum": -2}), json!(-2)),
         (
@@ -209,4 +214,61 @@ proptest! {
         prop_assert!(jsonschema::is_valid(&schema, &arguments), "{schema} / {arguments}");
         prop_assert!(arguments.get("x").is_some());
     }
+}
+
+/// `{"type": "boolean"}` under `hops` levels of `wrap`.
+fn nested(hops: usize, wrap: impl Fn(Value) -> Value) -> Value {
+    (0..hops).fold(json!({"type": "boolean"}), |inner, _| wrap(inner))
+}
+
+#[test]
+fn a_schema_is_followed_exactly_sixteen_levels_down_whatever_the_levels_are() {
+    let in_object =
+        |inner| json!({"type": "object", "required": ["k"], "properties": {"k": inner}});
+    let in_array = |inner| json!({"type": "array", "minItems": 1, "items": inner});
+    let in_branch = |inner| json!({"anyOf": [inner]});
+    for (name, wrap) in [
+        ("object", &in_object as &dyn Fn(Value) -> Value),
+        ("array", &in_array),
+        ("anyOf", &in_branch),
+    ] {
+        // The member itself is level 1, so fifteen wrappers put the boolean at
+        // level 16, the last one followed.
+        let deepest = json!({"type": "object", "required": ["x"],
+            "properties": {"x": nested(15, wrap)}});
+        assert!(build(&deepest).is_ok(), "{name}: {:?}", build(&deepest));
+        let too_deep = json!({"type": "object", "required": ["x"],
+            "properties": {"x": nested(16, wrap)}});
+        let refused = build(&too_deep).unwrap_err();
+        assert!(
+            refused.contains("nests deeper") || refused.contains("no `anyOf` branch"),
+            "{name}: {refused}"
+        );
+    }
+}
+
+#[test]
+fn a_member_with_properties_and_no_type_is_an_object() {
+    let schema = json!({"type": "object", "required": ["o"], "properties": {
+        "o": {"required": ["inner"], "properties": {"inner": {"type": "integer"}}}}});
+    assert_eq!(build(&schema).unwrap(), json!({"o": {"inner": 0}}));
+}
+
+#[test]
+fn the_size_limits_are_inclusive() {
+    let member = |member: Value| {
+        build(&json!({"type": "object", "required": ["m"], "properties": {"m": member}}))
+    };
+    // Strings: 1024 characters are built, 1025 are not.
+    let longest = member(json!({"type": "string", "minLength": 1024})).unwrap();
+    assert_eq!(longest["m"].as_str().unwrap().len(), 1024);
+    assert!(member(json!({"type": "string", "minLength": 1025})).is_err());
+    // Arrays: sixteen items are built, seventeen are not.
+    let items = json!({"type": "boolean"});
+    let fullest = member(json!({"type": "array", "minItems": 16, "items": items})).unwrap();
+    assert_eq!(fullest["m"].as_array().unwrap().len(), 16);
+    assert!(member(json!({"type": "array", "minItems": 17, "items": items})).is_err());
+    // One item is distinct from every other item there is.
+    let single = json!({"type": "array", "minItems": 1, "uniqueItems": true, "items": items});
+    assert_eq!(member(single).unwrap(), json!({"m": [false]}));
 }

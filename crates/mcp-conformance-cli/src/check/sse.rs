@@ -84,6 +84,14 @@ mod tests {
     }
 
     #[test]
+    fn a_crlf_between_two_data_lines_ends_one_line_not_an_event() {
+        // Were the LF of a CRLF taken for a line of its own, it would be the
+        // blank line that dispatches, and this one event would arrive as two.
+        let mut events = Events::default();
+        assert_eq!(events.feed(b"data: 1\r\ndata: 2\r\n\r\n"), ["1\n2"]);
+    }
+
+    #[test]
     fn comments_and_other_fields_carry_no_data() {
         let mut events = Events::default();
         assert_eq!(events.feed(b": keep-alive\n\nid: 7\nretry: 5\n\n"), NONE);

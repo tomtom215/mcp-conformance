@@ -60,23 +60,20 @@
     {
       "id": "container-image-carries-mcp-conformance",
       "status": "changed_not_built_locally",
-      "needs": [
-        "CI image job"
-      ]
+      "verified": "not among the failed jobs of CI run 541; its log was not read"
     },
     {
       "id": "visual-baselines",
-      "status": "not_done",
-      "needs": [
-        "the runner's renders from the visual-diffs artifact, looked at"
-      ]
+      "status": "done",
+      "verified": "runner renders from run 541, artifact digest matched, three classes of change looked at"
     },
     {
       "id": "mutation-testing-of-new-code",
-      "status": "not_run",
+      "status": "partial",
       "needs": [
         "the PR's Mutants run; expect survivors in check/session.rs and check/wire/"
-      ]
+      ],
+      "note": "pure check modules: 146 mutants, survivors closed; transports, driver and the merged C1/V2 code not run"
     },
     {
       "id": "everything-server-legacy-mode-names-2026-07-28",
@@ -121,7 +118,6 @@
   ],
   "run_first_next_session": [
     "read the CI run on the branch tip",
-    "take the visual baselines from its artifact",
     "maintainer decisions, then open the pull request and read its Mutants run"
   ]
 }

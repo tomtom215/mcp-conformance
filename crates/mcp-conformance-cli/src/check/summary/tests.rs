@@ -132,3 +132,19 @@ fn the_json_form_carries_the_same_facts() {
     assert_eq!(json["skipped"][0]["reason"], "not read-only");
     assert_eq!(json["revision"], serde_json::Value::Null);
 }
+
+#[test]
+fn exactly_as_many_names_as_a_line_shows_are_all_shown_and_none_counted() {
+    let mut summary = Summary::default();
+    for index in 0..8 {
+        summary
+            .skipped
+            .push(skipped("tool", &format!("t{index}"), "r"));
+    }
+    let text = summary.render();
+    assert!(
+        text.contains("t0, t1, t2, t3, t4, t5, t6, t7 — r"),
+        "{text}"
+    );
+    assert!(!text.contains("more"), "{text}");
+}

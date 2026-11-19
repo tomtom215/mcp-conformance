@@ -16,15 +16,12 @@ short of the release commit, and did not bump the version, tag or publish.
 
 ## Do this first
 
-1. Read the CI run on the branch tip (`gh run list --branch claude/busy-cray-9rvb8c`). Every push cancelled the run before it, so no
-   complete run exists for any commit but the first (run 536, twelve failures, all addressed
-   below); the run on the tip is the first full reading of this branch.
-2. Take the `visual` baselines from that run's `visual-diffs` artifact, look at them, commit them
-   (the procedure of 2026-10-25: the runner's own `-actual.png`, digest checked). They changed
-   because the workbench now names the server of a `2026-07-28` session and reports carry the
-   party and baseline markup. Until then the `Visual` job is red, and nothing else should be.
-3. Decide the three questions under "Maintainer decisions", then open the pull request. Its
-   `Mutants (PR diff)` run will be the first mutation run over this session's code (see
+1. Read the CI run on the branch tip (`gh run list --branch claude/busy-cray-9rvb8c`). The
+   last run read in the session was 541, on `36d647b`: 4 of its jobs failed, `Visual` and three
+   Windows jobs, and the commit that carries this file addresses all four (below). Every earlier
+   push cancelled the run before it, so 536 and 541 are the only complete readings.
+2. Decide the three questions under "Maintainer decisions", then open the pull request. Its
+   `Mutants (PR diff)` run will be the first mutation run over the transport and driver code (see
    "Not done").
 
 ## What was asked, and what was found
@@ -61,7 +58,10 @@ Each line is from a command run in this session.
 | Ecosystem register | An agent re-fetched 47 rows (15 date-only, 32 rewritten in place) and added 1.10 and 4.9; rows 1.5i and 3.16 rewritten here from the runner results above. `cargo xtask register-currency --check`: all 82 rows within 90 days |
 | README, book chapter "Checking a server", baselines and the party view in "Reading a report", `llms.txt`, descriptions | Book built with mdBook 0.5.4 and the new chapter looked at as a rendered page at 1280 px and 390 px (two over-wide code blocks fixed). Every `mcp-conformance` command the root README, the crate README and the chapter show is held to the parser by a test. The README's example output is a real run |
 | What CI found on the first push (run 536) | Windows `unused_mut`; the package check's `--version` comparison; a completions assertion at minimal dependency versions. All three fixed |
-| The container image carries `mcp-conformance` | **Not built here** (no Docker daemon); CI's `image` job now asserts the binary |
+| The container image carries `mcp-conformance` | **Not built here** (no Docker daemon); CI's `image` job asserts the binary, and was not among run 541's four failed jobs (its own log was not read) |
+| What run 541 found | Three Windows jobs: the new `mod check;` in `tests/cli.rs` had been inserted between `#[cfg(unix)]` and the `offline` module it guarded. Both modules are Unix-only now; `check`'s end-to-end tests have not been tried on Windows |
+| Visual baselines | The 12 changed screenshots are the runner's own `-actual.png` from run 541's `visual-diffs` artifact (its SHA-256 equals the digest GitHub lists, `4b28e541…99e4`). Looked at: the library (the `2026-07-28` Rust session now names its server), the dashboard (one row fewer in "Findings by server", the unnamed one), and the failing report (its only differing rows are the schema link's commit). One search expectation followed: `server:rust*` now finds both Rust sessions |
+| Mutation testing of `check`'s pure modules | `cargo mutants` 27.1.0 over `arguments.rs`, `headers.rs`, `request.rs`, `sse.rs`, `summary.rs`: 146 mutants, 12 survived the first run (10 boundaries in argument building, one CRLF case, one count), tests added, 1 survived the second (bounds that meet), a test added and that mutation applied by hand to see it fail. None in `headers.rs` or `request.rs` in either run |
 
 **The final chain, on the tree this file is committed with** (2026-11-19, Rust 1.100.0):
 `cargo test --workspace --all-features --no-fail-fast` ran 2,221 tests: 2,220 passed and one
@@ -104,17 +104,18 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 ## Not done
 
-- **Mutation testing of this session's code.** `cargo mutants --in-diff` was not run locally (about
-  2,800 new lines in `mcp-conformance-cli`; hours on this machine). The PR's sixteen shards will
-  run it. Expect survivors, most likely in `check/session.rs` and `check/wire/` (transport paths
-  the tests reach only end to end), and close them the way `f8f1ca0` did.
-- **Visual baselines** (above).
+- **Mutation testing of `check`'s transports and driver** (`check.rs`, `check/session.rs`,
+  `check/session/listing.rs`, `check/wire.rs`, `check/wire/stdio.rs`, `check/wire/http.rs`) and of
+  the code merged from `wip/C1` and `wip/V2`. Only the pure modules were run here (table above);
+  these need the end-to-end tests per mutant. The PR's sixteen shards will run them: expect
+  survivors and close them the way `f8f1ca0` did.
 - **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each is the open or closed
   state of GitHub issues in other repositories, which this session's access could not read.
 - **Interop matrix pins.** `interop/rust` still pins rmcp `=3.7.0` (inside RUSTSEC-2026-0462);
   TypeScript 1.32.2, `@modelcontextprotocol/server` 2.4.0 and `node` 2.1.2 are eligible under the
   seven-day rule (Dependabot #76). Moving any of them means re-recording the matrix.
-- **Playwright 1.64.1** (Dependabot #66): may move the visual baselines; do it with item 2 above.
+- **Playwright 1.64.1** (Dependabot #66): may move every visual baseline; take them from the
+  runner again if it does.
 - **`mcpsnoop` pin** 0.26.1 against 0.28.0 (needs the binary, a re-measure and a re-triage).
 - **Truth pass over the plan documents** (`06-roadmap.md`, `04-engineering-standards.md`,
   ADR-0009/0011) from the previous handoff: not started. The charter still describes five
@@ -153,7 +154,8 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 - `~/.cargo/config.toml` (not in the repository) sets `debug = "line-tables-only"` and no
   incremental builds, as before.
-- Installed from crates.io this session: `cargo-deny` 0.20.2, `mdbook` 0.5.4. A prebuilt
+- Installed from crates.io this session: `cargo-deny` 0.20.2, `mdbook` 0.5.4, `cargo-mutants`
+  27.1.0. A prebuilt
   `cargo-deny` downloaded from GitHub was not allowed to run; build from source.
-- `cargo-mutants`, `cargo-semver-checks` and `cargo-audit` are not installed. There is no Docker
+- `cargo-semver-checks` and `cargo-audit` are not installed. There is no Docker
   daemon.

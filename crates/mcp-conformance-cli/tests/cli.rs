@@ -185,10 +185,14 @@ fn the_relay_refuses_to_run_outside_test() {
     );
 }
 
+// Unix only, like the module after it: its stand-in servers are `sh` scripts.
+// (The everything-server legs would run anywhere; they have not been tried on
+// Windows, and a first trial belongs in a change of its own.)
 #[cfg(unix)]
 #[path = "cli/check.rs"]
 mod check;
 
+#[cfg(unix)]
 #[path = "cli/offline.rs"]
 mod offline;
 
