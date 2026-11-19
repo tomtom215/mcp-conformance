@@ -13,14 +13,14 @@ use std::fmt::Write as _;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use mcp_trace_validator::baseline::{
+use crate::baseline::{
     Baseline, BaselineError, Date, Entry, Notes, TraceReports, record,
 };
-use mcp_trace_validator::report::{BaselineTally, Party, Report, printable};
+use crate::report::{BaselineTally, Party, Report, printable};
 use serde_json::{Value, json};
 
 use super::Judged;
-use crate::Format;
+use crate::cli::Format;
 
 /// The baseline flags as given.
 pub(crate) struct Settings<'a> {
@@ -190,7 +190,7 @@ pub(crate) fn finish(
 /// The line on stderr after a baseline is written.
 fn wrote(
     path: &Path,
-    recorded: &mcp_trace_validator::baseline::Recorded,
+    recorded: &crate::baseline::Recorded,
     refreshed: bool,
 ) -> String {
     let count = recorded.baseline.entries().len();

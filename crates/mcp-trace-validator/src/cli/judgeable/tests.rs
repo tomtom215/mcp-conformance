@@ -11,8 +11,8 @@
 #![allow(clippy::unwrap_used)]
 
 use super::{combined, refusal};
-use mcp_trace_validator::multi::MultiReport;
-use mcp_trace_validator::report::Totals;
+use crate::multi::MultiReport;
+use crate::report::Totals;
 
 /// `Totals` and `MultiReport` are `#[non_exhaustive]`, so this binary — a
 /// separate crate from the library — cannot build them literally. They are
@@ -108,7 +108,7 @@ fn combined_totals_sums_every_revision_and_every_field() {
 
 #[test]
 fn a_never_answered_session_names_its_source_and_its_reason() {
-    use mcp_trace_validator::reader::{Limits, parse_trace};
+    use crate::reader::{Limits, parse_trace};
     let initialize = r#"{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}}"#;
     let abort = r#"{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"lifecycle","event":"transport-abort"}"#;
     let events = |document: &str| parse_trace(document, &Limits::default()).unwrap();

@@ -7,7 +7,7 @@
 
 use std::io::{BufReader, Cursor, Read as _};
 
-use mcp_trace_validator::reader::Limits;
+use crate::reader::Limits;
 
 use super::{MEASURE_CEILING, measure, read_bounded};
 

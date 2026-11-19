@@ -21,14 +21,14 @@ use std::path::Path;
 use mcp_conformance_core::requirement::{Registry, RegistrySet};
 use mcp_conformance_core::revision::ProtocolRevision;
 use mcp_conformance_core::trace::TraceEvent;
-use mcp_trace_validator::declared::{self, RevisionSource};
-use mcp_trace_validator::multi::{self, MultiReport};
-use mcp_trace_validator::report::{Filter, HumanOptions, Party, Report, Unjudged, Verdict};
-use mcp_trace_validator::{engine, html, junit, reader, sarif, sessions};
+use crate::declared::{self, RevisionSource};
+use crate::multi::{self, MultiReport};
+use crate::report::{Filter, HumanOptions, Party, Report, Unjudged, Verdict};
+use crate::{engine, html, junit, reader, sarif, sessions};
 
-use crate::emit::emit;
-use crate::input::Refusal;
-use crate::{
+use crate::cli::emit::emit;
+use crate::cli::input::Refusal;
+use crate::cli::{
     EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, Format, input, judgeable, load_registry, load_registry_set,
     parse_revisions,
 };
@@ -209,7 +209,7 @@ fn unknown_area(judged: &[Judged], filter: &Filter) -> Option<String> {
                 report
                     .requirements
                     .iter()
-                    .any(|row| mcp_trace_validator::report::area_of(&row.id) == area.as_str())
+                    .any(|row| crate::report::area_of(&row.id) == area.as_str())
             })
         })
         .cloned()

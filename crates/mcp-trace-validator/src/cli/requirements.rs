@@ -17,13 +17,13 @@ use mcp_conformance_core::requirement::{Actor, Registry, Requirement, Verificati
 use mcp_conformance_core::revision::ProtocolRevision;
 use serde::Serialize;
 
-use crate::emit::emit;
-use crate::selection::Selection;
-use crate::{EXIT_OK, EXIT_USAGE, load_registry, load_registry_set};
+use crate::cli::emit::emit;
+use crate::cli::selection::Selection;
+use crate::cli::{EXIT_OK, EXIT_USAGE, load_registry, load_registry_set};
 
 /// The `requirements` subcommand's arguments.
 #[derive(Debug, clap::Args)]
-pub(crate) struct Args {
+pub struct Args {
     /// Requirement IDs to show in full (`LIFE-001`): the level, the party it
     /// binds, the clause and its link, and the checks that judge it or the
     /// reason none can. Without IDs, every requirement is listed one per line.

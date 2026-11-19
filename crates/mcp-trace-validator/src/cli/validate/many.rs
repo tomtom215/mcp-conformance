@@ -12,16 +12,16 @@
 
 use std::fmt::Write as _;
 
-use mcp_trace_validator::report::{Report, Unjudged, Verdict};
-use mcp_trace_validator::{html, junit, sarif};
+use crate::report::{Report, Unjudged, Verdict};
+use crate::{html, junit, sarif};
 use serde_json::json;
 
 use super::{
     Judged, Output, artifact, baseline, junit_options, note_strict, page_trace, promoted, run_code,
     verdict_to_code,
 };
-use crate::emit::emit;
-use crate::{EXIT_OK, Format};
+use crate::cli::emit::emit;
+use crate::cli::{EXIT_OK, Format};
 
 /// Renders the run; `None` when it could not be written.
 pub(super) fn render(

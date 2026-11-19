@@ -40,7 +40,7 @@ impl LevelArg {
 }
 
 /// The `--area` and `--level` flags.
-#[derive(Debug, Default, clap::Args)]
+#[derive(Debug, Clone, Default, clap::Args)]
 pub(crate) struct Selection {
     /// Only clauses in this area — the ID's prefix, as `LIFE` in `LIFE-001`;
     /// repeatable, or comma-separated (`--area BASE,TOOL`). `requirements`

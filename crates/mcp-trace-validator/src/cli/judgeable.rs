@@ -8,8 +8,8 @@
 // follows the rustc lint and quiets the clippy one, per its known-problems note.
 #![allow(clippy::redundant_pub_crate)]
 
-use mcp_trace_validator::multi::MultiReport;
-use mcp_trace_validator::report::Totals;
+use crate::multi::MultiReport;
+use crate::report::Totals;
 
 #[cfg(test)]
 mod tests;
@@ -64,13 +64,13 @@ pub(crate) fn refusal(totals: Totals, trace_source: &str) -> Option<String> {
 }
 
 /// The diagnostic for a recording whose session never started — see
-/// [`never_answered`](mcp_trace_validator::sessions::never_answered) — or
+/// [`never_answered`](crate::sessions::never_answered) — or
 /// `None`.
 pub(crate) fn never_answered(
     events: &[mcp_conformance_core::trace::TraceEvent],
     trace_source: &str,
 ) -> Option<String> {
-    let never = mcp_trace_validator::sessions::never_answered(events)?;
+    let never = crate::sessions::never_answered(events)?;
     let source = if trace_source == "-" {
         "the trace on stdin"
     } else {

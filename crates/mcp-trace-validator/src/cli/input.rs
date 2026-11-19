@@ -13,9 +13,9 @@ use std::io::{BufRead as _, Read as _};
 use std::path::Path;
 
 use mcp_conformance_core::trace::TraceEvent;
-use mcp_trace_validator::reader::{self, Limits, TraceParseError};
+use crate::reader::{self, Limits, TraceParseError};
 
-use crate::{EXIT_MALFORMED_TRACE, EXIT_USAGE};
+use crate::cli::{EXIT_MALFORMED_TRACE, EXIT_USAGE};
 
 /// Why a trace was not judged: the error line, any hints that follow it, and
 /// the exit status it carries.

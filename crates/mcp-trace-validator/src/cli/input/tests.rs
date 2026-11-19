@@ -9,7 +9,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use mcp_trace_validator::reader::{Limits, parse_trace};
+use crate::reader::{Limits, parse_trace};
 
 use super::{Refusal, parse_hint};
 
