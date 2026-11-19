@@ -14,8 +14,8 @@ specification your MCP server keeps, which it breaks, and which it was never ask
 about.** One command, no client to write, no SDK, no Node.js:
 
 ```text
-mcp-conformance check -- python my_server.py          # a stdio server
-mcp-conformance check --url http://localhost:3000/mcp  # a Streamable HTTP server
+mcp-conformance check -- python my_server.py           # a stdio server
+mcp-conformance check --url http://localhost:3000/mcp   # a Streamable HTTP server
 ```
 
 `check` talks to the server the way a conforming client does, records every byte
@@ -132,9 +132,14 @@ inputs and the book's [CI chapter](book/src/ci.md) has the details.
 server said to each other, in any language, record the session and validate it:
 
 ```text
-mcp-trace-capture -o session.jsonl stdio -- python my_server.py     # launch this instead of the server
-mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000   # or point the client at this proxy
-mcp-conformance validate session.jsonl
+# stdio: have your client launch this instead of the server
+mcp-trace-capture -o session.jsonl stdio -- python my_server.py
+
+# HTTP: point your client at this proxy (http://127.0.0.1:8080/mcp)
+mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000
+
+# then judge the recording (`mcp-conformance validate` is the same command)
+mcp-trace-validator validate session.jsonl
 ```
 
 The recorder forwards bytes unchanged and links no MCP SDK, so the verdict describes
