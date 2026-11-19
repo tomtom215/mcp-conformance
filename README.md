@@ -9,136 +9,160 @@
 [![MSRV](https://img.shields.io/crates/msrv/mcp-trace-validator)](STABILITY.md)
 [![License](https://img.shields.io/crates/l/mcp-trace-validator)](LICENSE)
 
-**Clause-by-clause conformance checking for the [Model Context Protocol](https://modelcontextprotocol.io).**
-Record any MCP session — any language, any SDK, stdio or streamable HTTP — and find
-out which of the specification's requirements it met, which it broke, where, and
-which it never exercised.
+**Find out which sentences of the [Model Context Protocol](https://modelcontextprotocol.io)
+specification your MCP server keeps, which it breaks, and which it was never asked
+about.** One command, no client to write, no SDK, no Node.js:
+
+```text
+mcp-conformance check -- python my_server.py          # a stdio server
+mcp-conformance check --url http://localhost:3000/mcp  # a Streamable HTTP server
+```
+
+`check` talks to the server the way a conforming client does, records every byte
+through a tap, and judges the recording against the specification clause by clause,
+for the `2025-11-25` and `2026-07-28` revisions. Each finding names the requirement,
+the message that broke it, the specification's own sentence, and a link to it.
+The exit code is the verdict, so the same command is a CI gate.
 
 **Status: `0.6.0`, on [crates.io](https://crates.io/crates/mcp-trace-validator).**
 Pre-1.0: the API and the verdicts may change between minor releases, and the
 [changelog](CHANGELOG.md) says so when they do.
 
-> **This README describes `main`**, which is ahead of the latest release:
-> `cargo install` gets `0.6.0`. Documentation for the release is at
-> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
->
-> **Not yet released** (on `main` since `0.6.0`; the
-> [changelog's `Unreleased` section](CHANGELOG.md#unreleased) has the full list):
->
-> - the `incomplete` verdict for a run that could not judge one of its traces;
-> - the cap of 20 findings per clause in the human report;
-> - release binaries built with `cargo auditable`, for `cargo audit bin`;
-> - the `requirements <ID>` view, its `--area`/`--level`/`--checked`/`--excluded`
->   filters, and the `completions` subcommand;
-> - the registry rows added since at both revisions — `2026-07-28`'s, and
->   `2025-11-25`'s ping, progress and cancellation pages — so the example totals
->   and the coverage table below are `main`'s, not `0.6.0`'s;
-> - findings that say which party they are held against (`validate --party
->   client|server` views a report for one), a note for the requests a trace ends
->   without answering, and a session judged under the revision its server negotiated
->   (a behaviour change; see the changelog's `Unreleased` section);
-> - the wire schema — every message validated against its revision's JSON Schema —
->   and the five clauses it made judgeable;
-> - the container image (`ghcr.io/tomtom215/mcp-conformance`, first published by
->   the next release) and the GitHub Action's `capture` input, which records the
->   sessions it then judges;
-> - the npm (`npx mcp-conformance`) and PyPI (`pip install mcp-conformance`)
->   packages carrying the release binaries, and `mcp-conformance` in the release
->   archives;
-> - the cross-SDK matrix: the official TypeScript, Python, Go and Rust SDKs'
->   conformance servers, recorded and judged weekly ([book](book/src/sdk-matrix.md)).
+> **This README describes `main`, which is ahead of `0.6.0`.** `mcp-conformance`
+> (`check`, `test`, `watch`, `serve`), baselines, the party view, the wire schema,
+> the container image and the npm and PyPI packages ship with the next release;
+> until then, build from this repository
+> (`cargo install --path crates/mcp-conformance-cli`). The
+> [changelog's `Unreleased` section](CHANGELOG.md#unreleased) lists everything, and
+> the book for `main` is at <https://mcp-conformance.com/dev/>.
 
-## Quickstart
+## Contents
+
+- [Check a server](#check-a-server) · [Use it in CI](#use-it-in-ci) ·
+  [Judge traffic you already have](#judge-traffic-you-already-have) ·
+  [Install](#install)
+- [What a report looks like](#see-it-work) ·
+  [How this relates to other tools](#how-this-relates-to-other-tools) ·
+  [The toolkit](#the-toolkit)
+- [Requirement coverage](#requirement-coverage) · [The trace format](#the-trace-format) ·
+  [Documentation](#documentation)
+
+## Check a server
+
+```text
+$ mcp-conformance check -- node node_modules/@modelcontextprotocol/server-memory/dist/index.js
+mcp-conformance check: node node_modules/@modelcontextprotocol/server-memory/dist/index.js (stdio)
+  revision   2025-11-25 — `server/discover` was not answered as a 2026-07-28 server answers it, so the session fell back to `initialize`
+  server     memory-server 1.0.0
+  tools      9 listed, 3 called
+  resources  1 listed, 1 read
+  prompts    not declared by the server, so not asked for
+  not called:
+    create_entities, create_relations, add_observations, delete_entities, delete_observations, delete_relations — not annotated read-only (`readOnlyHint: true`); name it with --call, or use --call-all
+  requests   10 sent
+  trace      /tmp/mcp-conformance-check-31192-984222902/session.jsonl
+MCP trace validation — revision 2025-11-25 (declared by the trace)
+  WARN  BASE-086 (SHOULD)
+        [server] seq 9: the server sent tool "create_entities"'s inputSchema declaring `$schema` "http://json-schema.org/draft-07/schema#"; JSON Schema 2020-12 (https://json-schema.org/draft/2020-12/schema) is the recommended dialect
+        ...
+totals: 35 pass, 0 fail, 1 warn, 246 excluded, 0 unsupported, 4 not applicable, 62 not observed
+wire schema: pass (21 messages valid)
+verdict (server findings only): pass-with-warnings
+```
+
+(A run on 2026-11-19 against the official `server-memory` package as npm served it
+that day; the `...` stands for seventeen more findings of the same kind, one for each
+schema the server's nine tools declare.)
+
+- **It is safe to point at a real server.** `check` lists what the server declares,
+  reads the resources it lists, gets the prompts that need no arguments, and calls
+  only the tools the server itself annotates `readOnlyHint: true`. Everything else is
+  named with the reason it was left alone. `--call <tool>` and `--call-all` call
+  more, and the side effects are then yours.
+- **It never guesses.** Arguments are built from the tool's own `inputSchema` and
+  checked against it; where the schema does not say enough, the tool is skipped and
+  said so. Every request is one a conforming client sends: nothing malformed, nothing
+  the server did not list. `check` is not a fuzzer or a security scanner.
+- **It is bounded.** At most 100 requests, 25 tool calls, 30 seconds an answer and
+  five minutes in all by default; each bound is a flag, and the summary says when one
+  stopped the run.
+- **It says what it did not see.** The lines above the report are the run's own
+  account. A clean report over ten requests is a claim about ten requests: the
+  clauses the session never reached are counted *not observed*, never passed.
+- **The recording is yours.** The trace is kept (`-o` names it); `mcp-conformance
+  validate` re-judges it, `--format html` renders it as one page, and
+  `mcp-conformance serve` opens it in a local workbench.
+
+`--header "Authorization: Bearer …"` sends a credential to an HTTP server (it is not
+written to the trace), `--spec-version` picks a revision instead of negotiating, and
+`--format json|junit|sarif|html` changes the report. The book's
+[Checking a server](book/src/checking.md) chapter has the rest.
+
+## Use it in CI
+
+The exit status is the verdict: `0` nothing held against the server (warnings pass
+unless `--strict`), `1` a clause failed, `2` the run could not be made or judged.
+
+```yaml
+- run: mcp-conformance check --format sarif --strict -- python my_server.py > mcp.sarif
+- uses: github/codeql-action/upload-sarif@<sha>      # each finding on the trace line it concerns
+  if: always()
+  with:
+    sarif_file: mcp.sarif
+```
+
+**Adopting it on a server that already has findings.** Record them once, then fail
+only on new ones; the accepted findings stay in every report, marked:
+
+```text
+mcp-conformance check --write-baseline mcp-baseline.json -- python my_server.py
+mcp-conformance check --baseline mcp-baseline.json --strict -- python my_server.py
+```
+
+An entry that no longer matches anything fails the run, so a baseline cannot outlive
+the defect it excuses ([ADR-0025](docs/plan/decisions/0025-a-baseline-for-validate.md)).
+
+The repository is also a GitHub Action that judges traces you recorded, or records
+them itself from your own client and server; [`action.yml`](action.yml) lists its
+inputs and the book's [CI chapter](book/src/ci.md) has the details.
+
+## Judge traffic you already have
+
+`check` exercises a server with a client of its own. To judge what *your* client and
+server said to each other, in any language, record the session and validate it:
+
+```text
+mcp-trace-capture -o session.jsonl stdio -- python my_server.py     # launch this instead of the server
+mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000   # or point the client at this proxy
+mcp-conformance validate session.jsonl
+```
+
+The recorder forwards bytes unchanged and links no MCP SDK, so the verdict describes
+the wire. `mcp-conformance watch` does both at once and prints each finding as the
+exchange that shows it completes; `mcp-conformance test` runs the official
+conformance suite through the same tap and reports whether the suite and the clause
+report agree. [`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) says
+what the recorder guarantees and what it leaves out.
+
+## Install
+
+Released today (`0.6.0`), the recorder and the validator:
 
 ```text
 cargo install mcp-trace-capture mcp-trace-validator
+cargo binstall mcp-trace-capture mcp-trace-validator   # prebuilt, no compile
 ```
 
-`cargo binstall mcp-trace-capture mcp-trace-validator` skips the compile: each
-release attaches prebuilt archives for Linux (static, x86_64 and
-aarch64), macOS (arm64 and x86_64) and Windows (x86_64), with SLSA build-provenance
-attestations (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`)
-and `SHA256SUMS-binaries` beside them. The binaries embed their dependency list
-(`cargo auditable`), so `cargo audit bin` checks them against RustSec.
+Each release attaches archives for Linux (static, x86_64 and aarch64), macOS (arm64
+and x86_64) and Windows (x86_64), with SLSA build-provenance attestations
+(`gh attestation verify <archive> --repo tomtom215/mcp-conformance`) and
+`SHA256SUMS-binaries`.
 
-**Not yet released:** from the first release after `0.6.0`, the same attested
-binaries — and the `mcp-conformance` workbench beside them — also install from npm
-and PyPI, with no compiler and no download at install time:
-
-```text
-npx mcp-conformance --version     # or: npm install -g mcp-conformance
-pip install mcp-conformance       # mcp-trace-capture, mcp-trace-validator, mcp-conformance
-```
-
-Neither package is published yet; until it is, these commands fail or find nothing.
-
-Record a session. For a **stdio** server, configure your client to launch the
-capture wrapper instead of the server:
-
-```text
-mcp-trace-capture -o session.jsonl stdio -- python my_server.py
-```
-
-For a **streamable-HTTP** server, put the proxy in front of it and point your client
-at the proxy:
-
-```text
-mcp-trace-capture -o session.jsonl http --upstream http://localhost:3000
-# client URL: http://127.0.0.1:8080/mcp
-```
-
-Then judge it:
-
-```text
-mcp-trace-validator validate session.jsonl
-```
-
-In CI, the exit code is the verdict (`0` pass, `1` a clause failed — or warned, with
-`--strict` — `2` bad invocation or nothing judgeable or output not written, `3`
-malformed trace); `validate` takes any number of traces, and a trace it cannot judge
-is listed in every format's report, whose verdict then reads `incomplete`.
-`--format junit` produces a test report, and `--format sarif` puts each finding on
-the trace line it concerns in GitHub code scanning (or any SARIF viewer).
-[`mcp-trace-capture`'s README](crates/mcp-trace-capture/README.md) covers what the
-recorder guarantees and what it leaves out.
-
-On GitHub Actions, the repository is itself an action: record the traces in an earlier
-step, then
-
-```yaml
-- uses: tomtom215/mcp-conformance@<commit or tag>   # builds the CLI from that ref
-  with:
-    traces: traces/*.jsonl                           # writes mcp-conformance.sarif and a JUnit file
-- uses: github/codeql-action/upload-sarif@<sha>      # needs security-events: write
-  if: always()
-  with:
-    sarif_file: mcp-conformance.sarif
-```
-
-Or let the action record them: with `capture: stdio` (or `http`), it runs your
-`client` command against your `server` through `mcp-trace-capture`, then judges
-every session recorded:
-
-```yaml
-- uses: tomtom215/mcp-conformance@<commit or tag>
-  with:
-    capture: stdio
-    server: python my_server.py
-    client: python my_client.py --server-cmd "$MCP_SERVER_COMMAND"
-```
-
-[`action.yml`](action.yml) lists the inputs (`revision`, `strict`, a released `version`
-to download instead of building, the capture inputs) and outputs; the `action` job in
-[CI](.github/workflows/ci.yml) runs it on every push, recording sessions over both
-transports. The book's [CI chapter](book/src/ci.md#github-actions) has the details.
-
-Both CLIs also ship as a container image, from the release that follows `0.6.0` on
-([`Dockerfile`](Dockerfile); distroless, non-root, no shell; linux/amd64):
-
-```text
-docker run --rm -v "$PWD:/work" ghcr.io/tomtom215/mcp-conformance:<version> \
-  mcp-trace-validator validate session.jsonl
-```
+From the next release, `mcp-conformance` is in the same archives and the same
+binaries install with no compiler from npm (`npx mcp-conformance`), PyPI
+(`pip install mcp-conformance`) and a container image
+(`ghcr.io/tomtom215/mcp-conformance`). **None of those three is published yet**;
+until it is, those commands fail or find nothing.
 
 ## See it work
 
@@ -240,14 +264,14 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 
 ## The toolkit
 
-| Crate | What it gives you |
-|-------|-------------------|
-| [`mcp-conformance-cli`](crates/mcp-conformance-cli) | **The suite, recorded and judged, and a workbench** (on `main`, not yet released; binary `mcp-conformance`). `mcp-conformance test` runs the pinned official suite against a server (`--url`, or `--command` for stdio) or a client (`--client-command`) through the recorder, then reports the suite's checks, the clause report of every session it drove, and whether the two agree. Needs Node.js for the suite; installs nothing. CI holds its report to `cargo xtask conformance`'s on this repository's server and client ([Testing a server or client](book/src/testing.md)). `mcp-conformance serve` is a local web page over a library of recordings — search, timeline and inspector, two-session diff, live tail, dashboards, import from `mcpsnoop` and the MCP Inspector, redaction — loopback-only, token-guarded, sending nothing anywhere ([The workbench](book/src/workbench.md)). |
-| [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder.** A stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write a validator-ready trace, recording each message before the bytes that complete it are forwarded. CI runs reference-host sessions through it at both revisions and requires them to judge clean, and runs the official suite through the proxy. |
-| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The validator and its CLI.** Findings with the clause ID and the offending event `seq`, as human text (what needs attention, or `--all`), JSON (with a published JSON Schema), JUnit, or SARIF, with documented exit codes. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus) — a check that cannot fail is not a check. |
-| [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The spec as data.** Requirement registries for `2025-11-25` and `2026-07-28` whose every entry carries a verbatim spec quote, an RFC 2119 level, an optional capability gate, and either a mechanical check or a documented exclusion (the SEP-2484 traceability shape); a weekly job re-verifies every quote against the published text. Plus the JSON Lines trace schema and RFC 8785 canonical JSON. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk). It passes the pinned official suite's `2025-11-25` server surface — **40/40 checks** — over stdio and policy-gated streamable HTTP, with a default-secure `Host`/`Origin` policy. `--protocol-version 2026-07-28` serves the stateless revision; the suite's pre-release `2026-07-28` scenarios score **42 passing / 0 failing** against it, and the eight committed captures at that revision — five of this server, three of the official SDKs' own conformance servers — evidence **148 of the 181 judgeable clauses** between them. Its tap records each suite session for the calibration check. |
-| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client.** Passes all four of the official suite's `2025-11-25` client scenarios at the pinned version; bounded tool-use loops over stdio and streamable HTTP, scriptable sampling / elicitation / roots with no model-provider network use. |
+| Crate | What it is |
+|-------|-----------|
+| [`mcp-conformance-cli`](crates/mcp-conformance-cli) | **The front door** (binary `mcp-conformance`; on `main`, not yet released). `check` exercises a server and reports; `validate` and `requirements` are the validator's; `watch` records and judges live; `test` runs the pinned official suite through the tap and reconciles the two verdicts; `serve` is a local, loopback-only workbench over a library of recordings ([book](book/src/workbench.md)). |
+| [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The judge**, as a library and a CLI: a pure function from trace events to a report, in human text, JSON (with a published JSON Schema), JUnit, SARIF or HTML. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus). |
+| [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder**: a stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write the trace. |
+| [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The specification as data**: one registry entry per normative clause, with its verbatim quote, RFC 2119 level and either a check or the written reason no recording can judge it. A weekly job re-verifies every quote against the published text. Serde only. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk): passes the pinned official suite's `2025-11-25` server surface (**40/40 checks**) and scores **42 passing / 0 failing** on the suite's pre-release `2026-07-28` scenarios; the eight committed captures at that revision evidence **148 of the 181 judgeable clauses** between them. |
+| [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client**, on rmcp: passes the official suite's four `2025-11-25` client scenarios; scriptable sampling, elicitation and roots. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
 drives the everything server and the reference host, the tapped sessions replay

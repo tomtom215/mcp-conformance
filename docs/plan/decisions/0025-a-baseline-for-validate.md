@@ -4,8 +4,9 @@
 # ADR 0025: A Baseline for `validate` — Accept Known Findings, Gate on New Ones
 
 **Date:** 2026-10-25
-**Status:** Proposed (written in an implementation session; the maintainer accepts or
-rejects it before the flags ship in a release)
+**Status:** Implemented (merged 2026-11-19 with its documentation; `mcp-conformance
+check` and `mcp-conformance validate` take the same flags); formal acceptance is the
+maintainer's, given by tagging the release that ships the flags
 **Author:** Tom F. (maintainer); drafted by Claude Code
 
 ---

@@ -4,8 +4,11 @@
 # ADR 0024: `check` — an Exerciser That Does Only What a Conforming Client Does
 
 **Date:** 2026-10-24
-**Status:** Proposed (written in an implementation session; the maintainer accepts or
-rejects it before the command ships in a release)
+**Status:** Implemented 2026-11-19 on the maintainer's instruction to make the toolkit
+usable by someone with only a server; formal acceptance is the maintainer's, and is given
+by tagging the release that ships the command (rejecting it is removing the command
+before that tag). What was built, and where it departs from the text below, is in
+"As built" at the end.
 **Author:** Tom F. (maintainer); drafted by Claude Code
 
 ---
@@ -126,3 +129,48 @@ is that it behaves as a conforming client would.
   dogfood author to hand-written scripts. Rejected.
 - **Wrap the MCP Inspector's CLI.** Rejected: a Node dependency we do not control, and no
   guarantee about the bytes it sends.
+
+## As built (2026-11-19)
+
+The decision's ten items are implemented as written, with these differences, each
+checked against the code and a test:
+
+- **Subject (item 1).** A stdio server's command is given after `--`
+  (`check -- python server.py`), which keeps arguments with spaces; `--command "…"` is
+  also accepted, for symmetry with `test`. `--header` sends a header with every HTTP
+  request (a server that wants `Authorization`); its value is not recorded.
+- **Formats and exit codes (item 1).** The report is produced by `validate`'s own code
+  (`mcp_trace_validator::cli`), so the formats are `validate`'s five (HTML included),
+  its baseline flags and filters apply, and the exit codes are `validate`'s: `0`, `1`,
+  `2`, and `3` for a trace not written whole; `130` when interrupted.
+- **Reads (item 3).** `resources/read` is sent for listed resources and `prompts/get`
+  for prompts that require no arguments, each bounded by `--max-reads` (25), a bound
+  the list in item 4 did not name. Resource templates and prompts with required
+  arguments are listed as not exercised: nothing states their values.
+- **Argument building (item 3).** As listed, plus `$ref` inside the schema, the first
+  buildable `anyOf`/`oneOf` branch, and `minItems`; `pattern`, `allOf`, unknown
+  formats and untyped members are refused. The built arguments are validated against
+  the schema at run time with the JSON Schema engine, not only in a property test, so
+  a call is never made with arguments the schema refuses.
+- **A server the probe ends (item 7).** A stdio server that exits on `server/discover`
+  is started again and opened with `initialize`; the trace is the second process's
+  session. A server that negotiates a revision this build has no registry for ends
+  the run with exit `2` after the session is closed.
+- **Item 9 (the fixtures note in `test`)** shipped separately, with the party view
+  (CHANGELOG, `Unreleased`).
+- **Item 10.** `cargo xtask exerciser` (also a leg of `cargo xtask conformance`): four
+  sessions, stdio and HTTP at both revisions, `--call-all`, each required to exit `0`
+  and to judge clean under `validate --strict` with no party view. The legacy sessions
+  pass `--spec-version 2025-11-25`, because the everything server's legacy mode
+  answers `server/discover` naming `2026-07-28` (see below).
+
+**Found by the first runs.** The everything server in its default (`2025-11-25`) mode
+answers `server/discover` with rmcp's whole version list, `2026-07-28` included, and a
+client that believes it and speaks that revision is then answered without
+`serverInfo` in results (`BASE-037`, SHOULD) and, in a `--call-all` run, with log
+notifications no request asked for (`LOG-008`, MUST NOT). The official suite's
+`2026-07-28` scenarios pass on that mode (the `draft-readiness` legacy leg), so this
+is a difference the clause report sees and the scenarios do not. It is left as it is
+here: that mode's dual-era surface is a recorded, deliberate measurement, and whether
+it should stop naming a revision it does not fully keep is a decision for the
+maintainer, not a side effect of this change.

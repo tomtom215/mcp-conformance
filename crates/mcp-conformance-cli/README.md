@@ -3,18 +3,45 @@
 
 # mcp-conformance
 
-Run the official [Model Context Protocol](https://modelcontextprotocol.io) conformance
-suite against your server or client *through* a recording tap, and get two verdicts on
-the same traffic: the suite's checks, and
-[`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator)'s clause-by-clause
-report of every session the suite drove — with whether the two agree. Or keep it open
-while you work: `watch` records a session as it happens and prints each finding as the
-exchange that shows it completes.
+One binary for [Model Context Protocol](https://modelcontextprotocol.io) conformance
+work, built on [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) and
+[`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator):
 
-> **Not yet released.** This crate is on `main` only
-> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1,
-> W4 and W5);
-> build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
+| Command | What it does |
+|---------|--------------|
+| `check` | Exercises a server as a conforming client would and prints its clause report. No client, SDK or Node.js needed |
+| `validate`, `requirements` | `mcp-trace-validator`'s, flag for flag: judge recorded traces; look up a requirement |
+| `watch` | Records a session as `mcp-trace-capture` does and prints each finding as it happens |
+| `test` | Runs the pinned official conformance suite through the recorder and reports both verdicts and whether they agree (needs Node.js) |
+| `serve`, `library` | A local workbench over a library of recordings |
+
+> **Not yet released.** This crate is on `main` only; build it from the repository:
+> `cargo install --path crates/mcp-conformance-cli`. From the next release the binary is
+> in the release archives and the npm and PyPI packages.
+
+## Checking a server
+
+```text
+mcp-conformance check -- python my_server.py           # a stdio server
+mcp-conformance check --url http://localhost:3000/mcp   # a Streamable HTTP server
+```
+
+`check` asks `server/discover` (`2026-07-28`) and falls back to `initialize`
+(`2025-11-25`), lists what the server declares, reads the listed resources, gets the
+prompts that need no arguments, and calls only the tools the server annotates
+`readOnlyHint: true`; `--call <tool>` and `--call-all` call more. Arguments come from
+each tool's own `inputSchema` and are checked against it; a tool they cannot be built
+for is skipped and named. The session is recorded through the recorder and judged as
+`validate --party server` judges it, with `validate`'s flags (`--format`, `--strict`,
+`--baseline`, …) and exit codes: `0` nothing held against the server, `1` a clause
+failed, `2` the run could not be made or judged. What the run exercised, and what it
+left alone and why, is printed to stderr and written as JSON with `--summary`.
+
+It sends only what a conforming client sends, to what the server listed; it is not a
+fuzzer or a security scanner. Bounds (`--max-requests`, `--max-tool-calls`,
+`--timeout`, …), `--header` for a credential, and the rest are in the book's
+[Checking a server](../../book/src/checking.md) chapter and
+[ADR-0024](../../docs/plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md).
 
 ## What it needs
 
