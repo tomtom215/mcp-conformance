@@ -6,12 +6,12 @@
 `<revision>.schema.json` is the Model Context Protocol's own JSON Schema for that
 revision, copied byte for byte from the specification repository,
 <https://github.com/modelcontextprotocol/modelcontextprotocol>, at commit
-`3778656b2e0ba6725035e816fe3085374cbaa736` (2026-10-12):
+`8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9` (2026-11-19):
 
 | File | Upstream path | SHA-256 |
 |------|---------------|---------|
 | `2025-11-25.schema.json` | `schema/2025-11-25/schema.json` | `268a5f82ba70fd7e4b6dc4aa1e64f116f74b4d0edcb69dc046829c79dd4e97e7` |
-| `2026-07-28.schema.json` | `schema/2026-07-28/schema.json` | `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203` |
+| `2026-07-28.schema.json` | `schema/2026-07-28/schema.json` | `907dcebce6aaeb16c21421ffef8c207093d88b9442fee340658a99cacb06b551` |
 
 They are the specification's work, not this project's, and are distributed under
 the specification's licence, reproduced in [`LICENSE`](LICENSE); that is why this

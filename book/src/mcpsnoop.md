@@ -85,7 +85,7 @@ On Streamable HTTP the client POSTs `tools/call` id 1 and the server answers tha
 
 > **BASE-045** (MUST NOT): The request ID MUST NOT match the ID of any other request the sender has issued and not yet received a response for. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#requests)
 
-> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
+> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
 
 Resolution: upstream: mcpsnoop-null-id-answer
 
@@ -175,7 +175,7 @@ A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 
 
 > **BASE-009** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic#error-responses)
 
-> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
+> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
 
 Resolution: upstream: mcpsnoop-origin-refusal-unmatched
 

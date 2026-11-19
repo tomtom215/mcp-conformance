@@ -24,19 +24,19 @@
             "site_page": "extensions/skills/overview",
             "text": "https://raw.githubusercontent.com/modelcontextprotocol/ext-skills/main/",
             "in_scope": {
-                "specification/stable/skills.mdx": "specification/stable/skills.mdx"
+                "specification/beta/skills.mdx": "specification/beta/skills.mdx"
             },
             "out_of_scope": {
-                "specification/stable/skills.md": "A six-line include stub (`<!--@include: ./skills.mdx{5,}-->`) that renders `skills.mdx` for the documentation site; it carries no text of its own, so its clauses are `skills.mdx`'s, entered once under that page."
+                "specification/beta/skills.md": "A six-line include stub (`<!--@include: ./skills.mdx{5,}-->`) that renders `skills.mdx` for the documentation site; it carries no text of its own, so its clauses are `skills.mdx`'s, entered once under that page."
             },
             "must_census": {
-                "specification/stable/skills.mdx": 81
+                "specification/beta/skills.mdx": 81
             },
             "should_census": {
-                "specification/stable/skills.mdx": 22
+                "specification/beta/skills.mdx": 22
             },
             "may_census": {
-                "specification/stable/skills.mdx": 19
+                "specification/beta/skills.mdx": 19
             }
         }
     },

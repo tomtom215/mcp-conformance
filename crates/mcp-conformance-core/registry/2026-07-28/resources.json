@@ -107,7 +107,7 @@
       },
       "source": {
         "section": "server/resources#custom-uri-schemes",
-        "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account."
+        "quote": "Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance into account."
       },
       "checks": [
         "resources.uri-scheme-rfc3986"

@@ -28,7 +28,7 @@ use crate::requirement::SourceRef;
 use crate::revision::{ProtocolRevision, REVISION_2025_11_25, REVISION_2026_07_28};
 
 /// The specification-repository commit every vendored schema was copied from.
-pub const UPSTREAM_COMMIT: &str = "3778656b2e0ba6725035e816fe3085374cbaa736";
+pub const UPSTREAM_COMMIT: &str = "8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9";
 
 /// One revision's vendored `schema.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

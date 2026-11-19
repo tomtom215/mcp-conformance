@@ -179,7 +179,7 @@
       },
       "source": {
         "section": "basic/authorization/index#token-handling",
-        "quote": "Invalid or expired tokens MUST receive a HTTP 401 response."
+        "quote": "Invalid or expired tokens MUST receive an HTTP 401 response."
       },
       "checks": [
         "auth.invalid-token-401"

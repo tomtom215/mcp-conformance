@@ -12,7 +12,7 @@ Every normative clause of the `2026-07-28` specification that the validator's re
 
 **MUST** · binds the client and server
 
-> Cross-cutting concerns like logging and argument completion All implementations MUST support the base protocol, versioning, and the message patterns.
+> All implementations MUST support the base protocol, versioning, and the message patterns.
 
 [`basic/index`](https://modelcontextprotocol.io/specification/2026-07-28/basic)
 
@@ -122,7 +122,7 @@ Judged by `base.result-type-present`.
 
 **MUST** · binds the client and server
 
-> Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request).
+> Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request).
 
 [`basic/index#error-responses`](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
 
@@ -3010,7 +3010,7 @@ Judged by `capabilities.resources-list-implemented`.
 
 **MUST** · binds the server
 
-> Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance in to account.
+> Custom URI schemes MUST be in accordance with RFC3986, taking the above guidance into account.
 
 [`server/resources#custom-uri-schemes`](https://modelcontextprotocol.io/specification/2026-07-28/server/resources#custom-uri-schemes)
 
@@ -4350,7 +4350,7 @@ Judged by `auth.challenge-scope`.
 
 **MUST** · binds the server
 
-> Invalid or expired tokens MUST receive a HTTP 401 response.
+> Invalid or expired tokens MUST receive an HTTP 401 response.
 
 [`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
 

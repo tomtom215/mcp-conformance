@@ -1101,7 +1101,7 @@
   "wire_schema": {
     "outcome": "pass",
     "messages": 4,
-    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9/schema/2026-07-28/schema.json",
     "source": {
       "section": "basic/index#schema",
       "quote": "This is the source of truth for all protocol messages and structures.",
@@ -1148,9 +1148,9 @@
             }
           ],
           "source": {
-            "section": "specification/stable/skills.mdx",
+            "section": "specification/beta/skills.mdx",
             "quote": "Clients MUST NOT call `resources/directory/read` against a server that has not declared `directoryRead: true`.",
-            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/stable/skills.mdx"
+            "url": "https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx"
           }
         },
         {

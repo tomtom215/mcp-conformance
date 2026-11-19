@@ -10,7 +10,7 @@
       },
       "source": {
         "section": "basic/index",
-        "quote": "Cross-cutting concerns like logging and argument completion All implementations MUST support the base protocol, versioning, and the message patterns."
+        "quote": "All implementations MUST support the base protocol, versioning, and the message patterns."
       },
       "exclusion": "The umbrella clause the BASE area mechanizes requirement-by-requirement; it has no observable beyond its constituents. Same role as BASE-012 at 2025-11-25, widened by this revision from 'base protocol and lifecycle management' to 'base protocol, versioning, and the message patterns'."
     },
@@ -167,7 +167,7 @@
       },
       "source": {
         "section": "basic/index#error-responses",
-        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request)."
+        "quote": "Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request)."
       },
       "checks": [
         "base.error-id-matches"
