@@ -59,7 +59,7 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
-| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options`, `traces::Traces`, `traces::Route` and `recorder::Recorder` are no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap any of the four in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
 | `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; `CONNECT` is answered `405`, and a path that is not UTF-8 once percent-decoded, or has a `.` or `..` segment once decoded and shorn of `;parameters`, `400`; a request head not complete within 30 s, or an idle kept-alive connection, is closed, and a request body that stalls for 60 s is answered `408`; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
@@ -115,6 +115,10 @@ below is stated again in its entry, with the reasoning.
   party: the other end's findings are listed, labelled, and set aside.
   **Behaviour change:** `sessions.verdict` in `test`'s JSON is the subject's verdict;
   `agreement.party` and `agreement.divergences.set_aside` are new.
+- **`check` blamed a server that was not there.** A URL nothing answers at ended
+  "the server answered HTTP 502", which was the recorder's own status; it now ends
+  "cannot reach the server at <url>: <cause>". A program that cannot start is named
+  once, not twice.
 - **`requirements <ID>` refused an ID of the other revision while naming it.** With no
   `--revision`, an ID is now looked up in the revision that has it.
 - **The recorder's hints.** A `404` the MCP server itself sent (a JSON-RPC error or an
@@ -1107,7 +1111,11 @@ not yet published to crates.io)
   this map now reads (an id-less error, an unfounded or wrongly-statused `-32020`,
   `outputSchema`). Divergent traces 13 → 7; agreeing 79 → 86.
 
-- `@playwright/test` 1.63.0 → 1.64.1 (the visual suite; Dependabot #66).
+- `@playwright/test` 1.63.0 → 1.64.1 (the visual suite; Dependabot #66). Eight report
+  baselines re-taken from the CI runner: 6 or 12 pixels each, on the link-arrow glyph.
+
+- `clap_complete` floor 4.5 → 4.6.3: 4.6.0 and older panic generating completions
+  for `mcp-conformance` (found by CI's minimal-versions job).
 
 - **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's

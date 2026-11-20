@@ -46,7 +46,7 @@ serde_json = { version = ">=1.0.143, <2", features = ["float_roundtrip"] }
 clap = { version = ">=4.5, <5", features = ["derive"] }
 # Shell completion scripts generated from the same clap definition; the clap
 # project's own crate, released in lockstep with it.
-clap_complete = { version = ">=4.5, <5" }
+clap_complete = { version = ">=4.6.3, <5" }
 
 # M2 server stack (per-dependency justification: the table in
 # docs/plan/04-engineering-standards.md §Dependency policy).

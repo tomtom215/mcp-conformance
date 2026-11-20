@@ -34,6 +34,11 @@ use crate::proxy;
 /// How long connecting to the proxy may take; it is on this machine.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// How the recorder's proxy opens the body of the `502` it answers with when
+/// it cannot reach the URL (`mcp_trace_capture`'s `upstream_failed`); the URL
+/// without its query and the cause follow.
+const UNREACHABLE: &str = "mcp-trace-capture: cannot reach the upstream ";
+
 const SESSION_ID: &str = "mcp-session-id";
 const PROTOCOL_VERSION: &str = "mcp-protocol-version";
 
@@ -200,6 +205,15 @@ impl Http {
                     session,
                     server_requests: 0,
                 }),
+                // The tap's own 502: nothing answered at the URL, so there
+                // is no server to hold the status against.
+                _ if status == 502 && whole.starts_with(UNREACHABLE.as_bytes()) => {
+                    let cause = String::from_utf8_lossy(&whole[UNREACHABLE.len()..]);
+                    Err(Failure::Transport(format!(
+                        "cannot reach the server at {}",
+                        cause.trim()
+                    )))
+                }
                 // An error the server could not tie to the request (`id:
                 // null`), or a status with a body that is not JSON-RPC at all.
                 _ => Err(Failure::Http(status)),

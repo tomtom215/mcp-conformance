@@ -473,6 +473,13 @@ fn a_server_that_cannot_start_leaves_no_trace_behind() {
         "{}",
         stderr(&output)
     );
+    // Said once: the recorder's error names the program already.
+    assert_eq!(
+        stderr(&output).matches("cannot start").count(),
+        1,
+        "{}",
+        stderr(&output)
+    );
     assert!(!trace.exists());
 }
 
@@ -529,6 +536,21 @@ fn an_unreachable_url_is_a_run_that_could_not_be_made() {
     assert!(
         stderr(&output).contains("no session was established"),
         "{}",
+        stderr(&output)
+    );
+    // The recorder's own 502 is not held against a server that is not there.
+    assert!(
+        stderr(&output).contains(&format!(
+            "no session was established: cannot reach the server at http://127.0.0.1:{port}/mcp: "
+        )),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("the server answered HTTP 502")
+            && !stdout(&output).contains("the server answered HTTP 502"),
+        "{}{}",
+        stdout(&output),
         stderr(&output)
     );
     assert!(!stderr(&output).contains("s3cret"), "{}", stderr(&output));

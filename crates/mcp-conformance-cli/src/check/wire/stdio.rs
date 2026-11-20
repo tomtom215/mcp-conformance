@@ -54,8 +54,8 @@ impl Stdio {
         target: &Target,
         force: bool,
     ) -> Result<(Self, PathBuf), String> {
-        let server = stdio::spawn(program, args)
-            .map_err(|error| format!("cannot start {}: {error}", program.display()))?;
+        // The recorder's error already names the program.
+        let server = stdio::spawn(program, args).map_err(|error| error.to_string())?;
         let (recorder, path) = output::open(target, force, DEFAULT_MAX_MESSAGE, None)?;
         let (writer, from_client) = tokio::io::duplex(PIPE_BYTES);
         let (to_client, answers) = tokio::io::duplex(PIPE_BYTES);
