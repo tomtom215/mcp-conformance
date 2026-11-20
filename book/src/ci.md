@@ -49,7 +49,27 @@ conformance server through the proxy ([Recording an SDK's server](sdk-servers.md
 
 ## GitHub Actions
 
-The repository is itself an action. After the step that records the traces:
+The repository is itself an action (**MCP Conformance** in its `action.yml`). The
+shortest use checks a server ([Checking a server](checking.md)
+says what that does to it):
+
+```yaml
+- uses: tomtom215/mcp-conformance@<commit SHA>
+  with:
+    check: python my_server.py        # a stdio server's command line
+    # check-url: http://127.0.0.1:3000/mcp   # or an HTTP endpoint started earlier
+    # check-options: --call-all       # more of `check`'s flags
+    # baseline: mcp-baseline.json     # fail only on findings not listed there
+    # strict: "true"                  # warnings fail too
+```
+
+The session is judged for the server (`party: server` is the default with `check`),
+since the other end is the action's own client. The action itself needs no token and
+no permissions. `check`, `server` and `client` are command lines run by bash: write
+them yourself, and never build one from text an outsider controls (a pull request's
+title, a branch name). `check` with a `version` needs release `0.7.0` or later.
+
+To judge traces a step of your own recorded:
 
 ```yaml
 - uses: tomtom215/mcp-conformance@<commit or tag>

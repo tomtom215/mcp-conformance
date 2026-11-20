@@ -549,6 +549,13 @@ below is stated again in its entry, with the reasoning.
   of the 404 remark itself. Only the coverage job, then informational, saw it fail.
 
 ### Added
+- **The GitHub Action checks a server.** New inputs `check` (a stdio server's command
+  line) and `check-url` (an HTTP endpoint) run `mcp-conformance check` and judge the
+  session for the server; `check-options` passes more of its flags. `party` and
+  `baseline` are new inputs for every mode. A server that cannot be started or reached
+  is exit code `2`, with the SARIF and JUnit reports still written. The action is now
+  named `MCP Conformance` (was `MCP trace conformance`); `check` with `version` needs
+  `0.7.0` or later, the first release whose archives carry `mcp-conformance`.
 
 - **`mcp-conformance check`** (ADR-0024). Exercises a server as a conforming client
   would, through the recorder, and judges the recording with `validate`'s own code,

@@ -25,7 +25,13 @@ if [[ -z "${VERSION:-}" ]]; then
       cargo install --locked --quiet --root "$RUNNER_TEMP/mcp-conformance" \
         --path crates/mcp-trace-capture)
   fi
-  cp "$RUNNER_TEMP"/mcp-conformance/bin/mcp-trace-* "$bin_dir/"
+  if [[ -n "${CHECK:-}" ]]; then
+    echo "Building mcp-conformance from the action's source"
+    (cd "$GITHUB_ACTION_PATH" &&
+      cargo install --locked --quiet --root "$RUNNER_TEMP/mcp-conformance" \
+        --path crates/mcp-conformance-cli)
+  fi
+  cp "$RUNNER_TEMP"/mcp-conformance/bin/mcp-* "$bin_dir/"
 else
   case "${RUNNER_OS}-${RUNNER_ARCH}" in
     Linux-X64) target=x86_64-unknown-linux-musl ext=tar.gz ;;
@@ -62,7 +68,16 @@ else
     tar -xzf "${name}.tar.gz"
   fi
   cp "${name}"/mcp-trace-validator* "${name}"/mcp-trace-capture* "$bin_dir/"
+  if [[ -n "${CHECK:-}" ]]; then
+    # In the archives from 0.7.0 on.
+    if ! compgen -G "${name}/mcp-conformance*" > /dev/null; then
+      echo "::error::release ${version} has no mcp-conformance binary, which \`check\` needs: use 0.7.0 or later, or leave \`version\` empty to build from source"
+      exit 1
+    fi
+    cp "${name}"/mcp-conformance* "$bin_dir/"
+  fi
 fi
 echo "$bin_dir" >> "$GITHUB_PATH"
 "$bin_dir"/mcp-trace-validator --version
 if [[ -n "${CAPTURE:-}" ]]; then "$bin_dir"/mcp-trace-capture --version; fi
+if [[ -n "${CHECK:-}" ]]; then "$bin_dir"/mcp-conformance -V; fi

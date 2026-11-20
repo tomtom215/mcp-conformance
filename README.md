@@ -100,15 +100,47 @@ written to the trace), `--spec-version` picks a revision instead of negotiating,
 
 ## Use it in CI
 
-The exit status is the verdict: `0` nothing held against the server (warnings pass
-unless `--strict`), `1` a clause failed, `2` the run could not be made or judged.
+**On GitHub Actions, the repository is the action.** One step checks a server and
+writes SARIF and JUnit; the step fails when a clause does:
 
 ```yaml
-- run: mcp-conformance check --format sarif --strict -- python my_server.py > mcp.sarif
-- uses: github/codeql-action/upload-sarif@<sha>      # each finding on the trace line it concerns
+- uses: tomtom215/mcp-conformance@<commit SHA>   # the commit of a release tag
+  with:
+    check: python my_server.py                    # or: check-url: http://127.0.0.1:3000/mcp
+- uses: github/codeql-action/upload-sarif@<sha>   # optional: findings in code scanning
   if: always()
   with:
-    sarif_file: mcp.sarif
+    sarif_file: mcp-conformance.sarif
+```
+
+| Input | What it does |
+|-------|--------------|
+| `check`, `check-url` | A stdio server's command line, or an HTTP endpoint, to exercise and judge |
+| `check-options` | Extra `check` flags: `--call-all`, `--call <tool>`, `--spec-version …`, bounds |
+| `traces` | Recorded traces to judge, as paths or globs |
+| `capture`, `server`, `client`, `upstream` | Record your own client's sessions and judge them |
+| `baseline` | A file of accepted findings; only findings it does not list fail the step |
+| `strict`, `party`, `revision` | Warnings fail; count one party's findings; name the revisions |
+| `version` | A release whose prebuilt, checksum-verified binaries to download; empty builds from the action's own source |
+| `sarif-file`, `junit-file`, `fail-on-findings` | Where the reports go, and whether findings fail the step |
+
+Three things to know before you add it:
+
+- **It needs no token and no permissions.** Only the optional `upload-sarif` step
+  needs `security-events: write`.
+- **`check`, `server` and `client` are command lines run by bash.** Give them text
+  you wrote; do not build them from a pull request's title, branch name or any other
+  input an outsider controls.
+- **Pin it by commit SHA**, as GitHub recommends for every action, and set `version`
+  to that release so the step downloads its binaries instead of compiling them.
+
+[`action.yml`](action.yml) documents every input and output, and the book's
+[CI chapter](book/src/ci.md) covers the rest, other CI systems included. Anywhere
+else, the exit status is the verdict: `0` nothing held against the server (warnings
+pass unless `--strict`), `1` a clause failed, `2` the run could not be made or judged.
+
+```text
+mcp-conformance check --format junit --strict -- python my_server.py > mcp.xml
 ```
 
 **Adopting it on a server that already has findings.** Record them once, then fail
@@ -121,10 +153,6 @@ mcp-conformance check --baseline mcp-baseline.json --strict -- python my_server.
 
 An entry that no longer matches anything fails the run, so a baseline cannot outlive
 the defect it excuses ([ADR-0025](docs/plan/decisions/0025-a-baseline-for-validate.md)).
-
-The repository is also a GitHub Action that judges traces you recorded, or records
-them itself from your own client and server; [`action.yml`](action.yml) lists its
-inputs and the book's [CI chapter](book/src/ci.md) has the details.
 
 ## Judge traffic you already have
 

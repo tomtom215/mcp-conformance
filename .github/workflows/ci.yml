@@ -796,9 +796,34 @@ jobs:
           sarif-file: badclient.sarif
           junit-file: badclient.xml
           fail-on-findings: "false"
+      # `check`: the action exercises the server itself. Every tool is called,
+      # and the session is judged for the server.
+      - name: A stdio server, checked
+        id: check
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          check: target/debug/mcp-everything-server --transport stdio --protocol-version 2026-07-28
+          check-options: --call-all
+          capture-dir: capture-check
+          sarif-file: check.sarif
+          junit-file: check.xml
+      # A server that cannot be started is a run that could not be made: exit
+      # 2, the step failed, and the reports still written.
+      - name: A server that cannot be checked
+        id: nocheck
+        continue-on-error: true
+        uses: ./ # zizmor: ignore[self-repository]
+        with:
+          check: /nonexistent/mcp-server
+          capture-dir: capture-nocheck
+          sarif-file: nocheck.sarif
+          junit-file: nocheck.xml
       - name: The action reported what each run decided
         shell: bash
         env:
+          CHECK_CODE: ${{ steps.check.outputs.exit-code }}
+          NOCHECK_CODE: ${{ steps.nocheck.outputs.exit-code }}
+          NOCHECK_OUTCOME: ${{ steps.nocheck.outcome }}
           PASS_CODE: ${{ steps.pass.outputs.exit-code }}
           PASSREV_CODE: ${{ steps.passrev.outputs.exit-code }}
           REFUSED_CODE: ${{ steps.refused.outputs.exit-code }}
@@ -843,6 +868,13 @@ jobs:
           [[ "$BAD_CLIENT" == 7 ]] || { echo "::error::the failing client was reported as exiting ${BAD_CLIENT}, expected 7"; exit 1; }
           [[ "$BAD_OUTCOME" == failure ]] || { echo "::error::a failing client did not fail the action"; exit 1; }
           jq -e '.runs[0].invocations[0].executionSuccessful == false' badclient.sarif
+          [[ "$CHECK_CODE" == 0 ]] || { echo "::error::checking the everything server exited ${CHECK_CODE}"; exit 1; }
+          [[ -s capture-check/check.jsonl ]] || { echo "::error::check recorded no trace"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful and (.runs[0].results | length == 0)' check.sarif
+          [[ "$NOCHECK_CODE" == 2 ]] || { echo "::error::a server that cannot be started exited ${NOCHECK_CODE}, expected 2"; exit 1; }
+          [[ "$NOCHECK_OUTCOME" == failure ]] || { echo "::error::a server that cannot be checked did not fail the action"; exit 1; }
+          jq -e '.runs[0].invocations[0].executionSuccessful == false' nocheck.sarif
+          grep -q 'could not be checked' nocheck.xml
 
   # The container image (Dockerfile), built as release.yml builds it and run as
   # a user would run it. Never pushed: this job holds no write scope, and the

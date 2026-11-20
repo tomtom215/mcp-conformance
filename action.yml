@@ -26,19 +26,55 @@
 #       sarif_file: mcp-conformance.sarif
 #       category: mcp-conformance
 
-name: MCP trace conformance
-description: Judge recorded Model Context Protocol sessions clause by clause; SARIF and JUnit out
+name: MCP Conformance
+description: Check an MCP server against the Model Context Protocol specification, clause by clause, or judge recorded sessions
 author: Tom F.
 branding:
   icon: check-circle
   color: blue
 
 inputs:
+  check:
+    description: >-
+      A stdio MCP server to check, as a bash command line run from the
+      workspace (e.g. `python my_server.py`). The action exercises it as a
+      conforming client would, read-only by default, and judges the session.
+      Needs release 0.7.0 or later when `version` is set.
+    required: false
+    default: ""
+  check-url:
+    description: >-
+      A Streamable HTTP MCP server to check, by its endpoint URL (e.g.
+      `http://127.0.0.1:3000/mcp`). Start the server in an earlier step.
+    required: false
+    default: ""
+  check-options:
+    description: >-
+      Extra `mcp-conformance check` flags, separated by spaces: `--call-all`,
+      `--call <tool>`, `--spec-version 2025-11-25`, or a bound such as
+      `--max-tool-calls 5`. A value containing a space (a `--header`) cannot be
+      given here; run `mcp-conformance check` in a step of your own for that.
+    required: false
+    default: ""
   traces:
     description: >-
-      The traces to validate: paths or globs (`**` supported), separated by
-      spaces or newlines, relative to the workspace. Required unless `capture`
-      is set; with it, these are judged beside the recorded sessions.
+      Recorded traces to validate: paths or globs (`**` supported), separated
+      by spaces or newlines, relative to the workspace. Judged beside whatever
+      `check` or `capture` recorded.
+    required: false
+    default: ""
+  party:
+    description: >-
+      Count only this party's findings (`server` or `client`) toward the
+      verdict. Defaults to `server` when `check` or `check-url` is set, since
+      the other end is the action's own client; otherwise both count.
+    required: false
+    default: ""
+  baseline:
+    description: >-
+      A baseline file of accepted findings (written with
+      `mcp-conformance validate --write-baseline`): they stay in the reports,
+      marked, and only findings it does not list fail the step.
     required: false
     default: ""
   capture:
@@ -132,11 +168,12 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Install mcp-trace-validator
+    - name: Install the tools
       shell: bash
       env:
         VERSION: ${{ inputs.version }}
         CAPTURE: ${{ inputs.capture }}
+        CHECK: ${{ inputs.check }}${{ inputs.check-url }}
         REPOSITORY: tomtom215/mcp-conformance
       run: '"$GITHUB_ACTION_PATH/action/install.sh"'
     - name: Record the sessions
@@ -150,6 +187,16 @@ runs:
         CLIENT: ${{ inputs.client }}
         CAPTURE_DIR: ${{ inputs.capture-dir }}
       run: '"$GITHUB_ACTION_PATH/action/capture.sh"'
+    - name: Check the server
+      id: check
+      if: inputs.check != '' || inputs.check-url != ''
+      shell: bash
+      env:
+        CHECK: ${{ inputs.check }}
+        CHECK_URL: ${{ inputs.check-url }}
+        CHECK_OPTIONS: ${{ inputs.check-options }}
+        CAPTURE_DIR: ${{ inputs.capture-dir }}
+      run: '"$GITHUB_ACTION_PATH/action/check.sh"'
     - name: Validate the traces
       id: validate
       # Also after a capture that could not be set up, so the reports exist
@@ -159,6 +206,10 @@ runs:
       env:
         TRACES: ${{ inputs.traces }}
         CAPTURED: ${{ steps.capture.outputs.traces }}
+        CHECKED: ${{ steps.check.outputs.traces }}
+        CHECK_PROBLEM: ${{ steps.check.outputs.problem }}
+        PARTY: ${{ inputs.party || ((inputs.check != '' || inputs.check-url != '') && 'server') || '' }}
+        BASELINE: ${{ inputs.baseline }}
         REVISIONS: ${{ inputs.revision }}
         STRICT: ${{ inputs.strict }}
         SARIF_FILE: ${{ inputs.sarif-file }}
