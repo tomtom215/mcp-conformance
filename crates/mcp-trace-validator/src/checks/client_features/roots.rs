@@ -125,8 +125,9 @@ fn root_uris(result: &Value) -> Option<BTreeSet<&str>> {
 
 /// The `seq` at which the stdio session the client initialized ended: the first
 /// lifecycle event after its `initialize` request, when that is a stdio
-/// `transport-close` or `transport-abort`. `None` when the recording shows no
-/// end, or shows the transport reopening first (another process, and so
+/// `transport-close`. `None` when the recording shows no end, an abort (a
+/// client cut off may have been about to send its notification), or the
+/// transport reopening first (another process, and so
 /// another session, whose roots are its own).
 fn session_end(context: &TraceContext<'_>) -> Option<u64> {
     let (initialize, _) = context.initialize().request?;
@@ -140,10 +141,7 @@ fn session_end(context: &TraceContext<'_>) -> Option<u64> {
         })
         .filter(|(event, moment)| {
             event.transport == TransportKind::Stdio
-                && matches!(
-                    moment,
-                    LifecycleEvent::TransportClose | LifecycleEvent::TransportAbort
-                )
+                && matches!(moment, LifecycleEvent::TransportClose)
         })
         .map(|(event, _)| event.seq)
 }
@@ -158,8 +156,8 @@ fn session_end(context: &TraceContext<'_>) -> Option<u64> {
 /// **Stimulus.** Over stdio, a client whose `initialize` request declared
 /// `roots.listChanged`, two successive `roots/list` results (each a `roots`
 /// array whose entries all carry a string `uri`; an error or an unreadable
-/// result between them is passed over), and a `transport-close` or
-/// `transport-abort` after the second with no other lifecycle event since
+/// result between them is passed over), and a `transport-close` (not an
+/// abort) after the second with no other lifecycle event since
 /// `initialize` — the session is over, so no notification is still to come. Each such pair is a subject. A recording
 /// that stops while the transport is open is not judged: the notification may
 /// follow the second result. Nor is Streamable HTTP, where a recording carries

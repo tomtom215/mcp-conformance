@@ -173,9 +173,10 @@ fn roots_that_changed_without_a_notification_are_reported() {
         "{found:?}"
     );
     assert_eq!(subjects_for(CHANGED, &silent), 1);
-    // An abort ends the session as surely as a close.
+    // A client cut off is not judged: its notification may have been next.
     let aborted = differing(&[lifecycle(8, "transport-abort")]);
-    assert_eq!(findings_for(CHANGED, &aborted).len(), 1);
+    assert_eq!(findings_for(CHANGED, &aborted).len(), 0);
+    assert_eq!(subjects_for(CHANGED, &aborted), 0);
     // A root removed is a change too.
     let removed = two_listings(
         LISTENING,
