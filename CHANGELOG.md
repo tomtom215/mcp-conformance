@@ -27,6 +27,12 @@ in the sections below.
   beside any other format. `check` resumes an event stream a server closes before its
   answer (`Last-Event-ID`). The GitHub Action writes the page too (`html-file`,
   default `mcp-conformance-report.html`).
+- **`check` probes by default.** After the ordinary requests it sends a short fixed
+  list made wrong on purpose (a prompt and a resource the server does not have, a
+  prompt without its required arguments, a completion it cannot resolve, an invalid
+  log level or cursor), because the error-handling clauses are judged only on a
+  session that carries their stimulus. None can change anything on a server; the
+  summary names each with its answer; `--no-probes` leaves them out.
 - **Every scenario the official suite lists.** `mcp-conformance test` and this
   project's own gate run all 32 server scenarios of suite `0.1.16`, the two it marks
   pending included; the everything server passes them (47 checks) with the new

@@ -110,6 +110,7 @@ fn plan(args: &CheckArgs) -> Plan {
     Plan {
         call: args.call.clone(),
         call_all: args.call_all,
+        probes: !args.no_probes,
         max_requests: args.max_requests,
         max_tool_calls: args.max_tool_calls,
         max_reads: args.max_reads,
@@ -175,6 +176,12 @@ fn conclude(
                  listed above with the specification's own sentence and a link to it"
             ),
             _ => {}
+        }
+        if !summary.probes.is_empty() {
+            eprintln!(
+                "mcp-conformance check: findings marked [client] are this tool's own probes \
+                 (requests made wrong on purpose) and do not count against the server"
+            );
         }
     }
     if let Some(page) = report.html_report().filter(|page| page.is_file()) {

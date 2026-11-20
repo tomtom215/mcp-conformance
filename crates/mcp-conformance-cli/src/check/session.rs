@@ -19,6 +19,7 @@ use super::wire::{Failure, Limits, Wire};
 use super::{arguments, headers};
 
 mod listing;
+mod probes;
 
 /// What the run may do.
 #[derive(Debug, Clone)]
@@ -27,6 +28,8 @@ pub(crate) struct Plan {
     pub(crate) call: Vec<String>,
     /// Call every listed tool (`--call-all`).
     pub(crate) call_all: bool,
+    /// Send the probes (off with `--no-probes`).
+    pub(crate) probes: bool,
     pub(crate) max_requests: usize,
     pub(crate) max_tool_calls: usize,
     pub(crate) max_reads: usize,
@@ -220,14 +223,16 @@ impl Session<'_> {
                 .await?;
             self.summary.resources.listed = resources.len();
             self.read(&resources, &templates).await?;
+            self.probe_resources(&resources, &templates).await?;
         }
         if capabilities.get("prompts").is_some() {
             self.summary.prompts.declared = true;
             let prompts = self.list("prompts/list", "prompts").await?;
             self.summary.prompts.listed = prompts.len();
             self.fetch(&prompts).await?;
+            self.probe_prompts(&prompts).await?;
         }
-        Ok(())
+        self.probe_utilities(capabilities).await
     }
 
     fn skip(&mut self, kind: &'static str, name: &str, reason: impl Into<String>) {

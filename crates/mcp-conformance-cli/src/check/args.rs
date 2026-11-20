@@ -60,6 +60,13 @@ pub(crate) struct CheckArgs {
     /// Call every tool the server lists, read-only or not.
     #[arg(long, help_heading = "What is called")]
     pub(crate) call_all: bool,
+    /// Send no probes. By default, after the ordinary requests, `check` sends
+    /// a few made wrong on purpose — a prompt and a resource the server does
+    /// not have, a log level that is not one, a completion it did not offer —
+    /// because the specification says how a server refuses each, and nothing
+    /// else shows whether it does. None can change anything on the server.
+    #[arg(long, help_heading = "What is called")]
+    pub(crate) no_probes: bool,
     /// The most requests sent in the run.
     #[arg(help_heading = "Limits", long, value_name = "N", default_value_t = 100)]
     pub(crate) max_requests: usize,

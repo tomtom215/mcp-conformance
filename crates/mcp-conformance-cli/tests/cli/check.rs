@@ -67,7 +67,7 @@ fn a_modern_http_server_is_exercised_and_the_exerciser_itself_breaks_no_clause()
     let dir = scratch("check-http-modern");
     let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
     let output = binary()
-        .args(["check", "--call-all", "--url"])
+        .args(["check", "--no-probes", "--call-all", "--url"])
         .arg(format!("http://{address}/mcp"))
         .arg("-o")
         .arg(&trace)
@@ -150,7 +150,13 @@ fn a_legacy_http_session_is_opened_with_initialize_and_ended_with_delete() {
     let dir = scratch("check-http-legacy");
     let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
     let output = binary()
-        .args(["check", "--spec-version", "2025-11-25", "--url"])
+        .args([
+            "check",
+            "--no-probes",
+            "--spec-version",
+            "2025-11-25",
+            "--url",
+        ])
         .arg(format!("http://{address}/mcp"))
         .args(["--header", "Authorization: Bearer s3cret-token", "-o"])
         .arg(&trace)
@@ -194,7 +200,7 @@ fn the_report_takes_validates_flags_and_formats() {
     let runtime = runtime();
     let address = serve(&runtime, ServedRevision::V2026_07_28);
     let output = binary()
-        .args(["check", "--format", "json", "--url"])
+        .args(["check", "--no-probes", "--format", "json", "--url"])
         .arg(format!("http://{address}/mcp"))
         .output()
         .unwrap();
@@ -246,7 +252,7 @@ pub(crate) fn stand_in(name: &str, mode: &str, flags: &[&str]) -> (Output, Value
     let (script, noted, summary) = (dir.join("server.sh"), dir.join("noted"), dir.join("s.json"));
     std::fs::write(&script, SERVER).unwrap();
     let mut command = binary();
-    command.arg("check").args(flags);
+    command.arg("check").arg("--no-probes").args(flags);
     // Two seconds an answer unless the test says otherwise: the stand-in
     // answers at once, and a client that has stopped hearing it (which is
     // what several mutations of the transport produce) should fail a test
@@ -565,7 +571,13 @@ fn a_stream_the_server_closes_before_the_answer_is_resumed_for_it() {
     let dir = scratch("check-http-resume");
     let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
     let output = binary()
-        .args(["check", "--call", "test_reconnection", "--url"])
+        .args([
+            "check",
+            "--no-probes",
+            "--call",
+            "test_reconnection",
+            "--url",
+        ])
         .arg(format!("http://{address}/mcp"))
         .arg("-o")
         .arg(&trace)
@@ -586,13 +598,102 @@ fn a_stream_the_server_closes_before_the_answer_is_resumed_for_it() {
 }
 
 #[test]
+fn probes_are_sent_by_default_and_judged_and_the_verdict_stays_the_servers() {
+    for (revision, served, own) in [
+        ("2025-11-25", ServedRevision::V2025_11_25, "SetLevelRequest"),
+        (
+            "2026-07-28",
+            ServedRevision::V2026_07_28,
+            "ListToolsRequest",
+        ),
+    ] {
+        let runtime = runtime();
+        let address = serve(&runtime, served);
+        let dir = scratch(&format!("check-probes-{revision}"));
+        let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
+        let output = binary()
+            .args(["check", "--url"])
+            .arg(format!("http://{address}/mcp"))
+            .arg("-o")
+            .arg(&trace)
+            .arg("--summary")
+            .arg(&summary)
+            .output()
+            .unwrap();
+        let said = stderr(&output);
+        // Requests made wrong on purpose do not fail the server that
+        // refuses them, and this client's own are set aside.
+        assert_eq!(output.status.code(), Some(0), "{revision}: {said}");
+        let summary = json(&summary);
+        assert_eq!(summary["revision"], revision);
+        assert_eq!(summary["unanswered"], serde_json::json!([]), "{summary}");
+        let probes: Vec<&str> = summary["probes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|probe| probe["what"].as_str().unwrap())
+            .collect();
+        for expected in [
+            "resources/read for a resource the server does not have",
+            "prompts/get for a prompt the server does not list",
+            "prompts/get test_prompt_with_arguments without the arguments it requires",
+            "completion/complete for a prompt the server does not list",
+        ] {
+            assert!(probes.contains(&expected), "{revision}: {probes:?}");
+        }
+        assert!(said.contains("probes     5 sent"), "{said}");
+        assert!(
+            said.contains("findings marked [client] are this tool's own probes"),
+            "{said}"
+        );
+        probe_clauses_are_judged(&trace, revision, own);
+    }
+}
+
+/// The stimuli are in the recording: the clauses they are for are judged
+/// rather than left not observed, and the one message the schema rejects is
+/// this client's own probe.
+fn probe_clauses_are_judged(trace: &Path, revision: &str, own: &str) {
+    let report = binary()
+        .args(["validate", "--party", "server", "--format", "json"])
+        .arg(trace)
+        .output()
+        .unwrap();
+    let report: Value = serde_json::from_slice(&report.stdout).unwrap();
+    let outcome = |id: &str| {
+        report["requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == id)
+            .map(|row| row["outcome"].as_str().unwrap().to_owned())
+    };
+    let judged = if revision == "2025-11-25" {
+        ["PROM-007", "RES-008", "LOG-003"]
+    } else {
+        ["PROM-019", "RES-019", "PAGE-011"]
+    };
+    for id in judged {
+        assert!(
+            matches!(outcome(id).as_deref(), Some("pass" | "warn")),
+            "{revision}: {id} is {:?}",
+            outcome(id)
+        );
+    }
+    assert!(
+        report["wire_schema"]["findings"].to_string().contains(own),
+        "{report:#}"
+    );
+}
+
+#[test]
 fn with_no_flags_the_report_is_also_left_as_a_page_and_the_result_is_said_plainly() {
     const PAGE: &str = "mcp-conformance check: the report as a page to open in a browser: ";
     let dir = scratch("check-page");
     let (script, noted) = (dir.join("server.sh"), dir.join("noted"));
     std::fs::write(&script, SERVER).unwrap();
     let output = binary()
-        .args(["check", "--timeout", "2", "--", "sh"])
+        .args(["check", "--no-probes", "--timeout", "2", "--", "sh"])
         .arg(&script)
         .arg("plain")
         .arg(&noted)
@@ -623,7 +724,7 @@ fn with_no_flags_the_report_is_also_left_as_a_page_and_the_result_is_said_plainl
     // caller says; and a document on stdout is not followed by prose.
     let run = |flags: &[&str]| {
         let output = binary()
-            .args(["check", "--timeout", "2", "--force", "-o"])
+            .args(["check", "--no-probes", "--timeout", "2", "--force", "-o"])
             .arg(dir.join("t.jsonl"))
             .args(flags)
             .args(["--", "sh"])

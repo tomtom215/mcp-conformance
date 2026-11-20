@@ -19,6 +19,11 @@
 //!
 //! And one thing across them: each session ran under the revision it was
 //! meant to, so a silent fall back to the other era cannot pass for coverage.
+//!
+//! Those sessions are run without `check`'s probes, which are requests made
+//! wrong on purpose and so are held against the client by design. Each
+//! subject is then checked once more as a user would, probes included: the
+//! server must still be judged clean.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -113,7 +118,9 @@ fn session(
     let summary = dir.join(format!("{name}.summary.json"));
     eprintln!("xtask: exerciser — mcp-conformance check ({name})");
     let checked = Command::new(binary(root, "mcp-conformance"))
-        .args(["check", "--call-all", "-o"])
+        // Without the probes: they are requests made wrong on purpose, and
+        // this session is the one held to breaking no clause at either end.
+        .args(["check", "--call-all", "--no-probes", "-o"])
         .arg(&trace)
         .arg("--summary")
         .arg(&summary)
@@ -161,6 +168,47 @@ fn session(
             "{name}: judged for both parties and strictly, the recording is not clean — a \
              finding held against the exerciser is a defect in `check`:\n{}",
             String::from_utf8_lossy(&both.stdout)
+        ));
+    }
+    probed(root, dir, name, subject)
+}
+
+/// The same subject with the probes `check` sends by default: the server
+/// refuses each as the specification says, so the run still exits 0, and the
+/// summary names the probes sent.
+fn probed(root: &Path, dir: &Path, name: &str, subject: &[String]) -> Result<(), String> {
+    let trace = dir.join(format!("{name}.probes.jsonl"));
+    let summary = dir.join(format!("{name}.probes.summary.json"));
+    let checked = Command::new(binary(root, "mcp-conformance"))
+        .args(["check", "-o"])
+        .arg(&trace)
+        .arg("--summary")
+        .arg(&summary)
+        .args(subject)
+        .current_dir(root)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map_err(|error| format!("cannot run mcp-conformance: {error}"))?;
+    if !checked.success() {
+        return Err(format!(
+            "`mcp-conformance check` with its probes ({name}) did not judge the everything \
+             server clean ({checked}); re-run it on {} for the report",
+            trace.display()
+        ));
+    }
+    let ran = std::fs::read_to_string(&summary)
+        .map_err(|error| format!("cannot read {}: {error}", summary.display()))?;
+    let ran: serde_json::Value =
+        serde_json::from_str(&ran).map_err(|error| format!("{}: {error}", summary.display()))?;
+    let sent = ran
+        .get("probes")
+        .and_then(serde_json::Value::as_array)
+        .map_or(0, Vec::len);
+    if sent == 0 {
+        return Err(format!(
+            "{name}: no probe was sent; see {}",
+            summary.display()
         ));
     }
     Ok(())

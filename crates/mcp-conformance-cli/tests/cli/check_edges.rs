@@ -113,7 +113,13 @@ fn an_http_answer_larger_than_the_limit_is_not_read() {
     for revision in [ServedRevision::V2025_11_25, ServedRevision::V2026_07_28] {
         let address = serve(&runtime, revision);
         let output = binary()
-            .args(["check", "--max-response-bytes", "60", "--url"])
+            .args([
+                "check",
+                "--no-probes",
+                "--max-response-bytes",
+                "60",
+                "--url",
+            ])
             .arg(format!("http://{address}/mcp"))
             .output()
             .unwrap();
@@ -134,7 +140,14 @@ fn the_default_recording_is_in_a_directory_only_its_owner_can_enter() {
     let script = dir.join("server.sh");
     std::fs::write(&script, SERVER).unwrap();
     let output = binary()
-        .args(["check", "--spec-version", "2025-11-25", "--timeout", "2"])
+        .args([
+            "check",
+            "--no-probes",
+            "--spec-version",
+            "2025-11-25",
+            "--timeout",
+            "2",
+        ])
         .args(["--", "sh"])
         .arg(&script)
         .arg("plain")
@@ -227,7 +240,13 @@ fn json_response(body: &str) -> String {
 fn check_raw(address: std::net::SocketAddr, limit: usize, name: &str) -> (Output, Value) {
     let summary = scratch(name).join("s.json");
     let output = binary()
-        .args(["check", "--spec-version", "2025-11-25", "--url"])
+        .args([
+            "check",
+            "--no-probes",
+            "--spec-version",
+            "2025-11-25",
+            "--url",
+        ])
         .arg(format!("http://{address}/mcp"))
         .args(["--max-response-bytes", &limit.to_string(), "--summary"])
         .arg(&summary)
@@ -291,7 +310,7 @@ fn a_probe_whose_stream_ends_unanswered_falls_back_on_the_same_endpoint() {
     );
     let summary = scratch("check-raw-probe").join("s.json");
     let output = binary()
-        .args(["check", "--url"])
+        .args(["check", "--no-probes", "--url"])
         .arg(format!("http://{address}/mcp"))
         .arg("--summary")
         .arg(&summary)

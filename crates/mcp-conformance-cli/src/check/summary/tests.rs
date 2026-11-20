@@ -12,6 +12,7 @@ fn skipped(kind: &'static str, name: &str, reason: &str) -> Skipped {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)] // one literal summary and its rendering
 fn the_account_says_what_was_exercised_and_groups_what_was_not_by_reason() {
     let summary = Summary {
         subject: "python server.py".to_owned(),
@@ -40,6 +41,10 @@ fn the_account_says_what_was_exercised_and_groups_what_was_not_by_reason() {
             skipped("tool", "odd", "no arguments"),
             skipped("prompt", "p", "requires arguments"),
         ],
+        probes: vec![super::Probe {
+            what: "prompts/get for a prompt the server does not list".to_owned(),
+            answer: "refused with an error",
+        }],
         needed_input: vec!["tools/call ask".to_owned()],
         server_requests: 2,
         unanswered: vec!["tools/call slow: no answer".to_owned()],
@@ -61,6 +66,8 @@ fn the_account_says_what_was_exercised_and_groups_what_was_not_by_reason() {
     t://{id} — needs values
   not fetched:
     p — requires arguments
+  probes     1 sent: requests made wrong on purpose, to see how the server refuses them (--no-probes leaves them out)
+    prompts/get for a prompt the server does not list — refused with an error
   asked the client for input, which this client does not give: tools/call ask
   the server sent this client 2 request(s), though it declared no capabilities
   unanswered tools/call slow: no answer

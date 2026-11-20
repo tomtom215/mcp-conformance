@@ -21,7 +21,8 @@ report goes to stdout; the run's own account of what it exercised goes to stderr
 
 ## What it sends
 
-Only what a conforming client sends, addressed only to what the server listed:
+What a conforming client sends, addressed to what the server listed, and then a
+few requests made wrong on purpose:
 
 1. **Which revision.** By default it asks `server/discover`, the `2026-07-28` way to
    learn what a server supports. A server that answers as a `2026-07-28` server is
@@ -38,6 +39,19 @@ Only what a conforming client sends, addressed only to what the server listed:
    prompts that require no arguments.
 4. **Tool calls, when the server says they are safe.** A tool is called only if the
    server annotates it `readOnlyHint: true` (and not `destructiveHint: true`).
+5. **Probes.** The specification says how a server answers a request for something it
+   does not have, and a session that only asks for what is offered never shows whether
+   it does. So after each capability's ordinary requests `check` sends: `prompts/get`
+   for a prompt the server did not list, and for a listed prompt without the arguments
+   it requires; `resources/read` for a resource under a scheme the server names
+   nowhere; `completion/complete` for a prompt that is not listed (or when completions
+   were not declared at all); at `2025-11-25`, `logging/setLevel` with a level that is
+   not one of the eight; at `2026-07-28`, `tools/list` with a cursor that is not a
+   string. Each asks for something that is not there, so none can change anything on
+   the server. The summary names every probe and how it was answered, and
+   `--no-probes` leaves them out. Two of them are requests the revision's schema
+   rejects, so the report holds them against the client (`[client]`), which is this
+   tool; they do not count toward the server's verdict.
 
 It declares no client capabilities, so a conforming server does not ask it for
 sampling, elicitation or roots. If a server asks anyway, the request is refused
@@ -58,8 +72,9 @@ sampling, elicitation or roots. If a server asks anyway, the request is refused
   with that reason.
 - **It does not fill in resource templates or prompt arguments.** Nothing states what
   values would be valid, so they are listed as not exercised.
-- **It does not send anything malformed.** Provoking a server's refusals is a
-  different tool with a different risk; `check` is not a fuzzer and not a security
+- **It does not fuzz.** The probes above are a short fixed list, each the stimulus a
+  named clause is about and each a request for something absent. `check` sends no
+  random or oversized input, never retries to find a crash, and is not a security
   scanner.
 
 ## The summary

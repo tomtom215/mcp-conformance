@@ -38,6 +38,15 @@ pub(crate) struct Skipped {
     pub(crate) reason: String,
 }
 
+/// A request sent on purpose to see how the server refuses it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct Probe {
+    /// What was asked, in words.
+    pub(crate) what: String,
+    /// `served`, `refused with an error` or `not answered`.
+    pub(crate) answer: &'static str,
+}
+
 /// The run's account of itself.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct Summary {
@@ -58,6 +67,8 @@ pub(crate) struct Summary {
     pub(crate) prompts: Kind,
     /// Listed and not exercised, each with its reason.
     pub(crate) skipped: Vec<Skipped>,
+    /// The probes sent, each with how the server answered.
+    pub(crate) probes: Vec<Probe>,
     /// Steps the server answered by asking the client for input, which this
     /// client, declaring no capabilities, does not give.
     pub(crate) needed_input: Vec<String>,
@@ -90,6 +101,17 @@ impl Summary {
             let _ = writeln!(text, "  not {label}:");
             for (reason, names) in reasons {
                 let _ = writeln!(text, "    {} — {reason}", shown(&names));
+            }
+        }
+        if !self.probes.is_empty() {
+            let _ = writeln!(
+                text,
+                "  probes     {} sent: requests made wrong on purpose, to see how the server \
+                 refuses them (--no-probes leaves them out)",
+                self.probes.len()
+            );
+            for probe in &self.probes {
+                let _ = writeln!(text, "    {} — {}", printable(&probe.what), probe.answer);
             }
         }
         if !self.needed_input.is_empty() {
