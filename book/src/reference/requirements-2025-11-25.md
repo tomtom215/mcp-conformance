@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 110 judged from a recorded trace and 238 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 114 judged from a recorded trace and 234 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -500,7 +500,7 @@ Judged by `transport.protocol-version-header`.
 
 [`basic/transports#stdio`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio)
 
-**Excluded.** Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings.
+**Excluded.** An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause.
 
 ### TRAN-002
 
@@ -560,7 +560,7 @@ Judged by `transport.stdio-client-input-valid`.
 
 [`basic/transports#security-warning`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning)
 
-**Excluded.** Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2).
+Judged by `transport.invalid-origin-403`.
 
 ### TRAN-008
 
@@ -630,7 +630,7 @@ Judged by `transport.session-id-echoed`.
 
 [`basic/transports#session-management`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management)
 
-**Excluded.** Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way.
+Judged by `transport.missing-session-id-400`.
 
 ### TRAN-015
 
@@ -640,7 +640,7 @@ Judged by `transport.session-id-echoed`.
 
 [`basic/transports#session-management`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management)
 
-**Excluded.** Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).
+Judged by `transport.terminated-session-404`.
 
 ### TRAN-016
 
@@ -770,7 +770,7 @@ Judged by `transport.accepted-input-status`.
 
 [`basic/transports#sending-messages-to-the-server`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server)
 
-**Excluded.** Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it.
+Judged by `transport.unaccepted-input-error-status`.
 
 ### TRAN-029
 

@@ -17,7 +17,8 @@
 //!    reported by the first judging pass at or after line `v`: the pass of the
 //!    exchange that line completes, or that completes after it. When no pass
 //!    follows, and for the [`EVENTUAL_CHECKS`] (which a prefix cannot settle),
-//!    it is reported at the end.
+//!    it is reported at the end. A prefix that has begun a handshake and
+//!    declares no revision yet shows nothing: see [`visible_by_line`].
 
 #![allow(clippy::expect_used, clippy::too_many_lines)]
 
@@ -98,15 +99,42 @@ fn findings(judgment: &Judgment) -> BTreeSet<Key> {
 }
 
 /// For each line, the findings the trace up to and including it shows.
+///
+/// A prefix that has begun a handshake and declares no revision yet shows
+/// none: the validator would judge it at the default revision, and the answer
+/// still to come can change that (an `initialize` refused, then served), so
+/// the live judge holds what it has until the revision is declared or the
+/// session ends.
 fn visible_by_line(lines: &[&str]) -> Vec<BTreeSet<Key>> {
     (0..lines.len())
         .map(|last| {
             let prefix = lines[..=last].join("\n");
             judge::judge(&prefix)
+                .ok()
+                .filter(|judgment| !undecided(judgment))
                 .map(|judgment| findings(&judgment))
                 .unwrap_or_default()
         })
         .collect()
+}
+
+/// Whether the judged prefix declares no revision although its client has
+/// sent `initialize`.
+fn undecided(judgment: &Judgment) -> bool {
+    let defaulted = judgment.reports.iter().all(|report| {
+        report.revision_source == Some(mcp_trace_validator::declared::RevisionSource::Default)
+    });
+    defaulted
+        && judgment.events.iter().any(|event| {
+            event.direction == mcp_conformance_core::trace::Direction::ClientToServer
+                && matches!(
+                    &event.body,
+                    mcp_conformance_core::trace::EventBody::Message { payload }
+                        if payload.get("method").and_then(serde_json::Value::as_str)
+                            == Some("initialize")
+                            && payload.get("id").is_some()
+                )
+        })
 }
 
 #[test]

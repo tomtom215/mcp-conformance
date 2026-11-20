@@ -53,9 +53,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 137 | 246 |
-| Excluded rows the ledger holds | 238 | 315 |
-| Distinct not-observed sets across them | 101 | 159 |
+| Goldens | 146 | 254 |
+| Excluded rows the ledger holds | 234 | 309 |
+| Distinct not-observed sets across them | 107 | 166 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -290,7 +290,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` on rmcp 3.5.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-13 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 70 pass, 0 fail, **1 warn**, 115 not observed, 315 excluded | **71 pass, 0 fail, 0 warn**, 115 not observed, 315 excluded |
+| Our verdict | 70 pass, 0 fail, **1 warn**, 121 not observed, 309 excluded | **71 pass, 0 fail, 0 warn**, 121 not observed, 309 excluded |
 | The official runner's verdict, that run | `42 passing / 0 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -385,7 +385,7 @@ and this section's history above is the evidence for what each instrument caught
 and when. With the hints filled in, the runner again scores both servers alike,
 and only the registry's BASE-037 warning tells them apart.
 
-The 115 not-observed rows are the honest denominator: of the 186 clauses this
+The 121 not-observed rows are the honest denominator: of the 192 clauses this
 revision's registry can judge, these sessions carried subject matter for 71.
 They open no subscription, present no cursor, draw no JSON-RPC error, and send
 no malformed `_meta`, so those clauses are neither passed nor failed here — they
@@ -404,7 +404,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **110 pass, 0 fail, 0 warn**, 76 not observed, 315 excluded |
+| Our verdict | **110 pass, 0 fail, 0 warn**, 82 not observed, 309 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -484,7 +484,7 @@ the transport keeps it unobserved here.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
-| Our verdict | **125 pass, 0 fail, 0 warn**, 61 not observed, 315 excluded |
+| Our verdict | **125 pass, 0 fail, 0 warn**, 67 not observed, 309 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -497,7 +497,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 125 of the 186 judgeable clauses it is the best-covered capture here, and
+At 125 of the 192 judgeable clauses it is the best-covered capture here, and
 the fourteen it gained on 2026-10-13 are the server's own doing: the second
 pages carry the pagination clauses (`CACH-015`/`CACH-016`), the audio prompt
 (`PROM-017`), and a tool designating three arguments for `Mcp-Param-*`
@@ -613,20 +613,20 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 71 | 70 | 0 | 1 | 115 |
-| `official-suite-2026-07-28-stateless` | 71 | 71 | 0 | 0 | 115 |
-| `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 101 |
-| `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 61 |
-| `reference-host-2026-07-28-stdio` | 110 | 110 | 0 | 0 | 76 |
-| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 103 |
-| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 121 |
-| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 112 |
-| `sdk-typescript-v2-2026-07-28` | 73 | 73 | 0 | 0 | 113 |
-| **Union** | **149** | | | | **37** |
+| `official-suite-2026-07-28-scenarios` | 71 | 70 | 0 | 1 | 121 |
+| `official-suite-2026-07-28-stateless` | 71 | 71 | 0 | 0 | 121 |
+| `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 107 |
+| `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 67 |
+| `reference-host-2026-07-28-stdio` | 110 | 110 | 0 | 0 | 82 |
+| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 109 |
+| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 127 |
+| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 118 |
+| `sdk-typescript-v2-2026-07-28` | 73 | 73 | 0 | 0 | 119 |
+| **Union** | **149** | | | | **43** |
 
-Across all 9 captures, **149 of the 186 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 9 captures, **149 of the 192 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 37 clauses no capture reaches: `AUTH-097`, `AUTH-124`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `CANC-003`, `CANC-011`, `COMP-008`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `PAGE-011`, `PROM-019`, `RES-019`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-061`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-096`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
+The 43 clauses no capture reaches: `AUTH-097`, `AUTH-124`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `CANC-003`, `CANC-011`, `COMP-008`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `PAGE-011`, `PROM-019`, `RES-019`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-052`, `TRAN-061`, `TRAN-062`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-090`, `TRAN-091`, `TRAN-096`, `TRAN-101`, `TRAN-103`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the

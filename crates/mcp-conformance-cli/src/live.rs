@@ -207,6 +207,12 @@ impl Live {
         let Ok(selection) = declared::select(self.set.revisions(), &self.events) else {
             return Pass::default();
         };
+        // A handshake begun and not yet agreed: the revision is still to be
+        // declared, and a finding under the default one could be withdrawn by
+        // the answer (a refused `initialize`, then one that is served).
+        if selection.source == declared::RevisionSource::Default && self.handshake_begun() {
+            return Pass::default();
+        }
         let mut reports = Vec::new();
         for revision in selection.revisions {
             if let Some(index) = self.registry(revision)
@@ -228,6 +234,20 @@ impl Live {
             ),
             totals,
         }
+    }
+
+    /// Whether the client has sent an `initialize` request.
+    fn handshake_begun(&self) -> bool {
+        self.events.iter().any(|event| {
+            event.direction == mcp_conformance_core::trace::Direction::ClientToServer
+                && matches!(
+                    &event.body,
+                    mcp_conformance_core::trace::EventBody::Message { payload }
+                        if payload.get("method").and_then(serde_json::Value::as_str)
+                            == Some("initialize")
+                            && payload.get("id").is_some()
+                )
+        })
     }
 
     /// The index of `revision`'s registry, loaded once.

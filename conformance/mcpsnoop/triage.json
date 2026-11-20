@@ -12,6 +12,16 @@
     },
     {
       "kind": "mcpsnoop-only",
+      "subject": "response-unmatched",
+      "traces": ["good/http-notification-refused-400", "draft/good/http-notification-refused-400"],
+      "class": "mcpsnoop-defect",
+      "right": "ours",
+      "quote": ["TRAN-028", "TRAN-062"],
+      "note": "After the handshake the client POSTs a notification the server cannot accept, and the server refuses it with HTTP 400 and a JSON-RPC error that has no `id`. That is the answer the transport page prescribes at both revisions: \"If the server cannot accept the input, it MUST return an HTTP error status code (e.g., 400 Bad Request). The HTTP response body MAY comprise a JSON-RPC error response that has no `id`.\" A notification has no id to echo, so the body can match no request, and mcpsnoop reports it as a response with no matching request. It is the same shape as the Origin refusal mcpsnoop 0.28.0 stopped reporting; the 400 to a notification is not yet treated alike. The two traces are the pass witnesses of TRAN-028 and TRAN-062; where the server sends the same body under a 2xx (tran-028-notification-declined-under-202, tran-062-notification-declined-under-202) both tools report it.",
+      "resolution": "open: whether to report it upstream is the maintainer's call; the reproduction is `corpus/good/http-notification-refused-400.jsonl`"
+    },
+    {
+      "kind": "mcpsnoop-only",
       "subject": "header-mismatch-unfounded",
       "traces": ["draft/violations/tran-098-header-mismatch-without-400"],
       "class": "spec-ambiguity",

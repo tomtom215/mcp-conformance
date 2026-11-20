@@ -5,10 +5,10 @@
     "pass": 42,
     "fail": 1,
     "warn": 0,
-    "excluded": 315,
+    "excluded": 309,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 143
+    "not_observed": 149
   },
   "requirements": [
     {
@@ -204,6 +204,12 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-052",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-056",
       "level": "MUST",
       "actor": "client",
@@ -251,6 +257,12 @@
         "quote": "If the server accepts it, the server MUST return HTTP status code `202 Accepted` with no body.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages"
       }
+    },
+    {
+      "id": "TRAN-062",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-063",
@@ -367,6 +379,18 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-090",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-092",
       "level": "MUST",
       "actor": "client",
@@ -451,7 +475,19 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-101",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-102",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-103",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"

@@ -718,16 +718,16 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <p class="verdict-why">no clause failed or warned; 28 clauses passed</p>
 <div class="breakdown">
 <div class="bk-row"><p class="bk-label"><strong>28 rules</strong> checked against this session</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-pass" x="0" y="0" width="1000" height="10"/></svg></div>
-<div class="bk-row"><p class="bk-label"><strong>320 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="228" height="10"/><rect class="s-not-applicable" x="228" y="0" width="42" height="10"/><rect class="s-excluded" x="270" y="0" width="730" height="10"/></svg></div>
+<div class="bk-row"><p class="bk-label"><strong>320 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="240" height="10"/><rect class="s-not-applicable" x="240" y="0" width="42" height="10"/><rect class="s-excluded" x="282" y="0" width="718" height="10"/></svg></div>
 </div>
 <dl class="tally">
 <div class="t-pass"><dt>pass</dt><dd>28</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>238</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>234</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>10</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>72</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>76</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (9 messages valid)</p>
 </section>
@@ -737,16 +737,16 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <p class="verdict-why">9 clauses failed and 6 of 9 messages invalid against the schema</p>
 <div class="breakdown">
 <div class="bk-row"><p class="bk-label"><strong>31 rules</strong> checked against this session</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-fail" x="0" y="0" width="295" height="10"/><rect class="s-pass" x="295" y="0" width="705" height="10"/></svg></div>
-<div class="bk-row"><p class="bk-label"><strong>470 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="333" height="10"/><rect class="s-excluded" x="333" y="0" width="667" height="10"/></svg></div>
+<div class="bk-row"><p class="bk-label"><strong>470 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="346" height="10"/><rect class="s-excluded" x="346" y="0" width="654" height="10"/></svg></div>
 </div>
 <dl class="tally">
 <div class="t-pass"><dt>pass</dt><dd>22</dd></div>
 <div class="t-fail"><dt>fail</dt><dd>9</dd></div>
 <div class="t-warn zero"><dt>warn</dt><dd>0</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>315</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>309</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable zero"><dt>not applicable</dt><dd>0</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>155</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>161</dd></div>
 </dl>
 <p class="schema-line s-fail">Wire schema: fail (6 of 9 messages invalid)</p>
 </section>
@@ -1230,7 +1230,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2025-11-25-TOOL-008"><code class="rid">TOOL-008</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">72</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">76</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -1240,14 +1240,18 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2025-11-25-BASE-020"><code class="rid">BASE-020</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-LIFE-012"><code class="rid">LIFE-012</code><span class="pill level">SHOULD</span></li>
 <li id="2025-11-25-LIFE-018"><code class="rid">LIFE-018</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-TRAN-007"><code class="rid">TRAN-007</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-011"><code class="rid">TRAN-011</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-013"><code class="rid">TRAN-013</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-TRAN-014"><code class="rid">TRAN-014</code><span class="pill level">SHOULD</span></li>
+<li id="2025-11-25-TRAN-015"><code class="rid">TRAN-015</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-017"><code class="rid">TRAN-017</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-018"><code class="rid">TRAN-018</code><span class="pill level">SHOULD</span></li>
 <li id="2025-11-25-TRAN-020"><code class="rid">TRAN-020</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-025"><code class="rid">TRAN-025</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-026"><code class="rid">TRAN-026</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-027"><code class="rid">TRAN-027</code><span class="pill level">MUST</span></li>
+<li id="2025-11-25-TRAN-028"><code class="rid">TRAN-028</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-029"><code class="rid">TRAN-029</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-039"><code class="rid">TRAN-039</code><span class="pill level">MUST</span></li>
 <li id="2025-11-25-TRAN-040"><code class="rid">TRAN-040</code><span class="pill level">MUST</span></li>
@@ -1322,7 +1326,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2025-11-25-COMP-003"><code class="rid">COMP-003</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.completions</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">238</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">234</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="2025-11-25-BASE-012"><code class="rid">BASE-012</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents.</span></li>
@@ -1347,24 +1351,20 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2025-11-25-LIFE-017"><code class="rid">LIFE-017</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
 <li id="2025-11-25-LIFE-019"><code class="rid">LIFE-019</code><span class="pill level">SHOULD</span><span class="reason">Binds an SDK&#39;s programming interface — what its callers can configure — which has no protocol representation at all.</span></li>
 <li id="2025-11-25-LIFE-020"><code class="rid">LIFE-020</code><span class="pill level">SHOULD</span><span class="reason">Preparedness is a property of the implementation, not of any session it took part in: a trace that happens to contain a version mismatch shows one case handled, and a trace without one evidences nothing. Where the handling has a wire form it is judged under the clause that states it, such as the version negotiation rules.</span></li>
-<li id="2025-11-25-TRAN-001"><code class="rid">TRAN-001</code><span class="pill level">MUST NOT</span><span class="reason">Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings.</span></li>
+<li id="2025-11-25-TRAN-001"><code class="rid">TRAN-001</code><span class="pill level">MUST NOT</span><span class="reason">An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause.</span></li>
 <li id="2025-11-25-TRAN-002"><code class="rid">TRAN-002</code><span class="pill level">MUST</span><span class="reason">Judging Origin validation requires the server&#39;s configured allowlist, which recorded traces do not carry. Enforced instead as default-on policy in mcp-everything-server and exercised by its transport integration tests (roadmap M2).</span></li>
 <li id="2025-11-25-TRAN-003"><code class="rid">TRAN-003</code><span class="pill level">MUST</span><span class="reason">A violation cannot be judged from a trace: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded among what was recorded — and absence is not evidence, because capture tooling may drop undecodable bytes (mcp-everything-server&#39;s tap skips non-UTF-8 SSE chunks and unparseable POST bodies). No offline check is sound.</span></li>
 <li id="2025-11-25-TRAN-006"><code class="rid">TRAN-006</code><span class="pill level">MUST</span><span class="reason">Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server&#39;s transport integration tests (roadmap M2).</span></li>
-<li id="2025-11-25-TRAN-007"><code class="rid">TRAN-007</code><span class="pill level">MUST</span><span class="reason">Judging whether an Origin value is invalid requires the server&#39;s configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2).</span></li>
 <li id="2025-11-25-TRAN-008"><code class="rid">TRAN-008</code><span class="pill level">SHOULD</span><span class="reason">Socket binding is deployment state with no trace footprint. mcp-everything-server defaults to a loopback bind (the --bind clap default in src/main.rs), asserted by default_bind_is_loopback in tests/cli.rs.</span></li>
 <li id="2025-11-25-TRAN-009"><code class="rid">TRAN-009</code><span class="pill level">SHOULD</span><span class="reason">Whether authentication is properly implemented is not decidable from one session&#39;s headers: the client&#39;s credential is never recorded, and the server&#39;s validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization page&#39;s own clauses (AUTH-014, AUTH-045, AUTH-049–AUTH-051).</span></li>
 <li id="2025-11-25-TRAN-010"><code class="rid">TRAN-010</code><span class="pill level">SHOULD</span><span class="reason">Global uniqueness and entropy of an identifier cannot be established from the single sample a trace contains. mcp-everything-server&#39;s ids are pinned to the v4-UUID shape (OS RNG) and distinctness by session_ids_are_version_4_uuids_and_distinct in tests/http_policy.rs.</span></li>
 <li id="2025-11-25-TRAN-012"><code class="rid">TRAN-012</code><span class="pill level">MUST</span><span class="reason">Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013.</span></li>
-<li id="2025-11-25-TRAN-014"><code class="rid">TRAN-014</code><span class="pill level">SHOULD</span><span class="reason">Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way.</span></li>
-<li id="2025-11-25-TRAN-015"><code class="rid">TRAN-015</code><span class="pill level">MUST</span><span class="reason">Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).</span></li>
 <li id="2025-11-25-TRAN-016"><code class="rid">TRAN-016</code><span class="pill level">MUST</span><span class="reason">A 404 is attributed to the request it answered when the recording&#39;s order is unambiguous, but not to the moment the client read it: a recorder logs the status as it passes, and the client may already have sent further requests on the old session. Requests after the 404 therefore do not show the client ignored it, and a client that stops instead of reconnecting sends nothing to judge.</span></li>
 <li id="2025-11-25-TRAN-019"><code class="rid">TRAN-019</code><span class="pill level">SHOULD</span><span class="reason">Which version a server assumed is internal state; subsequent traffic does not reveal it.</span></li>
 <li id="2025-11-25-TRAN-021"><code class="rid">TRAN-021</code><span class="pill level">SHOULD NOT</span><span class="reason">How a client interprets stderr is internal, and stderr bytes are not part of the protocol trace (the trace records MCP messages and transport lifecycle, not diagnostics channels).</span></li>
 <li id="2025-11-25-TRAN-022"><code class="rid">TRAN-022</code><span class="pill level">SHOULD</span><span class="reason">A client&#39;s supported-transport surface is a property of the implementation, not of any one session; a streamable-HTTP trace says nothing about whether stdio was available.</span></li>
 <li id="2025-11-25-TRAN-023"><code class="rid">TRAN-023</code><span class="pill level">MUST</span><span class="reason">The trace vocabulary covers stdio and streamable HTTP; custom transports are outside the capture universe by construction (TransportKind is closed per revision).</span></li>
 <li id="2025-11-25-TRAN-024"><code class="rid">TRAN-024</code><span class="pill level">MUST</span><span class="reason">Adds to TRAN-049&#39;s verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded.</span></li>
-<li id="2025-11-25-TRAN-028"><code class="rid">TRAN-028</code><span class="pill level">MUST</span><span class="reason">Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it.</span></li>
 <li id="2025-11-25-TRAN-030"><code class="rid">TRAN-030</code><span class="pill level">MUST</span><span class="reason">What a client could have handled is client-internal capability; a trace shows the case that occurred, not the cases supported.</span></li>
 <li id="2025-11-25-TRAN-031"><code class="rid">TRAN-031</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
 <li id="2025-11-25-TRAN-032"><code class="rid">TRAN-032</code><span class="pill level">SHOULD</span><span class="reason">SSE framing is consumed at capture: the tap reassembles `data:` lines into messages and drops event IDs and `retry` fields, so SSE-frame-level conduct is invisible in a trace.</span></li>
@@ -1593,7 +1593,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-TOOL-030"><code class="rid">TOOL-030</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">155</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">161</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="2026-07-28-BASE-052"><code class="rid">BASE-052</code><span class="pill level">MUST</span></li>
@@ -1614,11 +1614,13 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-BASE-037"><code class="rid">BASE-037</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-BASE-039"><code class="rid">BASE-039</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-BASE-040"><code class="rid">BASE-040</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-052"><code class="rid">TRAN-052</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-056"><code class="rid">TRAN-056</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-057"><code class="rid">TRAN-057</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-058"><code class="rid">TRAN-058</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-059"><code class="rid">TRAN-059</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-061"><code class="rid">TRAN-061</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-062"><code class="rid">TRAN-062</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-063"><code class="rid">TRAN-063</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-068"><code class="rid">TRAN-068</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-TRAN-070"><code class="rid">TRAN-070</code><span class="pill level">MUST NOT</span></li>
@@ -1637,6 +1639,8 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-TRAN-086"><code class="rid">TRAN-086</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-087"><code class="rid">TRAN-087</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-089"><code class="rid">TRAN-089</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-090"><code class="rid">TRAN-090</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-091"><code class="rid">TRAN-091</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-092"><code class="rid">TRAN-092</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-137"><code class="rid">TRAN-137</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-141"><code class="rid">TRAN-141</code><span class="pill level">MUST</span></li>
@@ -1651,7 +1655,9 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-TRAN-135"><code class="rid">TRAN-135</code><span class="pill level">MUST NOT</span></li>
 <li id="2026-07-28-TRAN-136"><code class="rid">TRAN-136</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-TRAN-100"><code class="rid">TRAN-100</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-101"><code class="rid">TRAN-101</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-TRAN-102"><code class="rid">TRAN-102</code><span class="pill level">MUST</span></li>
+<li id="2026-07-28-TRAN-103"><code class="rid">TRAN-103</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-DISC-001"><code class="rid">DISC-001</code><span class="pill level">MUST</span></li>
 <li id="2026-07-28-DISC-002"><code class="rid">DISC-002</code><span class="pill level">SHOULD</span></li>
 <li id="2026-07-28-DISC-003"><code class="rid">DISC-003</code><span class="pill level">SHOULD</span></li>
@@ -1753,7 +1759,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-AUTH-133"><code class="rid">AUTH-133</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">315</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">309</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="2026-07-28-BASE-041"><code class="rid">BASE-041</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE area mechanizes requirement-by-requirement; it has no observable beyond its constituents. Same role as BASE-012 at 2025-11-25, widened by this revision from &#39;base protocol and lifecycle management&#39; to &#39;base protocol, versioning, and the message patterns&#39;.</span></li>
@@ -1786,11 +1792,9 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-BASE-081"><code class="rid">BASE-081</code><span class="pill level">MUST</span><span class="reason">Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it. Same reasoning as BASE-024 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-050"><code class="rid">TRAN-050</code><span class="pill level">MUST</span><span class="reason">Endpoint topology — how many paths a server exposes and which methods each accepts — is deployment configuration; a recorded session shows one endpoint being used, never the set that exists. Same reasoning as TRAN-006 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-051"><code class="rid">TRAN-051</code><span class="pill level">MUST</span><span class="reason">Origin validation is server-internal policy applied before any MCP message; the trace records admitted sessions, not the requests a policy refused. Same reasoning as TRAN-002 at 2025-11-25; the everything server&#39;s policy middleware is tested directly in http_policy.rs.</span></li>
-<li id="2026-07-28-TRAN-052"><code class="rid">TRAN-052</code><span class="pill level">MUST</span><span class="reason">A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server&#39;s own policy tests.</span></li>
 <li id="2026-07-28-TRAN-053"><code class="rid">TRAN-053</code><span class="pill level">SHOULD</span><span class="reason">Bind address is process configuration with no wire footprint. Same reasoning as TRAN-008 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-054"><code class="rid">TRAN-054</code><span class="pill level">SHOULD</span><span class="reason">Whether authentication is properly implemented is not decidable from one session&#39;s headers: the client&#39;s credential is never recorded, and the server&#39;s validation of it is internal. What a recording does show — the challenge a protected server answers with — is judged under the authorization pages&#39; own clauses (AUTH-097, AUTH-124, AUTH-129–AUTH-133). Same reasoning as TRAN-009 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-055"><code class="rid">TRAN-055</code><span class="pill level">MUST</span><span class="reason">Adds to TRAN-056&#39;s verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25.</span></li>
-<li id="2026-07-28-TRAN-062"><code class="rid">TRAN-062</code><span class="pill level">MUST</span><span class="reason">Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-064"><code class="rid">TRAN-064</code><span class="pill level">MUST</span><span class="reason">Client support for both response shapes is internal capability: a session that received one shape evidences nothing about the other. Same reasoning as TRAN-030 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-065"><code class="rid">TRAN-065</code><span class="pill level">MUST</span><span class="reason">Relatedness is semantic. A notification carries no id tying it to a request, so the trace cannot decide whether it &#39;relates to&#39; the originating one. Same reasoning as TRAN-035 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-067"><code class="rid">TRAN-067</code><span class="pill level">SHOULD</span><span class="reason">Stream termination after the final response is SSE framing; the trace records messages and transport lifecycle, not whether the stream closed promptly afterwards. Same reasoning as TRAN-036 at 2025-11-25.</span></li>
@@ -1799,14 +1803,10 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-TRAN-078"><code class="rid">TRAN-078</code><span class="pill level">MUST</span><span class="reason">Client support for `x-mcp-header` is internal capability. Its observable consequence — mirroring designated values into headers — is the next clause and is checked there.</span></li>
 <li id="2026-07-28-TRAN-085"><code class="rid">TRAN-085</code><span class="pill level">SHOULD</span><span class="reason">Logging is client-internal diagnostics with no wire footprint.</span></li>
 <li id="2026-07-28-TRAN-088"><code class="rid">TRAN-088</code><span class="pill level">SHOULD</span><span class="reason">A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above.</span></li>
-<li id="2026-07-28-TRAN-090"><code class="rid">TRAN-090</code><span class="pill level">MUST</span><span class="reason">Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step.</span></li>
-<li id="2026-07-28-TRAN-091"><code class="rid">TRAN-091</code><span class="pill level">MUST</span><span class="reason">Same internal-decode boundary as the clause above: only the comparison&#39;s outcome reaches the wire, and that is judged by TRAN-097.</span></li>
 <li id="2026-07-28-TRAN-093"><code class="rid">TRAN-093</code><span class="pill level">MUST</span><span class="reason">The umbrella introducing the client&#39;s `tools/call` construction steps; each step is a clause of its own above, and the umbrella has no observable beyond them.</span></li>
 <li id="2026-07-28-TRAN-094"><code class="rid">TRAN-094</code><span class="pill level">SHOULD</span><span class="reason">Whether a client re-fetched `tools/list` after a `HeaderMismatch` is recovery conduct; a later `tools/list` in the same recording is equally consistent with any other reason for calling it.</span></li>
 <li id="2026-07-28-TRAN-095"><code class="rid">TRAN-095</code><span class="pill level">MUST</span><span class="reason">Intermediary behavior: a forwarding proxy is not a party to the MCP session, and the trace records the endpoints, not the hops between them.</span></li>
 <li id="2026-07-28-TRAN-099"><code class="rid">TRAN-099</code><span class="pill level">MUST</span><span class="reason">Case-insensitive comparison is internal string handling. The trace lowercases header names on read (`EventBody::Http`), so a capture cannot even preserve the casing a party compared against.</span></li>
-<li id="2026-07-28-TRAN-101"><code class="rid">TRAN-101</code><span class="pill level">SHOULD</span><span class="reason">Numeric-versus-string comparison is internal; only the comparison&#39;s verdict reaches the wire, and that is judged by TRAN-097.</span></li>
-<li id="2026-07-28-TRAN-103"><code class="rid">TRAN-103</code><span class="pill level">MUST</span><span class="reason">Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between.</span></li>
 <li id="2026-07-28-TRAN-104"><code class="rid">TRAN-104</code><span class="pill level">MUST</span><span class="reason">Intermediary behavior; see the forwarding clause above. An intermediary&#39;s HTTP error never becomes an MCP message in this session.</span></li>
 <li id="2026-07-28-TRAN-105"><code class="rid">TRAN-105</code><span class="pill level">SHOULD</span><span class="reason">Intermediary policy enforcement, outside the recorded session&#39;s endpoints.</span></li>
 <li id="2026-07-28-TRAN-106"><code class="rid">TRAN-106</code><span class="pill level">SHOULD</span><span class="reason">Intermediary rejection policy, outside the recorded session&#39;s endpoints.</span></li>
@@ -1818,13 +1818,13 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="2026-07-28-VERS-006"><code class="rid">VERS-006</code><span class="pill level">SHOULD</span><span class="reason">Binds an extension&#39;s documentation, not either party&#39;s messages. The subject is not even a session participant: no recorded trace can be evidence about whether a document exists.</span></li>
 <li id="2026-07-28-VERS-007"><code class="rid">VERS-007</code><span class="pill level">SHOULD</span><span class="reason">The cached value is the era determination — client-internal state, and the clause&#39;s horizon is the server process or origin, which outlives the recorded session. The one wire-visible candidate, a repeated probe, is not evidence: the clause&#39;s own &quot;re-probing if the cached assumption later fails&quot; permits it.</span></li>
 <li id="2026-07-28-VERS-009"><code class="rid">VERS-009</code><span class="pill level">SHOULD</span><span class="reason">The compatibility matrix&#39;s modern-client, legacy-server row. Both antecedents are facts about the peer and the moment that a recording of an unscripted session does not hold: that the server is legacy — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics, so its answer does not reveal it — and, as for TRAN-142, that the first recorded request was the client&#39;s first. Only a scripted legacy stdio server that the client itself spawns knows both, and could judge that the client&#39;s first message is `server/discover`; the validator judges recordings and scripts no server. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras.</span></li>
-<li id="2026-07-28-TRAN-110"><code class="rid">TRAN-110</code><span class="pill level">MUST</span><span class="reason">Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings.</span></li>
+<li id="2026-07-28-TRAN-110"><code class="rid">TRAN-110</code><span class="pill level">MUST</span><span class="reason">Restates TRAN-003 at 2025-11-25, and the same boundary holds: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because the HTTP capture tooling drops undecodable bodies and chunks. On stdio a mis-encoded line is not valid JSON; the recorder keeps it as a (lossily decoded) string payload and it is judged as a non-message line under TRAN-117 and TRAN-118, not attributed to this clause.</span></li>
 <li id="2026-07-28-TRAN-111"><code class="rid">TRAN-111</code><span class="pill level">MUST</span><span class="reason">A delivery obligation, and a trace is a record of what arrived: a message the binding failed to deliver is absent from it, and an absent message is indistinguishable from one never sent. The clause&#39;s converse — that no other direction exists — is a separate sentence and is enforced where it is stated: TRAN-060 and TRAN-118 for client responses, TRAN-066 and TRAN-120 for server-initiated requests.</span></li>
 <li id="2026-07-28-TRAN-112"><code class="rid">TRAN-112</code><span class="pill level">MUST</span><span class="reason">No custom transport can appear in a trace: `TransportKind` admits `stdio` and `streamable-http` only, so the clause&#39;s subject has no representation in the format this engine reads. What it requires preserved is exactly what the rest of this registry checks for the two standard bindings, against which a custom transport&#39;s capture would have to be relabelled first.</span></li>
 <li id="2026-07-28-TRAN-113"><code class="rid">TRAN-113</code><span class="pill level">SHOULD</span><span class="reason">Binds a transport&#39;s documentation, not its messages. Same class as VERS-006: the artefact the clause requires is a document, and no session can be evidence about whether one exists.</span></li>
 <li id="2026-07-28-TRAN-114"><code class="rid">TRAN-114</code><span class="pill level">SHOULD</span><span class="reason">Binds the design of a transport that cannot be recorded as itself (see TRAN-112), and the property it asks for — which framing was reused — is settled before any message exists. Restated on the stdio page as TRAN-121, with the same reason.</span></li>
-<li id="2026-07-28-TRAN-115"><code class="rid">TRAN-115</code><span class="pill level">MUST NOT</span><span class="reason">Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held.</span></li>
-<li id="2026-07-28-TRAN-116"><code class="rid">TRAN-116</code><span class="pill level">SHOULD NOT</span><span class="reason">Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25.</span></li>
+<li id="2026-07-28-TRAN-115"><code class="rid">TRAN-115</code><span class="pill level">MUST NOT</span><span class="reason">Restates TRAN-001 at 2025-11-25 verbatim, and the same boundary holds: an embedded newline is read as the delimiter and splits the message into lines that are not valid messages, which the stdio recorder keeps (as string payloads) and which are judged under TRAN-117 and TRAN-118. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause.</span></li>
+<li id="2026-07-28-TRAN-116"><code class="rid">TRAN-116</code><span class="pill level">SHOULD NOT</span><span class="reason">Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-021 at 2025-11-25.</span></li>
 <li id="2026-07-28-TRAN-121"><code class="rid">TRAN-121</code><span class="pill level">SHOULD</span><span class="reason">The same clause as TRAN-114, stated from the stdio page&#39;s side: a custom transport has no representation in the trace format, and which framing it reused is settled before any message exists.</span></li>
 <li id="2026-07-28-TRAN-122"><code class="rid">TRAN-122</code><span class="pill level">MUST</span><span class="reason">Binds the client&#39;s own correlation of notifications it received — bookkeeping inside the client, which produces no message. The wire-visible half of the same mechanism, that the server tags each notification with `io.modelcontextprotocol/subscriptionId`, is BASE-039 and is checked.</span></li>
 <li id="2026-07-28-TRAN-125"><code class="rid">TRAN-125</code><span class="pill level">SHOULD</span><span class="reason">Stream closure, process waits and forced termination are host-OS actions outside the trace event vocabulary — the same reason LIFE-014 excludes the 2025-11-25 shutdown sequence. A `transport-close` lifecycle event records that the transport ended, not which party closed which stream or what it did next.</span></li>

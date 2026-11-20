@@ -182,12 +182,6 @@
       "exclusion": "Origin validation is server-internal policy applied before any MCP message; the trace records admitted sessions, not the requests a policy refused. Same reasoning as TRAN-002 at 2025-11-25; the everything server's policy middleware is tested directly in http_policy.rs."
     },
     {
-      "id": "TRAN-052",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests."
-    },
-    {
       "id": "TRAN-053",
       "level": "SHOULD",
       "actor": "server",
@@ -204,12 +198,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25."
-    },
-    {
-      "id": "TRAN-062",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25."
     },
     {
       "id": "TRAN-064",
@@ -260,18 +248,6 @@
       "exclusion": "A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above."
     },
     {
-      "id": "TRAN-090",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step."
-    },
-    {
-      "id": "TRAN-091",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097."
-    },
-    {
       "id": "TRAN-093",
       "level": "MUST",
       "actor": "client",
@@ -294,18 +270,6 @@
       "level": "MUST",
       "actor": "both",
       "exclusion": "Case-insensitive comparison is internal string handling. The trace lowercases header names on read (`EventBody::Http`), so a capture cannot even preserve the casing a party compared against."
-    },
-    {
-      "id": "TRAN-101",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097."
-    },
-    {
-      "id": "TRAN-103",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between."
     },
     {
       "id": "TRAN-104",
@@ -377,7 +341,7 @@
       "id": "TRAN-110",
       "level": "MUST",
       "actor": "both",
-      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+      "exclusion": "Restates TRAN-003 at 2025-11-25, and the same boundary holds: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because the HTTP capture tooling drops undecodable bodies and chunks. On stdio a mis-encoded line is not valid JSON; the recorder keeps it as a (lossily decoded) string payload and it is judged as a non-message line under TRAN-117 and TRAN-118, not attributed to this clause."
     },
     {
       "id": "TRAN-111",
@@ -407,13 +371,13 @@
       "id": "TRAN-115",
       "level": "MUST NOT",
       "actor": "both",
-      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+      "exclusion": "Restates TRAN-001 at 2025-11-25 verbatim, and the same boundary holds: an embedded newline is read as the delimiter and splits the message into lines that are not valid messages, which the stdio recorder keeps (as string payloads) and which are judged under TRAN-117 and TRAN-118. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-116",
       "level": "SHOULD NOT",
       "actor": "client",
-      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-021 at 2025-11-25."
     },
     {
       "id": "TRAN-121",

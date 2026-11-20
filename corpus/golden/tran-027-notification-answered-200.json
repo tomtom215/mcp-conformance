@@ -5,10 +5,10 @@
     "pass": 24,
     "fail": 1,
     "warn": 0,
-    "excluded": 238,
+    "excluded": 234,
     "unsupported": 0,
     "not_applicable": 18,
-    "not_observed": 67
+    "not_observed": 71
   },
   "requirements": [
     {
@@ -180,6 +180,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-011",
       "level": "MUST",
       "actor": "server",
@@ -190,6 +196,18 @@
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-017",
@@ -239,6 +257,12 @@
         "quote": "If the server accepts the input, the server MUST return HTTP status code 202 Accepted with no body.",
         "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server"
       }
+    },
+    {
+      "id": "TRAN-028",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-029",

@@ -42,12 +42,12 @@
       "id": "response-unmatched",
       "match": ["response id has no matching request"],
       "maps": {
-        "2025-11-25": ["BASE-004", "BASE-009", "BASE-011"],
-        "2026-07-28": ["BASE-046", "BASE-052", "BASE-061"]
+        "2025-11-25": ["BASE-004", "BASE-009", "BASE-011", "TRAN-028"],
+        "2026-07-28": ["BASE-046", "BASE-052", "BASE-061", "TRAN-062"]
       },
-      "partial": ["BASE-011", "BASE-061"],
+      "partial": ["BASE-011", "BASE-061", "TRAN-028", "TRAN-062"],
       "context": "pairing",
-      "reading": "A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. A response sent to a notification is one such, so the rule also catches part of the clause forbidding that (BASE-011, BASE-061), without saying a notification drew it."
+      "reading": "A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. A response sent to a notification is one such, so the rule also catches part of the clause forbidding that (BASE-011, BASE-061), without saying a notification drew it. The same goes for an id-less error sent under a 2xx to a notification the server declined (TRAN-028, TRAN-062): mcpsnoop sees the unmatched response, not the status that should have carried the refusal."
     },
     {
       "id": "response-duplicate",
@@ -186,10 +186,13 @@
     {
       "id": "header-mismatch-unfounded",
       "match": ["server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body"],
-      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-133", "TRAN-135"] },
-      "partial": ["TRAN-133", "TRAN-135"],
+      "maps": {
+        "2025-11-25": [],
+        "2026-07-28": ["TRAN-133", "TRAN-135", "TRAN-090", "TRAN-091", "TRAN-103", "TRAN-101"]
+      },
+      "partial": ["TRAN-133", "TRAN-135", "TRAN-090", "TRAN-091", "TRAN-103", "TRAN-101"],
       "context": "http",
-      "reading": "The server answered `-32020` to a request whose headers mcpsnoop itself compared with the body and found in agreement. New in 0.28.0; 0.26.1 reported these as the client's fault. It says the rejection was unfounded, not which clause the server broke: the two clauses mapped are the cases the revision names, a header omitted because its parameter is `null` or absent."
+      "reading": "The server answered `-32020` to a request whose headers mcpsnoop itself compared with the body and found in agreement. New in 0.28.0; 0.26.1 reported these as the client's fault. It says the rejection was unfounded, not which clause the server broke: the clauses mapped are the cases the revision names: a header omitted because its parameter is `null` or absent, a sentinel-encoded value the server must decode before comparing, and an integer the server should compare as a number."
     },
     {
       "id": "header-mismatch-status",

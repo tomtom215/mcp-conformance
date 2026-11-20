@@ -5,10 +5,10 @@
     "pass": 39,
     "fail": 0,
     "warn": 1,
-    "excluded": 238,
+    "excluded": 234,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 70
+    "not_observed": 74
   },
   "requirements": [
     {
@@ -235,6 +235,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-011",
       "level": "MUST",
       "actor": "server",
@@ -245,6 +251,18 @@
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-017",
@@ -281,6 +299,12 @@
       "level": "MUST",
       "actor": "server",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-028",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-029",

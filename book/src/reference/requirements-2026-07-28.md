@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 186 judged from a recorded trace and 315 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 192 judged from a recorded trace and 309 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -638,7 +638,7 @@ Judged by `transport.no-independent-server-requests`.
 
 [`basic/transports/streamable-http#security-&-endpoint`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#security-&-endpoint)
 
-**Excluded.** A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests.
+Judged by `transport.invalid-origin-403`.
 
 ### TRAN-053
 
@@ -738,7 +738,7 @@ Judged by `transport.accepted-input-status`.
 
 [`basic/transports/streamable-http#sending-messages`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#sending-messages)
 
-**Excluded.** Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25.
+Judged by `transport.unaccepted-input-error-status`.
 
 ### TRAN-063
 
@@ -1018,7 +1018,7 @@ Judged by `transport.sentinel-marker-case`.
 
 [`basic/transports/streamable-http#value-encoding`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding)
 
-**Excluded.** Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step.
+Judged by `transport.encoded-header-decoded`.
 
 ### TRAN-091
 
@@ -1028,7 +1028,7 @@ Judged by `transport.sentinel-marker-case`.
 
 [`basic/transports/streamable-http#value-encoding`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding)
 
-**Excluded.** Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097.
+Judged by `transport.encoded-header-decoded`.
 
 ### TRAN-092
 
@@ -1218,7 +1218,7 @@ Judged by `transport.header-body-match-validated`.
 
 [`basic/transports/streamable-http#server-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation)
 
-**Excluded.** Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097.
+Judged by `transport.integer-header-compared-numerically`.
 
 ### TRAN-102
 
@@ -1238,7 +1238,7 @@ Judged by `transport.header-mismatch-status`.
 
 [`basic/transports/streamable-http#server-validation`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-validation)
 
-**Excluded.** Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between.
+Judged by `transport.encoded-header-decoded`.
 
 ### TRAN-104
 
@@ -1444,7 +1444,7 @@ Judged by `versioning.initialize-error-names-versions`.
 
 [`basic/transports/index#messages`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports#messages)
 
-**Excluded.** Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings.
+**Excluded.** Restates TRAN-003 at 2025-11-25, and the same boundary holds: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because the HTTP capture tooling drops undecodable bodies and chunks. On stdio a mis-encoded line is not valid JSON; the recorder keeps it as a (lossily decoded) string payload and it is judged as a non-message line under TRAN-117 and TRAN-118, not attributed to this clause.
 
 ### TRAN-111
 
@@ -1494,7 +1494,7 @@ Judged by `versioning.initialize-error-names-versions`.
 
 [`basic/transports/stdio`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio)
 
-**Excluded.** Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held.
+**Excluded.** Restates TRAN-001 at 2025-11-25 verbatim, and the same boundary holds: an embedded newline is read as the delimiter and splits the message into lines that are not valid messages, which the stdio recorder keeps (as string payloads) and which are judged under TRAN-117 and TRAN-118. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause.
 
 ### TRAN-116
 
@@ -1504,7 +1504,7 @@ Judged by `versioning.initialize-error-names-versions`.
 
 [`basic/transports/stdio`](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio)
 
-**Excluded.** Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25.
+**Excluded.** Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-021 at 2025-11-25.
 
 ### TRAN-117
 

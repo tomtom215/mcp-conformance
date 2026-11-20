@@ -45,14 +45,20 @@ in the sections below.
   table; each finding says what was seen before it quotes the rule. The workbench gains
   an app shell, a theme switch, a filterable library table and labelled charts. Still
   one self-contained file with no script, and nothing loaded from anywhere.
-- **Thirteen more clauses judged**, each a clause the registry had excluded, found
-  judgeable by re-reading all 566 exclusions: a notification answered (`BASE-011`,
-  `BASE-061`), a fallback version that is not the latest (`LIFE-012`), roots changed
-  with no notification (`ROOT-002`), a declared elicitation mode answered
-  method-not-found (`ELIC-005`), and the error codes the feature pages name
-  (`LOG-003`, `PROM-007`/`PROM-019`, `RES-008`, `RES-019`, `COMP-003`/`COMP-008`,
-  `PAGE-011`). `2025-11-25` now judges 110 clauses (was 102) and `2026-07-28` 186
-  (was 181). **A session that passed can now fail or warn** on these.
+- **Twenty-three more clauses judged**, each one the registry had excluded, found
+  judgeable by re-reading all 566 exclusions. Base and lifecycle: a notification
+  answered (`BASE-011`, `BASE-061`), a fallback version that is not the latest
+  (`LIFE-012`). Client features: roots changed with no notification (`ROOT-002`), a
+  declared elicitation mode answered method-not-found (`ELIC-005`). Server features:
+  the error codes their pages name (`LOG-003`, `PROM-007`/`PROM-019`, `RES-008`,
+  `RES-019`, `COMP-003`/`COMP-008`, `PAGE-011`). Transport: a terminated session still
+  served (`TRAN-015`), a missing session id refused with the wrong status (`TRAN-014`),
+  an invalid `Origin` refused with anything but 403 (`TRAN-007`/`TRAN-052`), a declined
+  notification answered under a 2xx (`TRAN-028`/`TRAN-062`), a correctly encoded header
+  rejected as a mismatch (`TRAN-090`/`TRAN-091`/`TRAN-103`, and `TRAN-101` for an
+  integer respelled). Each judges only when the session carries the stimulus, and is
+  *not observed* otherwise. `2025-11-25` now judges 114 clauses (was 102) and
+  `2026-07-28` 192 (was 181). **A session that passed can now fail or warn** on these.
 - **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
   registry gains the ping, progress and cancellation pages.
 - **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every
@@ -122,6 +128,10 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`watch` could print a finding and then withdraw it** when a first `initialize` was
+  refused and a later one served: the refused one was judged under the newest revision
+  until the session declared its own. Findings are now held while a handshake is
+  unresolved.
 - **`check` gave up on a server that closed an answer's event stream to be polled**
   (SEP-1699): it reported the session ended and exercised nothing after it. It now
   returns with `Last-Event-ID`, after the `retry` the server asked for (capped at two

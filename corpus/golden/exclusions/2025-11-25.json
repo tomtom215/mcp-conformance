@@ -137,7 +137,7 @@
       "id": "TRAN-001",
       "level": "MUST NOT",
       "actor": "both",
-      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+      "exclusion": "An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-002",
@@ -156,12 +156,6 @@
       "level": "MUST",
       "actor": "server",
       "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server's transport integration tests (roadmap M2)."
-    },
-    {
-      "id": "TRAN-007",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
     },
     {
       "id": "TRAN-008",
@@ -186,18 +180,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013."
-    },
-    {
-      "id": "TRAN-014",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
-    },
-    {
-      "id": "TRAN-015",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
     },
     {
       "id": "TRAN-016",
@@ -234,12 +216,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded."
-    },
-    {
-      "id": "TRAN-028",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
     },
     {
       "id": "TRAN-030",
