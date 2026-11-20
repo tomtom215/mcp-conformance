@@ -27,6 +27,15 @@ in the sections below.
   beside any other format. `check` resumes an event stream a server closes before its
   answer (`Last-Event-ID`). The GitHub Action writes the page too (`html-file`,
   default `mcp-conformance-report.html`).
+- **The official suite's OAuth client scenarios.** `mcp-reference-host` gains an
+  `--oauth-conformance` mode (crate feature `oauth`, off by default; rmcp's OAuth client
+  with a headless consent step that only answers at a loopback address), and the gate
+  runs 20 of the suite's 22 `auth/*` client scenarios: 19 pass, and
+  `auth/2025-03-26-oauth-metadata-backcompat` is recorded as an expected failure (rmcp
+  refuses the fixture's issuer mismatch). Two extension scenarios are not run
+  (`client-credentials-jwt`, `cross-app-access-complete-flow`). `mcp-conformance test
+  --client-command` still runs the four protocol scenarios by default, so a client
+  without OAuth support is not failed for it.
 - **`check` probes by default.** After the ordinary requests it sends a short fixed
   list made wrong on purpose (a prompt and a resource the server does not have, a
   prompt without its required arguments, a completion it cannot resolve, an invalid
