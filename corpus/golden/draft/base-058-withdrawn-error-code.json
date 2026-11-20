@@ -5,10 +5,10 @@
     "pass": 29,
     "fail": 2,
     "warn": 1,
-    "excluded": 309,
+    "excluded": 303,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 160
+    "not_observed": 166
   },
   "requirements": [
     {
@@ -1167,8 +1167,32 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-121",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-123",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-124",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-126",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-127",
+      "level": "MUST NOT",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -1199,6 +1223,18 @@
     {
       "id": "AUTH-133",
       "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-190",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-191",
+      "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
     }

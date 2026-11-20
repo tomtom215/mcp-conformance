@@ -16,6 +16,11 @@
 //! each capability, each counted against the request budget, and each named
 //! in the summary with how the server answered. `--no-probes` leaves them out.
 //!
+//! Over HTTP there is one more kind, for a server that protects itself with
+//! OAuth: the same harmless request once with no credential and once with a
+//! token nobody issued ([`Session::probe_authorization`]). A recorder keeps
+//! that one `Authorization` value, a public constant, and no other.
+//!
 //! Two of them (the log level, the cursor) are requests the revision's schema
 //! rejects, so the report holds them against this client, as it should; the
 //! verdict is the server's, and is not moved by them.
@@ -23,8 +28,9 @@
 use serde_json::{Map, Value, json};
 
 use super::{Ended, Reply, Session};
-use crate::check::request::Era;
+use crate::check::request::{Credential, Era};
 use crate::check::summary::Probe;
+use crate::check::wire::{Failure, Wire};
 
 /// A prompt name no server is expected to list.
 const NO_SUCH_PROMPT: &str = "mcp-conformance-probe-no-such-prompt";
@@ -66,7 +72,8 @@ impl Session<'_> {
                 Reply::Result(_) => "served",
                 Reply::Error => "refused with an error",
                 Reply::Nothing => "not answered",
-            },
+            }
+            .to_owned(),
         });
         Ok(())
     }
@@ -181,5 +188,67 @@ impl Session<'_> {
             .await?;
         }
         Ok(())
+    }
+
+    /// Whether the server validates a token: the same harmless request with
+    /// no credential, and — if that is refused with `401` — with the public
+    /// probe credential, a token no authorization server issued.
+    ///
+    /// Over HTTP only, and only where a credential is in play: the user gave
+    /// one (`--header 'Authorization: …'`), or `unauthorized` says the server
+    /// answered `401` before any session existed. A server that serves
+    /// everybody is sent neither.
+    pub(crate) async fn probe_authorization(&mut self, unauthorized: bool) -> Result<(), Ended> {
+        let Wire::Http(http) = &*self.wire else {
+            return Ok(());
+        };
+        if !self.plan.probes || !(unauthorized || http.has_credential()) {
+            return Ok(());
+        }
+        let refused = self
+            .knock("a request with no credential", Credential::Withheld)
+            .await?;
+        if refused == Some(401) {
+            self.knock(
+                "the same request with a token nobody issued",
+                Credential::Probe,
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// One request that changes nothing (`server/discover`, or `ping` in a
+    /// legacy session) sent with `credential`; returns the HTTP status when
+    /// the server refused it without a JSON-RPC answer.
+    async fn knock(&mut self, what: &str, credential: Credential) -> Result<Option<u16>, Ended> {
+        if self.summary.requests >= self.plan.max_requests {
+            return Err(self.bound("the request budget (--max-requests)"));
+        }
+        let method = match self.requests.era() {
+            Era::Modern => "server/discover",
+            Era::Legacy => "ping",
+        };
+        let mut out = self.requests.request(method, Map::new(), Vec::new());
+        out.credential = credential;
+        self.summary.requests += 1;
+        let (answer, status) = match self
+            .wire
+            .exchange(&out, &self.requests, self.plan.limits)
+            .await
+        {
+            Ok(answer) if answer.message.get("result").is_some() => ("served".to_owned(), None),
+            Ok(_) => ("refused with an error".to_owned(), None),
+            Err(Failure::Http(status)) => (format!("refused with HTTP {status}"), Some(status)),
+            Err(failure @ (Failure::Closed | Failure::Transport(_))) => {
+                return Err(Ended::Lost(failure));
+            }
+            Err(_) => ("not answered".to_owned(), None),
+        };
+        self.summary.probes.push(Probe {
+            what: what.to_owned(),
+            answer,
+        });
+        Ok(status)
     }
 }

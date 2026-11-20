@@ -49,7 +49,19 @@ few requests made wrong on purpose:
    not one of the eight; at `2026-07-28`, `tools/list` with a cursor that is not a
    string. Each asks for something that is not there, so none can change anything on
    the server. The summary names every probe and how it was answered, and
-   `--no-probes` leaves them out. Two of them are requests the revision's schema
+   `--no-probes` leaves them out.
+
+   Over HTTP, a server that protects itself with OAuth gets one more pair: a request
+   that changes nothing (`ping`, or `server/discover`) with no credential, and — when
+   that is refused `401` — the same request with a token nobody issued. A server that
+   validates its tokens refuses that one too, with `401` and a `WWW-Authenticate:
+   Bearer` challenge; one that serves it fails. The pair is sent when you gave a
+   credential with `--header`, or when the server answered `401` before any session
+   existed. In that second case there is nothing else to check, so `check` prints the
+   report on how the server refuses, says which flag to pass, and exits 2. The token
+   is the public constant `mcp-conformance-probe-invalid-token`; it is the one
+   `Authorization` value a recording ever keeps, and your own credential is never
+   written anywhere. Two of them are requests the revision's schema
    rejects, so the report holds them against the client (`[client]`), which is this
    tool; they do not count toward the server's verdict.
 

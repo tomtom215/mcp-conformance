@@ -43,8 +43,8 @@ pub(crate) struct Skipped {
 pub(crate) struct Probe {
     /// What was asked, in words.
     pub(crate) what: String,
-    /// `served`, `refused with an error` or `not answered`.
-    pub(crate) answer: &'static str,
+    /// How the server answered, in words.
+    pub(crate) answer: String,
 }
 
 /// The run's account of itself.

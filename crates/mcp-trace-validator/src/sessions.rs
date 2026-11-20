@@ -52,6 +52,11 @@ pub struct NeverAnswered {
 /// was down, a server that exited at once). The narrower conditions keep a
 /// recording of client messages alone, which is a legitimate way to judge a
 /// `2026-07-28` client's own clauses, out of it.
+///
+/// A server that answered `401` did answer: a protected resource refusing a
+/// request is the server speaking, over HTTP rather than JSON-RPC, and how it
+/// refuses is what the authorization clauses judge. Such a recording is not
+/// one of these, however few messages it holds.
 #[must_use]
 pub fn never_answered(events: &[TraceEvent]) -> Option<NeverAnswered> {
     let mut found = NeverAnswered {
@@ -61,7 +66,13 @@ pub fn never_answered(events: &[TraceEvent]) -> Option<NeverAnswered> {
     };
     for event in events {
         match (&event.body, event.direction) {
-            (EventBody::Message { .. }, Direction::ServerToClient) => return None,
+            (
+                EventBody::Message { .. }
+                | EventBody::Http {
+                    status: Some(401), ..
+                },
+                Direction::ServerToClient,
+            ) => return None,
             (EventBody::Message { payload }, Direction::ClientToServer) => {
                 found.client_messages += 1;
                 found.initialize |= payload.get("method").and_then(Value::as_str)
@@ -192,6 +203,19 @@ mod tests {
         assert_eq!((unreachable.aborts, unreachable.initialize), (1, false));
         // Any message from the server, even a refusal, is a session that started.
         assert!(never_answered(&events(&format!("{initialize}\n{answer}"))).is_none());
+        // A protected resource's `401` is the server answering: how it refuses
+        // is judged. Any other status leaves the session one that never started.
+        let status = |code: u16| {
+            format!(
+                r#"{{"seq":1,"direction":"server-to-client","transport":"streamable-http","kind":"http","status":{code}}}"#
+            )
+        };
+        let http_initialize = initialize.replace("stdio", "streamable-http");
+        assert!(never_answered(&events(&format!("{http_initialize}\n{}", status(401)))).is_none());
+        for other in [400, 402, 403, 500] {
+            let trace = format!("{http_initialize}\n{}", status(other));
+            assert!(never_answered(&events(&trace)).is_some(), "{other}");
+        }
         // Client messages alone, with neither sign, judge the client's clauses.
         assert!(never_answered(&events(ping)).is_none());
         // No client message: the empty-trace refusal's case, not this one.

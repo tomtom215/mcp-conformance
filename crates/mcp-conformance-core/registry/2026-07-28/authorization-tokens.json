@@ -142,7 +142,9 @@
         "section": "basic/authorization/index#token-handling",
         "quote": "MCP servers, acting in their role as an OAuth 2.1 resource server, MUST validate access tokens as described in OAuth 2.1 Section 5.2."
       },
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+      "checks": [
+        "auth.invalid-token-not-accepted"
+      ]
     },
     {
       "id": "AUTH-122",
@@ -168,7 +170,9 @@
         "section": "basic/authorization/index#token-handling",
         "quote": "If validation fails, servers MUST respond according to OAuth 2.1 Section 5.3 error handling requirements."
       },
-      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
+      "checks": [
+        "auth.invalid-token-challenged"
+      ]
     },
     {
       "id": "AUTH-124",
@@ -209,7 +213,9 @@
         "section": "basic/authorization/index#token-handling",
         "quote": "MCP servers MUST only accept tokens that are valid for use with their own resources."
       },
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+      "checks": [
+        "auth.invalid-token-not-accepted"
+      ]
     },
     {
       "id": "AUTH-127",
@@ -222,7 +228,9 @@
         "section": "basic/authorization/index#token-handling",
         "quote": "MCP servers MUST NOT accept or transit any other tokens."
       },
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
+      "checks": [
+        "auth.invalid-token-not-accepted"
+      ]
     },
     {
       "id": "AUTH-128",

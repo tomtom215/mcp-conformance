@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 192 judged from a recorded trace and 309 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 198 judged from a recorded trace and 303 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -4324,7 +4324,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-122
 
@@ -4344,7 +4344,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
 
-**Excluded.** Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`.
+Judged by `auth.invalid-token-challenged`.
 
 ### AUTH-124
 
@@ -4374,7 +4374,7 @@ Judged by `auth.invalid-token-401`.
 
 [`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-127
 
@@ -4384,7 +4384,7 @@ Judged by `auth.invalid-token-401`.
 
 [`basic/authorization/index#token-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-128
 
@@ -5014,7 +5014,7 @@ Judged by `auth.single-challenge`.
 
 [`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-191
 
@@ -5024,7 +5024,7 @@ Judged by `auth.single-challenge`.
 
 [`basic/authorization/security-considerations#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-192
 

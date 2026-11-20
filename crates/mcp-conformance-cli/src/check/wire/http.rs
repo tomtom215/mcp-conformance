@@ -14,9 +14,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::{Body, BodyDataStream};
-use axum::http::header::{ACCEPT, CONTENT_TYPE};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use axum::http::{HeaderName, HeaderValue, Method, Request, Uri};
 use futures::StreamExt as _;
+use mcp_conformance_core::trace::PROBE_AUTHORIZATION;
 use mcp_trace_capture::DEFAULT_MAX_MESSAGE;
 use mcp_trace_capture::http::{self, Client, Options};
 use mcp_trace_capture::output::{self, Target};
@@ -27,7 +28,7 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 use super::{Answer, Failure, Incoming, classify};
-use crate::check::request::{Outgoing, Requests};
+use crate::check::request::{Credential, Outgoing, Requests};
 use crate::check::sse::Events;
 use crate::proxy;
 
@@ -145,8 +146,15 @@ impl Http {
         {
             request = request.header(PROTOCOL_VERSION, revision);
         }
+        let credential = out.map_or(Credential::Given, |out| out.credential);
         for (name, value) in &self.extra {
+            if credential != Credential::Given && name == AUTHORIZATION {
+                continue;
+            }
             request = request.header(name, value);
+        }
+        if credential == Credential::Probe {
+            request = request.header(AUTHORIZATION, PROBE_AUTHORIZATION);
         }
         let body = out.map_or_else(Body::empty, |out| Body::from(out.body.to_string()));
         request
@@ -166,6 +174,11 @@ impl Http {
                 "the request did not reach the recording proxy: {error}"
             ))),
         }
+    }
+
+    /// Whether the user gave a credential (`--header 'Authorization: …'`).
+    pub(crate) fn has_credential(&self) -> bool {
+        self.extra.iter().any(|(name, _)| name == AUTHORIZATION)
     }
 
     /// Posts the notification (or the answer to a server's request) `out`.

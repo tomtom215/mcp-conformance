@@ -44,8 +44,11 @@ use super::stateless::transport::framing::Framing;
 use crate::context::TraceContext;
 
 mod challenge;
+mod probe;
 #[cfg(test)]
 mod tests;
+
+pub(super) use probe::{invalid_token_challenged, invalid_token_not_accepted};
 
 use challenge::Challenge;
 

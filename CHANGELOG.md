@@ -42,6 +42,11 @@ in the sections below.
   log level or cursor), because the error-handling clauses are judged only on a
   session that carries their stimulus. None can change anything on a server; the
   summary names each with its answer; `--no-probes` leaves them out.
+  Over HTTP, a server that demands a bearer token is also sent a harmless request with
+  no credential and one with a token nobody issued; a server that answers `401` before
+  any session exists now gets a report on how it refuses, instead of only "no session
+  was established". The recorder keeps that one public `Authorization` value and no
+  other.
 - **Every scenario the official suite lists.** `mcp-conformance test` and this
   project's own gate run all 32 server scenarios of suite `0.1.16`, the two it marks
   pending included; the everything server passes them (47 checks) with the new
@@ -60,7 +65,7 @@ in the sections below.
   table; each finding says what was seen before it quotes the rule. The workbench gains
   an app shell, a theme switch, a filterable library table and labelled charts. Still
   one self-contained file with no script, and nothing loaded from anywhere.
-- **Twenty-three more clauses judged**, each one the registry had excluded, found
+- **Thirty-five more clauses judged**, each one the registry had excluded, found
   judgeable by re-reading all 566 exclusions. Base and lifecycle: a notification
   answered (`BASE-011`, `BASE-061`), a fallback version that is not the latest
   (`LIFE-012`). Client features: roots changed with no notification (`ROOT-002`), a
@@ -71,9 +76,12 @@ in the sections below.
   an invalid `Origin` refused with anything but 403 (`TRAN-007`/`TRAN-052`), a declined
   notification answered under a 2xx (`TRAN-028`/`TRAN-062`), a correctly encoded header
   rejected as a mismatch (`TRAN-090`/`TRAN-091`/`TRAN-103`, and `TRAN-101` for an
-  integer respelled). Each judges only when the session carries the stimulus, and is
-  *not observed* otherwise. `2025-11-25` now judges 114 clauses (was 102) and
-  `2026-07-28` 192 (was 181). **A session that passed can now fail or warn** on these.
+  integer respelled). Authorization: a token nobody issued served, or refused with
+  anything but `401` and a Bearer challenge (`AUTH-042`, `AUTH-044`, `AUTH-047`,
+  `AUTH-048`, `AUTH-081`, `AUTH-082` and their six `2026-07-28` counterparts), judged on
+  the public probe credential `check` sends. Each judges only when the session carries the stimulus, and is
+  *not observed* otherwise. `2025-11-25` now judges 120 clauses (was 102) and
+  `2026-07-28` 198 (was 181). **A session that passed can now fail or warn** on these.
 - **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
   registry gains the ping, progress and cancellation pages.
 - **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every

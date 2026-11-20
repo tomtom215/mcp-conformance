@@ -713,16 +713,16 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 </div></div>
 <div class="breakdown">
 <div class="bk-row"><p class="bk-label"><strong>21 rules</strong> checked against this session</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-warn" x="0" y="0" width="58" height="10"/><rect class="s-pass" x="58" y="0" width="942" height="10"/></svg></div>
-<div class="bk-row"><p class="bk-label"><strong>327 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="256" height="10"/><rect class="s-not-applicable" x="256" y="0" width="41" height="10"/><rect class="s-excluded" x="297" y="0" width="703" height="10"/></svg></div>
+<div class="bk-row"><p class="bk-label"><strong>327 rules</strong> not checked here; the counts below say why</p><svg class="segbar" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="s-not-observed" x="0" y="0" width="274" height="10"/><rect class="s-not-applicable" x="274" y="0" width="41" height="10"/><rect class="s-excluded" x="315" y="0" width="685" height="10"/></svg></div>
 </div>
 <dl class="tally">
 <div class="t-pass"><dt>pass</dt><dd>20</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn"><dt>warn</dt><dd>1</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>234</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>228</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
 <div class="t-not-applicable"><dt>not applicable</dt><dd>10</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>83</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>89</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (5 messages valid)</p>
 </section>
@@ -865,7 +865,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="TOOL-001"><code class="rid">TOOL-001</code><span class="pill level">MUST</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">83</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">89</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -947,10 +947,16 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="ROOT-004"><code class="rid">ROOT-004</code><span class="pill level">SHOULD</span></li>
 <li id="ROOT-009"><code class="rid">ROOT-009</code><span class="pill level">SHOULD</span></li>
 <li id="AUTH-014"><code class="rid">AUTH-014</code><span class="pill level">SHOULD</span></li>
+<li id="AUTH-042"><code class="rid">AUTH-042</code><span class="pill level">MUST</span></li>
+<li id="AUTH-044"><code class="rid">AUTH-044</code><span class="pill level">MUST</span></li>
 <li id="AUTH-045"><code class="rid">AUTH-045</code><span class="pill level">MUST</span></li>
+<li id="AUTH-047"><code class="rid">AUTH-047</code><span class="pill level">MUST</span></li>
+<li id="AUTH-048"><code class="rid">AUTH-048</code><span class="pill level">MUST NOT</span></li>
 <li id="AUTH-049"><code class="rid">AUTH-049</code><span class="pill level">MUST</span></li>
 <li id="AUTH-050"><code class="rid">AUTH-050</code><span class="pill level">SHOULD</span></li>
 <li id="AUTH-051"><code class="rid">AUTH-051</code><span class="pill level">SHOULD</span></li>
+<li id="AUTH-081"><code class="rid">AUTH-081</code><span class="pill level">MUST</span></li>
+<li id="AUTH-082"><code class="rid">AUTH-082</code><span class="pill level">MUST</span></li>
 </ul>
 </details>
 <details class="group g-not-applicable"><summary><span class="group-name">Not applicable</span><span class="count">10</span></summary>
@@ -968,7 +974,7 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="COMP-003"><code class="rid">COMP-003</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.completions</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">234</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">228</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
 <li id="BASE-012"><code class="rid">BASE-012</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents.</span></li>
@@ -1165,12 +1171,8 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="AUTH-039"><code class="rid">AUTH-039</code><span class="pill level">MUST</span><span class="reason">`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording.</span></li>
 <li id="AUTH-040"><code class="rid">AUTH-040</code><span class="pill level">MUST</span><span class="reason">`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording. A 401 to a request in mid-session does not settle it either: an expired token draws the same answer as a missing one.</span></li>
 <li id="AUTH-041"><code class="rid">AUTH-041</code><span class="pill level">MUST NOT</span><span class="reason">An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs.</span></li>
-<li id="AUTH-042"><code class="rid">AUTH-042</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.</span></li>
 <li id="AUTH-043"><code class="rid">AUTH-043</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.</span></li>
-<li id="AUTH-044"><code class="rid">AUTH-044</code><span class="pill level">MUST</span><span class="reason">Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page&#39;s own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`.</span></li>
 <li id="AUTH-046"><code class="rid">AUTH-046</code><span class="pill level">MUST NOT</span><span class="reason">`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording.</span></li>
-<li id="AUTH-047"><code class="rid">AUTH-047</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.</span></li>
-<li id="AUTH-048"><code class="rid">AUTH-048</code><span class="pill level">MUST NOT</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session.</span></li>
 <li id="AUTH-052"><code class="rid">AUTH-052</code><span class="pill level">SHOULD</span><span class="reason">A strategy is a policy over every challenge the server issues, across sessions and users; one recording shows a few challenges for different operations, which legitimately name different scopes, and cannot tell an inconsistent strategy from a consistent one applied to different requests.</span></li>
 <li id="AUTH-053"><code class="rid">AUTH-053</code><span class="pill level">SHOULD</span><span class="reason">Binds the server&#39;s deliberation, not a message: a challenge shows the scopes chosen, not whether their user experience impact was weighed.</span></li>
 <li id="AUTH-054"><code class="rid">AUTH-054</code><span class="pill level">SHOULD</span><span class="reason">Conduct inside the client&#39;s OAuth flow (the token request a step-up makes), which runs between the client, the user&#39;s browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records. The clause also admits &quot;other, appropriate ways&quot;, which no message distinguishes.</span></li>
@@ -1200,8 +1202,6 @@ main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
 <li id="AUTH-078"><code class="rid">AUTH-078</code><span class="pill level">SHOULD</span><span class="reason">Binds the authorization server, the separate OAuth party the page&#39;s Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.</span></li>
 <li id="AUTH-079"><code class="rid">AUTH-079</code><span class="pill level">MUST</span><span class="reason">What the authorization server shows the user during authorization is consent UI in the user&#39;s browser. Binds the authorization server, the separate OAuth party the page&#39;s Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct.</span></li>
 <li id="AUTH-080"><code class="rid">AUTH-080</code><span class="pill level">MUST</span><span class="reason">Consent is obtained in the user&#39;s browser, and the forwarding is the proxy server&#39;s own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures.</span></li>
-<li id="AUTH-081"><code class="rid">AUTH-081</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request&#39;s credential to show, and that is the header a recording never keeps.</span></li>
-<li id="AUTH-082"><code class="rid">AUTH-082</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.</span></li>
 <li id="AUTH-083"><code class="rid">AUTH-083</code><span class="pill level">MUST</span><span class="reason">Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.</span></li>
 <li id="AUTH-084"><code class="rid">AUTH-084</code><span class="pill level">MUST NOT</span><span class="reason">Passthrough is a request from the MCP server to an upstream API, outside the MCP session; the recording holds the client–server exchange only, and not even the token the client sent (`Authorization` is never recorded).</span></li>
 <li id="AUTH-085"><code class="rid">AUTH-085</code><span class="pill level">MUST</span><span class="reason">Conduct inside the client&#39;s OAuth flow (the `resource` parameter of its authorization and token requests), which runs between the client, the user&#39;s browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records.</span></li>

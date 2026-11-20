@@ -27,6 +27,18 @@ pub(crate) enum Era {
     Modern,
 }
 
+/// Which credential a request travels with over HTTP.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Credential {
+    /// Whatever the user gave with `--header`, if anything.
+    #[default]
+    Given,
+    /// None: any `Authorization` the user gave is left off.
+    Withheld,
+    /// The public probe credential, a token no authorization server issued.
+    Probe,
+}
+
 /// One message ready to send.
 #[derive(Debug, Clone)]
 pub(crate) struct Outgoing {
@@ -37,6 +49,8 @@ pub(crate) struct Outgoing {
     /// The headers its era requires over HTTP, beyond `Accept`,
     /// `Content-Type` and the session's own.
     pub(crate) headers: Vec<(String, String)>,
+    /// The credential it travels with.
+    pub(crate) credential: Credential,
 }
 
 /// Builds a session's messages, numbering its requests.
@@ -117,6 +131,7 @@ impl Requests {
             body: Value::Object(body),
             id: Some(id),
             headers,
+            credential: Credential::Given,
         }
     }
 
@@ -137,6 +152,7 @@ impl Requests {
             body: json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
             id: None,
             headers: self.session_headers(),
+            credential: Credential::Given,
         }
     }
 
@@ -158,6 +174,7 @@ impl Requests {
             body,
             id: None,
             headers: self.session_headers(),
+            credential: Credential::Given,
         }
     }
 

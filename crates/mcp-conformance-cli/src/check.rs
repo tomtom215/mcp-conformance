@@ -22,6 +22,7 @@ use mcp_trace_capture::Signals;
 use mcp_trace_capture::output;
 use mcp_trace_validator::cli as validator;
 use mcp_trace_validator::report::Party;
+use serde_json::Value;
 
 use crate::EXIT_USAGE;
 
@@ -143,6 +144,11 @@ fn conclude(
                  client that does not speak a revision closes it"
             ));
         }
+        Some(Err(Ended::Lost(Failure::Http(401))))
+            if summary.revision.is_none() && !summary.probes.is_empty() =>
+        {
+            return Ok(unauthorized(args, trace));
+        }
         Some(Err(Ended::Lost(failure))) if summary.revision.is_none() => {
             return Err(format!("no session was established: {failure}"));
         }
@@ -154,6 +160,12 @@ fn conclude(
         }
         Some(Ok(()) | Err(Ended::Bound)) => {}
     }
+    Ok(report(args, summary, trace))
+}
+
+/// Judges the recording for the server, says the result in one sentence, and
+/// names the page left beside the recording; returns the exit status.
+fn report(args: &CheckArgs, summary: &Summary, trace: &Path) -> u8 {
     let mut report = args.report.clone().viewed_for(Party::Server);
     // With the recording in a directory of this run's own making, the page
     // goes beside it: nobody has to know a flag to get something to open.
@@ -190,7 +202,26 @@ fn conclude(
             page.display()
         );
     }
-    Ok(code)
+    code
+}
+
+/// The server answered `401` before any session existed: there is nothing to
+/// exercise, and the recording still shows how it refuses a request with no
+/// credential and one with a token nobody issued. That much is judged and
+/// printed; the run is still one that could not be made.
+fn unauthorized(args: &CheckArgs, trace: &Path) -> u8 {
+    let report = args.report.clone().viewed_for(Party::Server);
+    let _ = validator::judge(
+        &[trace.display().to_string()],
+        &report,
+        &validator::JudgingArgs::default(),
+    );
+    eprintln!(
+        "mcp-conformance check: the server requires authorization (it answered HTTP 401), so \
+         no session was established. The report above judges only how it refuses a request. \
+         To check the rest, pass a credential: --header 'Authorization: Bearer <token>'"
+    );
+    EXIT_USAGE
 }
 
 /// Establishes the session in the era `version` asks for and exercises it.
@@ -209,24 +240,46 @@ async fn drive(
         plan,
         summary,
     };
-    let capabilities = if modern {
+    let capabilities = match establish(&mut session, subject, trace, version).await {
+        Ok(capabilities) => capabilities,
+        Err(Ended::Lost(Failure::Http(401))) => {
+            // The server wants a credential before anything else. There is
+            // no session to exercise, and there is still how it refuses.
+            session.probe_authorization(true).await?;
+            return Err(Ended::Lost(Failure::Http(401)));
+        }
+        Err(ended) => return Err(ended),
+    };
+    session.exercise(&capabilities).await
+}
+
+/// Opens the session: `server/discover`, falling back to `initialize` as a
+/// client that speaks both revisions does; returns the server's capabilities.
+async fn establish(
+    session: &mut Session<'_>,
+    subject: &Subject,
+    trace: &Path,
+    version: SpecVersion,
+) -> Result<Value, Ended> {
+    let modern = !matches!(version, SpecVersion::Legacy);
+    if modern {
         match session.discover().await {
             Ok(Some(capabilities)) => {
                 session.summary.negotiation = "the server answered `server/discover`".into();
-                capabilities
+                Ok(capabilities)
             }
             Ok(None) | Err(Ended::Lost(_)) if matches!(version, SpecVersion::Modern) => {
-                return Err(Ended::Lost(Failure::Transport(format!(
+                Err(Ended::Lost(Failure::Transport(format!(
                     "the server did not answer `server/discover` as a {MODERN} server does \
                      (--spec-version {MODERN} asks for that revision alone)"
-                ))));
+                ))))
             }
             Ok(None) => {
                 session.summary.negotiation = format!(
                     "`server/discover` was not answered as a {MODERN} server answers it, so \
                      the session fell back to `initialize`"
                 );
-                session.initialize().await?
+                session.initialize().await
             }
             Err(Ended::Lost(Failure::Closed)) if matches!(subject, Subject::Command(..)) => {
                 // The probe ended the server: a legacy server may treat a
@@ -245,7 +298,7 @@ async fn drive(
                 session.summary.negotiation = "the server exited on the `server/discover` \
                      probe, so it was started again and opened with `initialize`"
                     .into();
-                session.initialize().await?
+                session.initialize().await
             }
             Err(Ended::Lost(Failure::Closed)) => {
                 // Over HTTP a stream that ends unanswered is one exchange
@@ -253,15 +306,14 @@ async fn drive(
                 session.summary.negotiation = "the stream answering `server/discover` ended \
                      without an answer, so the session fell back to `initialize`"
                     .into();
-                session.initialize().await?
+                session.initialize().await
             }
-            Err(ended) => return Err(ended),
+            Err(ended) => Err(ended),
         }
     } else {
         session.summary.negotiation = format!("--spec-version {LEGACY}: opened with `initialize`");
-        session.initialize().await?
-    };
-    session.exercise(&capabilities).await
+        session.initialize().await
+    }
 }
 
 async fn connect(subject: &Subject, trace: &Path, force: bool) -> Result<Wire, String> {

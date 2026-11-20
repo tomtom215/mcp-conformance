@@ -43,7 +43,7 @@ fn the_account_says_what_was_exercised_and_groups_what_was_not_by_reason() {
         ],
         probes: vec![super::Probe {
             what: "prompts/get for a prompt the server does not list".to_owned(),
-            answer: "refused with an error",
+            answer: "refused with an error".to_owned(),
         }],
         needed_input: vec!["tools/call ask".to_owned()],
         server_requests: 2,

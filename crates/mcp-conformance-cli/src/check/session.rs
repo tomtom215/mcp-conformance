@@ -232,7 +232,8 @@ impl Session<'_> {
             self.fetch(&prompts).await?;
             self.probe_prompts(&prompts).await?;
         }
-        self.probe_utilities(capabilities).await
+        self.probe_utilities(capabilities).await?;
+        self.probe_authorization(false).await
     }
 
     fn skip(&mut self, kind: &'static str, name: &str, reason: impl Into<String>) {

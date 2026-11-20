@@ -35,7 +35,12 @@ pub(super) fn recorded_headers(headers: &HeaderMap) -> BTreeMap<String, String> 
                 .any(|prefix| name.starts_with(prefix))
         })
         .filter_map(|name| header_value(headers, name).map(|value| (name.to_owned(), value)));
-    named.chain(prefixed).collect()
+    // The one `Authorization` value any recorder keeps: the public probe
+    // credential, which no authorization server issued.
+    let probe = header_value(headers, "authorization")
+        .filter(|value| value == mcp_conformance_core::trace::PROBE_AUTHORIZATION)
+        .map(|value| ("authorization".to_owned(), value));
+    named.chain(prefixed).chain(probe).collect()
 }
 
 /// A header's value as UTF-8, combining repeated field lines.
@@ -78,6 +83,19 @@ mod tests {
         assert_eq!(recorded["host"], "localhost:1234");
         assert_eq!(recorded["mcp-session-id"], "abc");
         assert!(!recorded.contains_key("authorization"));
+        // The public probe credential is the one value kept, and only whole.
+        for (value, kept) in [
+            (mcp_conformance_core::trace::PROBE_AUTHORIZATION, true),
+            ("Bearer mcp-conformance-probe-invalid-token-2", false),
+            ("bearer mcp-conformance-probe-invalid-token", false),
+        ] {
+            headers.insert("authorization", value.parse().unwrap());
+            assert_eq!(
+                recorded_headers(&headers).contains_key("authorization"),
+                kept,
+                "{value}"
+            );
+        }
     }
 
     #[test]

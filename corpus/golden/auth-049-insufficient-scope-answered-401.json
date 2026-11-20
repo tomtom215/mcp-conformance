@@ -5,10 +5,10 @@
     "pass": 28,
     "fail": 1,
     "warn": 1,
-    "excluded": 234,
+    "excluded": 228,
     "unsupported": 0,
     "not_applicable": 18,
-    "not_observed": 66
+    "not_observed": 72
   },
   "requirements": [
     {
@@ -690,8 +690,32 @@
       "outcome": "pass"
     },
     {
+      "id": "AUTH-042",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-044",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-045",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-047",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-048",
+      "level": "MUST NOT",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -738,6 +762,18 @@
       "level": "SHOULD",
       "actor": "server",
       "outcome": "pass"
+    },
+    {
+      "id": "AUTH-081",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-082",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     }
   ],
   "wire_schema": {

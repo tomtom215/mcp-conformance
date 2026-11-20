@@ -1166,40 +1166,16 @@
       "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
     },
     {
-      "id": "AUTH-042",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
       "id": "AUTH-043",
       "level": "MUST",
       "actor": "server",
       "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
-      "id": "AUTH-044",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
-    },
-    {
       "id": "AUTH-046",
       "level": "MUST NOT",
       "actor": "client",
       "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
-    },
-    {
-      "id": "AUTH-047",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
-      "id": "AUTH-048",
-      "level": "MUST NOT",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
     },
     {
       "id": "AUTH-052",
@@ -1374,18 +1350,6 @@
       "level": "MUST",
       "actor": "server",
       "exclusion": "Consent is obtained in the user's browser, and the forwarding is the proxy server's own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures."
-    },
-    {
-      "id": "AUTH-081",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps."
-    },
-    {
-      "id": "AUTH-082",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
       "id": "AUTH-083",

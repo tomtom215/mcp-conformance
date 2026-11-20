@@ -5,10 +5,10 @@
     "pass": 27,
     "fail": 2,
     "warn": 0,
-    "excluded": 234,
+    "excluded": 228,
     "unsupported": 0,
     "not_applicable": 18,
-    "not_observed": 67
+    "not_observed": 73
   },
   "requirements": [
     {
@@ -690,6 +690,18 @@
       "outcome": "pass"
     },
     {
+      "id": "AUTH-042",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-044",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-045",
       "level": "MUST",
       "actor": "server",
@@ -707,6 +719,18 @@
         "quote": "Invalid or expired tokens MUST receive a HTTP 401 response.",
         "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-handling"
       }
+    },
+    {
+      "id": "AUTH-047",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-048",
+      "level": "MUST NOT",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "AUTH-049",
@@ -736,6 +760,18 @@
     {
       "id": "AUTH-051",
       "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-081",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-082",
+      "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
     }

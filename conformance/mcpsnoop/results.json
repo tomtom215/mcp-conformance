@@ -56,6 +56,24 @@
       }
     },
     {
+      "trace": "good/http-invalid-token-refused-401",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
       "trace": "good/http-notification-refused-400",
       "revision": "2025-11-25",
       "transport": "http",
@@ -412,6 +430,50 @@
         "findings": [],
         "other": {
           "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-042-invalid-token-accepted",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-042",
+          "AUTH-047",
+          "AUTH-048",
+          "AUTH-081",
+          "AUTH-082"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-044-invalid-token-refused-without-challenge",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-044"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
         }
       }
     },
@@ -3109,6 +3171,24 @@
       }
     },
     {
+      "trace": "draft/good/http-invalid-token-refused-401",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
       "trace": "draft/good/http-notification-refused-400",
       "revision": "2026-07-28",
       "transport": "http",
@@ -3581,6 +3661,50 @@
         "findings": [],
         "other": {
           "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-121-invalid-token-accepted",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-121",
+          "AUTH-126",
+          "AUTH-127",
+          "AUTH-190",
+          "AUTH-191"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-123-invalid-token-refused-without-challenge",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-123"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
         }
       }
     },
