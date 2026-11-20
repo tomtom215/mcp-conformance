@@ -46,6 +46,15 @@ http = [
 # scenarios (URL appended as the final argument) plus a general
 # `--server-cmd`/positional-URL mode.
 cli = ["proc", "http", "dep:clap", "tokio/rt-multi-thread"]
+# OAuth for the official suite's `auth/*` client scenarios: with `cli`, the
+# binary's `--oauth-conformance`. NOT in `default` or `cli`: it is a conformance
+# harness mode (`src/oauth.rs` says why it is not a way to sign in), and rmcp's
+# `auth` feature brings `oauth2` 5.0, whose older `rand`/`sha2`/`thiserror`/
+# `base64` lines sit beside the tree's current ones (deny.toml lists each) — a
+# cost `cargo install mcp-reference-host` should not pay for a flag only this
+# repository's gate passes. The wrapper sits on the same `StreamableHttpClient`
+# seam `resume` uses, whose signatures name `http::HeaderName`/`HeaderValue`.
+oauth = ["http", "rmcp/auth", "dep:http"]
 
 [[bin]]
 name = "mcp-reference-host"
@@ -73,6 +82,9 @@ reqwest = { workspace = true, optional = true }
 # `cargo xtask minimal-versions` keeps these honest.
 futures = { version = ">=0.3.30, <0.4", optional = true }
 sse-stream = { version = ">=0.2.4, <0.3", optional = true }
+# Feature `oauth`: the `StreamableHttpClient` trait's header-map types. Already
+# in the tree (reqwest's and rmcp's own); floor 1.1 is reqwest's `http ^1.1`.
+http = { version = ">=1.1, <2", optional = true }
 
 [dev-dependencies]
 mcp-everything-server = { workspace = true }

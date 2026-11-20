@@ -15,11 +15,16 @@
 //! 2. **The four `2025-11-25` protocol scenarios**, sequentially: parallel
 //!    suite mode would put the `sse-retry` clock under load noise, and
 //!    client runs fail on WARNINGs, so the timing window is load-bearing.
-//!    The `auth/*` set is deferred (deferral ledger row
-//!    `auth-client-scenarios`): it needs a full OAuth client in the host. The
-//!    registry judges what a recording shows of authorization — the
-//!    server's challenge (`AUTH-*`) — without one.
-//! 3. **Client-side agreement** — every host-captured trace replays through
+//! 3. **The `auth/*` scenarios** (`suite::AUTH_CLIENT_SCENARIOS`), with the
+//!    host's `--oauth-conformance`: the suite's own authorization server, the
+//!    host authorizing headlessly. Not recorded and not part of the agreement
+//!    replay — the flow runs between the client and the authorization server,
+//!    off the message seam a host trace is taken at (the registry judges what
+//!    a recording does show of authorization, the server's challenge, under
+//!    `AUTH-*`). First the pinned suite's `list` is checked against the two
+//!    lists in `suite.rs`, so a scenario the suite adds cannot go unrun
+//!    unnoticed. Only at the pinned suite version: the set is a property of it.
+//! 4. **Client-side agreement** — every host-captured trace replays through
 //!    `mcp-trace-validator` against
 //!    `conformance/client-agreement-divergences.json`. The `sse-retry`
 //!    dance records no trace (it runs below the `Transport` seam), so the
@@ -48,13 +53,29 @@ const CLIENT_TAP_DIR: &str = "target/conformance/client-tap";
 /// Where the client runner writes per-scenario results.
 const CLIENT_RESULTS_DIR: &str = "target/conformance/client";
 
-pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
+/// The `auth/*` scenarios the host is run against, the expected failure among
+/// them (`conformance/expected-failures.yaml`).
+const AUTH_SCENARIOS: [&str; 20] = mcp_conformance_cli::suite::AUTH_CLIENT_SCENARIOS;
+
+/// Where the client runner writes the `auth/*` results: beside, not inside,
+/// the directory the agreement replay reads.
+const AUTH_RESULTS_DIR: &str = "target/conformance/client-auth";
+
+/// Builds the host as the gate runs it. `oauth` is not a default feature:
+/// `--oauth-conformance` exists only in a host built for this gate.
+fn build_host(root: &Path) -> bool {
     eprintln!("xtask: conformance — building mcp-reference-host (client SUT)");
+    let features = ["--features", "cli,oauth"];
     let build = Command::new("cargo")
-        .args(["build", "-p", "mcp-reference-host", "--features", "cli"])
+        .args(["build", "-p", "mcp-reference-host"])
+        .args(features)
         .current_dir(root)
         .status();
-    if !matches!(build, Ok(status) if status.success()) {
+    matches!(build, Ok(status) if status.success())
+}
+
+pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
+    if !build_host(root) {
         eprintln!("xtask: conformance — host build failed");
         return ExitCode::FAILURE;
     }
@@ -64,8 +85,9 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
     ));
     let tap_dir = root.join(CLIENT_TAP_DIR);
     let results_dir = root.join(CLIENT_RESULTS_DIR);
+    let auth_results_dir = root.join(AUTH_RESULTS_DIR);
     // Fresh artifacts every run, like the server leg.
-    for dir in [&tap_dir, &results_dir] {
+    for dir in [&tap_dir, &results_dir, &auth_results_dir] {
         if let Err(error) = std::fs::remove_dir_all(dir)
             && error.kind() != std::io::ErrorKind::NotFound
         {
@@ -80,7 +102,13 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
     if stdio_smoke(root, &host, &tap_dir) != ExitCode::SUCCESS {
         return ExitCode::FAILURE;
     }
-    if run_scenarios(root, &host, &tap_dir, &results_dir, suite) != ExitCode::SUCCESS {
+    // `--command` is split on spaces by the runner, so the flags survive and
+    // the scenario URL lands as the final argument.
+    let recorded = format!("{} --trace-dir {}", host.display(), tap_dir.display());
+    if run_scenarios(root, &recorded, &CLIENT_SCENARIOS, &results_dir, suite) != ExitCode::SUCCESS {
+        return ExitCode::FAILURE;
+    }
+    if auth_scenarios(root, &host, &auth_results_dir, suite) != ExitCode::SUCCESS {
         return ExitCode::FAILURE;
     }
 
@@ -95,8 +123,8 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
     ) {
         Ok(()) => {
             eprintln!(
-                "xtask: conformance — client leg green: stdio smoke, {} scenarios, \
-                 agreement over the host-captured traces",
+                "xtask: conformance — client leg green: stdio smoke, {} protocol \
+                 scenarios, the auth scenarios, agreement over the host-captured traces",
                 CLIENT_SCENARIOS.len()
             );
             ExitCode::SUCCESS
@@ -108,18 +136,73 @@ pub(crate) fn run(root: &Path, suite: &str) -> ExitCode {
     }
 }
 
-/// The four scenarios, sequentially, against the freshly built host.
+/// The `auth/*` phase: the list check, then the scenarios.
+fn auth_scenarios(root: &Path, host: &Path, results_dir: &Path, suite: &str) -> ExitCode {
+    if suite != mcp_conformance_cli::suite::VERSION {
+        eprintln!(
+            "xtask: conformance — auth client scenarios skipped: the set is the pinned \
+             suite's ({}), and this run is of {suite}",
+            mcp_conformance_cli::suite::VERSION
+        );
+        return ExitCode::SUCCESS;
+    }
+    let listed = Command::new("npx")
+        .arg("-y")
+        .arg(format!("{}@{suite}", super::SUITE_PACKAGE))
+        .arg("list")
+        .current_dir(root)
+        .output();
+    let listed = match listed {
+        Ok(output) if output.status.success() => {
+            String::from_utf8_lossy(&output.stdout).into_owned()
+        }
+        _ => {
+            eprintln!("xtask: conformance — cannot list the suite's scenarios");
+            return ExitCode::FAILURE;
+        }
+    };
+    if let Err(message) = auth_set_is_the_listed_one(&listed) {
+        eprintln!("xtask: conformance — {message}");
+        return ExitCode::FAILURE;
+    }
+    let command = format!("{} --oauth-conformance", host.display());
+    run_scenarios(root, &command, &AUTH_SCENARIOS, results_dir, suite)
+}
+
+/// Checks that the suite's listed `auth/*` scenarios are exactly the ones
+/// `suite.rs` runs plus the ones it says it does not.
+fn auth_set_is_the_listed_one(list_output: &str) -> Result<(), String> {
+    use mcp_conformance_cli::suite::{AUTH_CLIENT_SCENARIOS_NOT_RUN, listed_auth_scenarios};
+
+    let mut listed = listed_auth_scenarios(list_output);
+    let mut known: Vec<String> = AUTH_SCENARIOS
+        .iter()
+        .chain(&AUTH_CLIENT_SCENARIOS_NOT_RUN)
+        .map(|name| (*name).to_owned())
+        .collect();
+    listed.sort_unstable();
+    known.sort_unstable();
+    if listed == known {
+        return Ok(());
+    }
+    let unlisted: Vec<&String> = known.iter().filter(|n| !listed.contains(n)).collect();
+    let unknown: Vec<&String> = listed.iter().filter(|n| !known.contains(n)).collect();
+    Err(format!(
+        "the pinned suite's auth client scenarios are not the ones suite.rs names: \
+         listed but in neither AUTH_CLIENT_SCENARIOS nor AUTH_CLIENT_SCENARIOS_NOT_RUN: \
+         {unknown:?}; named there but not listed: {unlisted:?}"
+    ))
+}
+
+/// `scenarios`, sequentially, with `command` as the client under test.
 fn run_scenarios(
     root: &Path,
-    host: &Path,
-    tap_dir: &Path,
+    command: &str,
+    scenarios: &[&str],
     results_dir: &Path,
     suite: &str,
 ) -> ExitCode {
-    // `--command` is split on spaces by the runner, so the flags survive and
-    // the scenario URL lands as the final argument.
-    let command = format!("{} --trace-dir {}", host.display(), tap_dir.display());
-    for scenario in CLIENT_SCENARIOS {
+    for scenario in scenarios {
         eprintln!("xtask: conformance — client scenario {scenario} (suite {suite})");
         let status = Command::new("npx")
             .arg("-y")
@@ -128,7 +211,7 @@ fn run_scenarios(
             .arg("--scenario")
             .arg(scenario)
             .arg("--command")
-            .arg(&command)
+            .arg(command)
             .arg("--spec-version")
             .arg(SPEC_VERSION)
             .arg("--expected-failures")
@@ -186,5 +269,56 @@ fn stdio_smoke(root: &Path, host: &Path, tap_dir: &Path) -> ExitCode {
             eprintln!("xtask: conformance — cannot run the host binary: {error}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    fn list_of(names: &[&str]) -> String {
+        let mut output = "Client scenarios (test against a client):\n".to_owned();
+        for name in names {
+            output.push_str("  - ");
+            output.push_str(name);
+            output.push_str(" [2025-11-25]\n");
+        }
+        output
+    }
+
+    fn known() -> Vec<&'static str> {
+        AUTH_SCENARIOS
+            .iter()
+            .chain(&mcp_conformance_cli::suite::AUTH_CLIENT_SCENARIOS_NOT_RUN)
+            .copied()
+            .collect()
+    }
+
+    #[test]
+    fn the_listed_set_matches_in_any_order() {
+        let mut names = known();
+        names.reverse();
+        names.push("initialize");
+        assert_eq!(auth_set_is_the_listed_one(&list_of(&names)), Ok(()));
+    }
+
+    #[test]
+    fn a_scenario_the_suite_added_or_dropped_is_named() {
+        let mut added = known();
+        added.push("auth/brand-new");
+        let message = auth_set_is_the_listed_one(&list_of(&added)).unwrap_err();
+        assert!(
+            message.contains("[\"auth/brand-new\"]; named there"),
+            "{message}"
+        );
+        assert!(message.ends_with("not listed: []"), "{message}");
+
+        let dropped = &known()[1..];
+        let message = auth_set_is_the_listed_one(&list_of(dropped)).unwrap_err();
+        assert!(
+            message.ends_with("not listed: [\"auth/metadata-default\"]"),
+            "{message}"
+        );
     }
 }

@@ -62,9 +62,22 @@ mcp-conformance test --client-command "node my_client.js"
 ```
 
 By default that is the suite's four protocol scenarios (`initialize`, `tools_call`,
-`elicitation-sep1034-client-defaults`, `sse-retry`). The `auth/*` scenarios need the
-suite's authorization server as well as its MCP one, which the recording proxy does not
-stand in front of; name them with `--scenario` to run them anyway.
+`elicitation-sep1034-client-defaults`, `sse-retry`). The suite's 22 `auth/*` (OAuth)
+scenarios are not in the default set, for two reasons. A client with no OAuth support
+fails every one of them, which would say nothing about its protocol behaviour. And the
+recording relay stands between your client and the suite's server, so the client is given
+the relay's URL while the server's protected-resource metadata names its own; a client
+that follows RFC 9728 refuses that mismatch and the scenario fails for a reason that is
+not the client's. Name one with `--scenario` to run it anyway.
+
+This repository runs the `auth/*` scenarios against its own reference host without the
+relay, in `cargo xtask conformance`: the host is built with its `oauth` feature and run
+with `--oauth-conformance`, a mode for the suite only (it approves the authorization
+itself, and refuses to do so anywhere but a loopback address). Of the 22, 19 pass;
+`auth/2025-03-26-oauth-metadata-backcompat` is run as an expected failure, with the reason
+in `conformance/expected-failures.yaml`; `auth/client-credentials-jwt` and
+`auth/cross-app-access-complete-flow` are not run. The deferral ledger row
+`auth-client-scenarios` says what would close each.
 
 ## Reading the result
 

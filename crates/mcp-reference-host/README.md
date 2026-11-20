@@ -18,6 +18,7 @@ through recorded sessions. It is also a quick way to exercise an MCP **server**,
 > - `--revision`, an alias of `--protocol-version`, which the example below uses;
 > - `--sweep` driving only the groups (completion, resources, prompts) the server
 >   declares;
+> - the `oauth` feature and its `--oauth-conformance` flag (below);
 >
 > With `0.6.0`, spell it `--protocol-version`.
 
@@ -74,6 +75,37 @@ What the library contains:
   `StreamableHttpClient` seam because rmcp's own transport lost an in-flight
   request when its POST SSE stream closed early (measured at rmcp 1.7; not
   re-measured since the workspace moved to 3.x).
+- `oauth` (feature `oauth`, **off by default** and not part of `cli`) — OAuth
+  for the official suite's `auth/*` client scenarios, and for nothing else.
+  Build with `--features oauth` and pass `--oauth-conformance <url>`: the host
+  then answers the server's `401` and `403 insufficient_scope` by running an
+  authorization and sending the request again. The OAuth itself is rmcp's
+  `auth` feature — protected-resource and authorization-server discovery,
+  registration (a pre-registered client, a Client ID Metadata Document, or
+  dynamic registration), PKCE `S256` always, the `state` check, the RFC 8707
+  `resource` parameter, scope selection and step-up, and the
+  `client_credentials` grant. The host adds what rmcp leaves to its caller.
+
+  **This is a conformance harness mode, not a way to sign in.** Nobody is
+  asked for consent: the host requests the authorization URL itself and reads
+  the code off the redirect. It is therefore fenced: the authorization endpoint
+  must be `localhost` or a loopback address (anything else is refused before a
+  request is made), the redirect must go to the host's own redirect URI, a
+  session makes at most three authorization requests (one sign-in, two
+  escalations) and then believes the server's refusal, and tokens, codes and
+  client secrets live in memory only — never on disk, in a trace or in any
+  message the host prints. Which client to be comes from the suite's
+  `MCP_CONFORMANCE_CONTEXT`. It is a separate feature because rmcp's `auth`
+  brings the `oauth2` crate and older lines of `rand`, `sha2`, `thiserror` and
+  `base64` with it, which `cargo install mcp-reference-host` should not pay
+  for.
+
+  At the pinned suite 0.1.16, 19 of its 22 `auth/*` scenarios pass and are
+  gated by `cargo xtask conformance`. `auth/2025-03-26-oauth-metadata-backcompat`
+  fails (the scenario's metadata carries an `issuer` that does not match where
+  it was fetched from, which RFC 8414 says must not be used and rmcp refuses);
+  `auth/client-credentials-jwt` and `auth/cross-app-access-complete-flow`
+  (both suite extensions) are not implemented and not run.
 - the binary (feature `cli`, on by default: `cargo install mcp-reference-host`
   installs it; library users opt out with `default-features = false`) — the
   official suite's client SUT: the runner
@@ -82,8 +114,7 @@ What the library contains:
   mapping names to plans. All four `2025-11-25` protocol scenarios pass at
   the pinned 0.1.16 (`initialize`, `tools_call`, `sse-retry` 3/3 including
   the retry-timing window, `elicitation-sep1034-client-defaults` 5/5). The
-  suite's `auth/*` (OAuth) client scenarios are out of scope: the host is not an
-  OAuth client. The
+  suite's `auth/*` (OAuth) client scenarios need the `oauth` feature above. The
   host owns a hard `--deadline-secs` (default 25): the runner's 30 s kill
   reaches only the `sh -c` wrapper it spawns, so a host that outlives its
   server must exit by itself rather than wedge the runner.

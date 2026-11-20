@@ -22,8 +22,8 @@ use rmcp::service::ClientLifecycleMode;
 
 /// Reference MCP host: scripted client behavior, bounded loops, suite SUT.
 ///
-/// The `struct_excessive_bools` lint reads four `bool` fields as a state
-/// machine that wants a type. Here they are four independent command-line
+/// The `struct_excessive_bools` lint reads five `bool` fields as a state
+/// machine that wants a type. Here they are five independent command-line
 /// switches, each naming one phase a recording may include, and clap's derive
 /// binds a flag to a field: collapsing them into an enum would mean the flags
 /// could no longer be combined, which is exactly what the capture does.
@@ -99,6 +99,17 @@ pub(crate) struct Cli {
     /// and which leaves the trace-context clause with nothing to judge.
     #[arg(long, value_name = "TRACEPARENT")]
     pub(crate) traceparent: Option<String>,
+    /// Answer the server's `401` and `403 insufficient_scope` by running an
+    /// OAuth authorization with nobody asked: the host fetches the
+    /// authorization URL itself and takes the code from the redirect. For the
+    /// official suite's `auth/*` client scenarios only — it approves on the
+    /// user's behalf, so it refuses an authorization endpoint that is not a
+    /// loopback address. The client identity, when the suite hands one over,
+    /// is read from `MCP_CONFORMANCE_CONTEXT`. Off by default; needs a URL.
+    /// Only in a binary built with the `oauth` feature.
+    #[cfg(feature = "oauth")]
+    #[arg(long, conflicts_with_all = ["server_cmd", "probe"])]
+    pub(crate) oauth_conformance: bool,
     /// Protocol revision to speak. `2026-07-28` uses the stateless lifecycle:
     /// `server/discover` instead of `initialize`, and a `_meta` envelope on
     /// every request.

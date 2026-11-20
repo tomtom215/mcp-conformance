@@ -93,6 +93,32 @@ skip = [
     # when ahash or jsonschema moves; the pins are exact.
     { crate = "getrandom@0.3.4", reason = "ahash 0.8 (jsonschema's, default features) requires getrandom 0.3" },
     { crate = "r-efi@5.3.0", reason = "getrandom 0.3's UEFI backend, alongside getrandom 0.4's r-efi 6" },
+    # Introduced 2026-11-20 by mcp-reference-host's opt-in `oauth` feature (the
+    # `--oauth-conformance` mode the gate runs the official suite's `auth/*`
+    # client scenarios with). It enables rmcp's `auth`, whose OAuth client is the
+    # `oauth2` crate: 5.0.0, published 2025-01-21 and still the newest, sits on
+    # the previous line of five crates the rest of this tree has moved past —
+    # rand 0.8 (rmcp, proptest: 0.10), sha2 0.10 with its digest 0.10 /
+    # block-buffer 0.10 / crypto-common 0.1 / cpufeatures 0.2 (rmcp: sha2 0.11),
+    # thiserror 1 (rmcp: 2) and base64 0.22 (rmcp, reqwest: 0.23). Not switchable
+    # from here: the requirements are oauth2's. Runtime dependencies, but of the
+    # reference host only and only when built with `--features oauth`, which is
+    # in neither `default` nor `cli`: `cargo install mcp-reference-host` does not
+    # get them, and no other crate's shipped build does (measured with
+    # `cargo tree -i oauth2` on 2026-11-20). The alternative, writing PKCE, the
+    # token exchange and discovery by hand to avoid a duplicate version, would
+    # trade audited code for unaudited code in the one place that matters most.
+    # Collapses when oauth2 moves; the pins are exact.
+    { crate = "rand@0.8.8", reason = "oauth2 5.0 (rmcp's `auth`, the reference host's opt-in `oauth` feature) requires rand 0.8" },
+    { crate = "rand_core@0.6.4", reason = "rand 0.8, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "sha2@0.10.9", reason = "oauth2 5.0 (the reference host's opt-in `oauth` feature) requires sha2 0.10, for PKCE S256" },
+    { crate = "digest@0.10.7", reason = "sha2 0.10, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "block-buffer@0.10.4", reason = "digest 0.10, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "crypto-common@0.1.7", reason = "digest 0.10, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "cpufeatures@0.2.17", reason = "sha2 0.10, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "thiserror@1.0.69", reason = "oauth2 5.0 (the reference host's opt-in `oauth` feature) requires thiserror 1" },
+    { crate = "thiserror-impl@1.0.69", reason = "thiserror 1, for oauth2 5.0 (the reference host's opt-in `oauth` feature)" },
+    { crate = "base64@0.22.1", reason = "oauth2 5.0 (the reference host's opt-in `oauth` feature) requires base64 0.22" },
     # Removed 2026-07-26: the wit-bindgen 0.51/0.57 split (rmcp's getrandom 0.4
     # vs proptest's dev-only getrandom 0.3) has collapsed — the lock now carries
     # only 0.57.1, so cargo-deny's unmatched-skip warning correctly retired it.

@@ -135,3 +135,45 @@ fn the_pins_are_exact_versions() {
     );
     assert!(PACKAGE.starts_with("@modelcontextprotocol/"));
 }
+
+#[test]
+fn the_auth_lists_are_disjoint_and_together_the_twenty_two_the_pin_lists() {
+    let mut all: Vec<&str> = AUTH_CLIENT_SCENARIOS
+        .iter()
+        .chain(&AUTH_CLIENT_SCENARIOS_NOT_RUN)
+        .copied()
+        .collect();
+    assert!(all.iter().all(|name| name.starts_with("auth/")), "{all:?}");
+    all.sort_unstable();
+    all.dedup();
+    assert_eq!(
+        all.len(),
+        22,
+        "a scenario is in both lists, or twice in one"
+    );
+    // None of them is in the default set a third-party client is run against.
+    assert!(CLIENT_SCENARIOS.iter().all(|name| !all.contains(name)));
+}
+
+#[test]
+fn auth_scenarios_are_read_off_the_list_output_in_order() {
+    let output = "Server scenarios (test against a server):\n\
+        \x20 - server-initialize [2025-06-18,2025-11-25]\n\
+        Client scenarios (test against a client):\n\
+        \x20 - initialize [2025-06-18,2025-11-25]\n\
+        \x20 - auth/metadata-default [2025-11-25]\n\
+        \x20 - auth/resource-mismatch [draft]\n\
+        \x20 - auth/bare\n\
+        auth/not-a-list-line [2025-11-25]\n\
+        \x20 - not-auth/metadata [2025-11-25]\n";
+    assert_eq!(
+        listed_auth_scenarios(output),
+        [
+            "auth/metadata-default",
+            "auth/resource-mismatch",
+            "auth/bare"
+        ]
+    );
+    assert_eq!(listed_auth_scenarios(""), Vec::<String>::new());
+    assert_eq!(listed_auth_scenarios("  - \n  -\n"), Vec::<String>::new());
+}

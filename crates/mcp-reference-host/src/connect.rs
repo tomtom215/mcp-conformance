@@ -49,6 +49,38 @@ pub fn streamable_http(
     rmcp::transport::StreamableHttpClientTransport::from_uri(url)
 }
 
+/// The transport [`authorizing_http`] builds.
+#[cfg(feature = "oauth")]
+pub type AuthorizingTransport = rmcp::transport::StreamableHttpClientTransport<
+    crate::oauth::client::Authorizing<reqwest::Client>,
+>;
+
+/// A streamable HTTP transport for `url` that authorizes itself as `identity`.
+///
+/// It answers the server's `401` and `403 insufficient_scope` by running an
+/// OAuth authorization with nobody asked — the `oauth` module says why that is
+/// for the conformance suite only.
+///
+/// # Errors
+///
+/// `url` is not a URL, or an HTTP client cannot be built.
+#[cfg(feature = "oauth")]
+pub async fn authorizing_http(
+    url: &str,
+    identity: crate::oauth::context::Identity,
+) -> Result<AuthorizingTransport, rmcp::transport::auth::AuthError> {
+    use crate::oauth::{REDIRECT_URI, client::Authorizing, consent::Headless, flow::Flow};
+    use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
+
+    let consent = Headless::new(REDIRECT_URI)?;
+    let flow = Flow::new(url, identity, Box::new(consent)).await?;
+    let client = Authorizing::new(reqwest::Client::default(), std::sync::Arc::new(flow));
+    Ok(rmcp::transport::StreamableHttpClientTransport::with_client(
+        client,
+        StreamableHttpClientTransportConfig::with_uri(url),
+    ))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

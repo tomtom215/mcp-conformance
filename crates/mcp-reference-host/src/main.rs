@@ -100,7 +100,39 @@ async fn dispatch(cli: Cli) -> ExitCode {
                 lifecycle,
                 extras,
             };
+            #[cfg(feature = "oauth")]
+            if cli.oauth_conformance {
+                return oauth_over(url, cli.trace_dir, session).await;
+            }
             agent_over(url, server_cmd, cli.trace_dir, session).await
+        }
+    }
+}
+
+/// `--oauth-conformance`: the agent session over the transport that
+/// authorizes itself, as whichever client the suite's context names.
+#[cfg(feature = "oauth")]
+async fn oauth_over(url: Option<String>, trace_dir: Option<PathBuf>, session: Session) -> ExitCode {
+    let Some(url) = url else {
+        eprintln!("mcp-reference-host: --oauth-conformance needs a server URL");
+        return ExitCode::from(2);
+    };
+    let context = std::env::var("MCP_CONFORMANCE_CONTEXT").ok();
+    let identity = match mcp_reference_host::oauth::context::identity(context.as_deref()) {
+        Ok(identity) => identity,
+        Err(error) => {
+            eprintln!("mcp-reference-host: {error}");
+            return ExitCode::from(2);
+        }
+    };
+    match mcp_reference_host::connect::authorizing_http(&url, identity).await {
+        Ok(transport) => {
+            let kind = CaptureTransport::StreamableHttp;
+            recorded(transport, kind, trace_dir, session, Target::Url(url)).await
+        }
+        Err(error) => {
+            eprintln!("mcp-reference-host: cannot set up authorization for {url}: {error}");
+            ExitCode::FAILURE
         }
     }
 }

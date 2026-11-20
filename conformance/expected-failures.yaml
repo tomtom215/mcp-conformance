@@ -15,6 +15,25 @@
 # client-agreement-divergences.json; this file only names whole scenarios
 # the pinned runner is expected to fail.
 #
-# Both empty: 40/40 server checks and 4/4 client scenarios pass at 0.1.16.
+# Server: empty. Client: the four protocol scenarios and nineteen of the
+# twenty `auth/*` scenarios the gate runs pass at 0.1.16
+# (crates/mcp-conformance-cli/src/suite.rs, AUTH_CLIENT_SCENARIOS); one is
+# expected to fail:
+#
+# auth/2025-03-26-oauth-metadata-backcompat — checks `client-registration`,
+#   `authorization-request` and `token-request` are missing because the host
+#   stops at discovery. The scenario serves authorization-server metadata at
+#   the root `/.well-known/oauth-authorization-server` whose `issuer` is
+#   `<origin>/oauth` (the bundle mounts its authorization server under
+#   `routePrefix: "/oauth"`). RFC 8414 section 3.3 requires the issuer in the
+#   document to equal the one the discovery URL was built from, and a
+#   mismatched document "MUST NOT be used"; rmcp 3.9.0 enforces that
+#   ("Authorization server issuer mismatch: expected <origin>/, received
+#   <origin>/oauth") and offers no switch for it (`set_allow_missing_issuer`
+#   tolerates an absent issuer, not a wrong one). The host does not work
+#   around a check that protects against mix-up attacks to satisfy a
+#   2025-03-26 back-compat fixture. Leaves when the suite's fixture or rmcp
+#   changes; the stale entry then fails the run.
 server: []
-client: []
+client:
+  - auth/2025-03-26-oauth-metadata-backcompat
