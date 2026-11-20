@@ -1,22 +1,11 @@
 {
-  "mcpsnoop": "0.26.1",
+  "mcpsnoop": "0.28.0",
   "native": [
     {
       "session": "http-2025-11-25",
       "findings": 28,
       "same_as_native": true,
-      "only_as_recorded": [
-        "pending: elicitation/create (id 0) never got a response",
-        "pending: elicitation/create (id 1) never got a response",
-        "pending: elicitation/create (id 2) never got a response",
-        "pending: elicitation/create (id 4) never got a response",
-        "pending: sampling/createMessage (id 3) never got a response",
-        "warn: response id has no matching request",
-        "warn: response id has no matching request",
-        "warn: response id has no matching request",
-        "warn: response id has no matching request",
-        "warn: response id has no matching request"
-      ]
+      "only_as_recorded": []
     },
     {
       "session": "http-2026-07-28",
@@ -62,14 +51,7 @@
       },
       "mcpsnoop": {
         "exit": 1,
-        "findings": [
-          {
-            "signal": "warn",
-            "seq": 3,
-            "framed": true,
-            "message": "response id has no matching request"
-          }
-        ],
+        "findings": [],
         "other": {
           "error": 1
         }
@@ -2055,8 +2037,15 @@
         ]
       },
       "mcpsnoop": {
-        "exit": 0,
-        "findings": [],
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": true,
+            "message": "tool \"weather\" declares an outputSchema and returned no structuredContent, which SDK clients reject"
+          }
+        ],
         "other": {
           "annotations": 1
         }
@@ -2075,8 +2064,15 @@
         ]
       },
       "mcpsnoop": {
-        "exit": 0,
-        "findings": [],
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 6,
+            "framed": true,
+            "message": "tool \"weather\" returned structuredContent that breaks its outputSchema at /temperature, got string, want number"
+          }
+        ],
         "other": {
           "annotations": 1
         }
@@ -2186,8 +2182,21 @@
         ]
       },
       "mcpsnoop": {
-        "exit": 0,
-        "findings": [],
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "mismatch",
+            "seq": 5,
+            "framed": true,
+            "message": "routing header mismatch: required header MCP-Protocol-Version is missing, and 2025-11-25 requires it on every request after initialization"
+          },
+          {
+            "signal": "warn",
+            "seq": 5,
+            "framed": true,
+            "message": "required header MCP-Protocol-Version is missing, and 2025-11-25 requires it on every request after initialization"
+          }
+        ],
         "other": {}
       }
     },
@@ -2646,14 +2655,7 @@
       },
       "mcpsnoop": {
         "exit": 1,
-        "findings": [
-          {
-            "signal": "warn",
-            "seq": 3,
-            "framed": true,
-            "message": "response id has no matching request"
-          }
-        ],
+        "findings": [],
         "other": {
           "error": 1
         }
@@ -3254,7 +3256,7 @@
             "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "response id has no matching request"
+            "message": "error response does not carry the id of the request it answers"
           }
         ],
         "other": {
@@ -3747,13 +3749,7 @@
             "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "response id has no matching request"
-          },
-          {
-            "signal": "warn",
-            "seq": 5,
-            "framed": true,
-            "message": "request reuses an id already in flight"
+            "message": "error response does not carry the id of the request it answers"
           }
         ],
         "other": {
@@ -6269,8 +6265,15 @@
         ]
       },
       "mcpsnoop": {
-        "exit": 0,
-        "findings": [],
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 3,
+            "framed": true,
+            "message": "tool \"weather\" returned structuredContent that breaks its outputSchema at the root, missing property 'conditions'"
+          }
+        ],
         "other": {
           "annotations": 1
         }
@@ -6346,7 +6349,7 @@
             "signal": "mismatch",
             "seq": 3,
             "framed": true,
-            "message": "routing header mismatch: response id has no matching request"
+            "message": "routing header mismatch: error response does not carry the id of the request it answers"
           },
           {
             "signal": "warn",
@@ -6358,7 +6361,7 @@
             "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "response id has no matching request"
+            "message": "error response does not carry the id of the request it answers"
           }
         ],
         "other": {
@@ -6628,7 +6631,7 @@
             "signal": "mismatch",
             "seq": 3,
             "framed": true,
-            "message": "routing header mismatch: response id has no matching request"
+            "message": "routing header mismatch: error response does not carry the id of the request it answers"
           },
           {
             "signal": "warn",
@@ -6640,7 +6643,7 @@
             "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "response id has no matching request"
+            "message": "error response does not carry the id of the request it answers"
           }
         ],
         "other": {
@@ -6833,7 +6836,7 @@
             "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "response id has no matching request"
+            "message": "error response does not carry the id of the request it answers"
           }
         ],
         "other": {
@@ -7486,10 +7489,10 @@
         "exit": 1,
         "findings": [
           {
-            "signal": "mismatch",
+            "signal": "warn",
             "seq": 3,
             "framed": true,
-            "message": "a routing header disagrees with the body"
+            "message": "server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body, a HeaderMismatch rejection must come with HTTP 400, and this one came with 500"
           }
         ],
         "other": {
@@ -7588,10 +7591,10 @@
         "exit": 1,
         "findings": [
           {
-            "signal": "mismatch",
+            "signal": "warn",
             "seq": 7,
             "framed": true,
-            "message": "a routing header disagrees with the body"
+            "message": "server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body"
           }
         ],
         "other": {
@@ -7649,10 +7652,10 @@
         "exit": 1,
         "findings": [
           {
-            "signal": "mismatch",
+            "signal": "warn",
             "seq": 7,
             "framed": true,
-            "message": "a routing header disagrees with the body"
+            "message": "server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body"
           }
         ],
         "other": {

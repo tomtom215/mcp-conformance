@@ -50,7 +50,7 @@ mod verify;
 use data::{Results, Rules, Triage, load};
 
 /// The mcpsnoop release the committed results were measured with.
-pub(crate) const PINNED: &str = "0.26.1";
+pub(crate) const PINNED: &str = "0.28.0";
 
 /// The pseudo-requirement our reports' wire-schema verdict stands for.
 pub(crate) const WIRE_SCHEMA: &str = "wire-schema";
@@ -170,7 +170,7 @@ fn render(root: &Path) -> bool {
     }
 }
 
-/// `mcpsnoop --version` → `0.26.1`.
+/// `mcpsnoop --version` → `0.28.0`.
 fn binary_version(binary: &Path) -> Result<String, String> {
     let output = Command::new(binary)
         .arg("--version")

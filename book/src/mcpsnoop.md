@@ -10,12 +10,12 @@
 
 ## How the comparison is made
 
-**The binary.** mcpsnoop `0.26.1`, the current npm release when measured, taken from the npm registry and never built from source. The `mcpsnoop` package is a launcher with no install script; the Go binary ships in a per-platform package. Both tarballs were fetched with `npm pack` and checked against the registry's `integrity`:
+**The binary.** mcpsnoop `0.28.0`, the current npm release when measured, taken from the npm registry and never built from source. The `mcpsnoop` package is a launcher with no install script; the Go binary ships in a per-platform package. Both tarballs were fetched with `npm pack` and checked against the registry's `integrity`:
 
-- `mcpsnoop@0.26.1` — `sha512-midlHuFR9PGrrW8BUm/F16k76ccPmVfE8OVBWR7DkSQzZjaGookgTH4ACpytuWnD5VnKIxvNN2Y8smwjyq4xMw==`
-- `@mcpsnoop/linux-x64@0.26.1` — `sha512-mNsXyDgs4vznFP6BQz9oxAJYLEo+I2YC2F9vDICd5Z4FSUPTjHWT/A6HW+i6/FvyUu0Ymf3HnMc2zM9X2xZQ2Q==`
+- `mcpsnoop@0.28.0` — `sha512-I+XXUp3FRRaIKtfazbXXeAeimn7mvurWovcllP+yALNEiNDjM0+vpNqlzpbJF2StLWYeG9jTQmDJHLsEE0mPEA==`
+- `@mcpsnoop/linux-x64@0.28.0` — `sha512-dJfx8h9Gwrs8Svvgkj7I5y4ccdifRx/sskv073OW67d9XZZ0CHD7aReBeTvGoBNal5tCn+uJhWfC6qNXOFGQyA==`
 
-The binary inside, `package/bin/mcpsnoop`, has SHA-256 `81c3636fa5a371833ab4558d6ac417d9d94a86f99949e0cff32bb09ccf69c2a9`. To measure, point `MCPSNOOP` at it and run `cargo xtask mcpsnoop`; without it the task skips loudly. mcpsnoop is never a gate on a pull request — a scheduled, informational job re-measures it.
+The binary inside, `package/bin/mcpsnoop`, has SHA-256 `b291a4e7795c9d12860b42d380182d5b83a7345e06370d32d038ab4c37a0984b`. To measure, point `MCPSNOOP` at it and run `cargo xtask mcpsnoop`; without it the task skips loudly. mcpsnoop is never a gate on a pull request — a scheduled, informational job re-measures it.
 
 **The same session in front of both.** Our traces are converted into the capture format mcpsnoop writes itself (`xtask/src/mcpsnoop/convert.rs`). On stdio the conversion is lossless. On HTTP a frame gets the headers, status and exchange the trace's own order settles — the rules our validator's framing applies — and no more; a frame whose context the trace cannot settle is marked unframed, and a finding that reads such context there is set aside, not counted. The conversion is checked against mcpsnoop's own recordings on every measurement: sessions recorded through both tools at once — the reference host against the everything server, committed under `conformance/mcpsnoop/native/` — must draw the same mcpsnoop findings from the converted trace as from mcpsnoop's capture once that capture's frames share one connection, the single field the conversion fixes rather than carries. In the committed run 3 of 3 such sessions did: `http-2025-11-25` (28 findings), `http-2026-07-28` (22 findings), `stdio-2025-11-25` (28 findings).
 
@@ -35,19 +35,19 @@ Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 83 | 139 |
-| our verdict `pass` or `pass-with-warnings` | 4 | 132 |
+| our verdict `fail` | 87 | 135 |
+| our verdict `pass` or `pass-with-warnings` | 2 | 134 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 44 |
-| agree | 79 |
-| beyond mcpsnoop | 222 |
-| **divergent** | 13 |
+| both clean | 46 |
+| agree | 86 |
+| beyond mcpsnoop | 219 |
+| **divergent** | 7 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 268 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 264 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -56,18 +56,14 @@ Every divergence the run shows, and its triage (`conformance/mcpsnoop/triage.jso
 | # | Kind | Subject | Traces | Class | Right | Resolution |
 |---:|---|---|---|---|---|---|
 | 1 | mcpsnoop-only | `invalid-frame` | `violations/base-007-error-code-float` | granularity | both | none: the same defect on the same frame, reported at different granularity |
-| 2 | mcpsnoop-only | `request-id-in-flight` | `draft/violations/base-052-null-id-error-then-id-reused` | mcpsnoop-defect | ours | upstream: mcpsnoop-null-id-answer |
-| 3 | mcpsnoop-only | `server-rejected-header-mismatch` | `draft/violations/tran-098-header-mismatch-without-400`, `draft/violations/tran-133-omitted-null-header-rejected`, `draft/violations/tran-135-omitted-absent-header-rejected` | mcpsnoop-defect | ours | upstream: mcpsnoop-trusts-header-mismatch-rejection |
-| 4 | ours-only | `BASE-030` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
-| 5 | ours-only | `MRTR-002` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
-| 6 | ours-only | `TOOL-016` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
-| 7 | ours-only | `BASE-030` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs` |
-| 8 | ours-only | `MRTR-002` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
-| 9 | ours-only | `TOOL-016` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
-| 10 | ours-only | `LIFE-018` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
-| 11 | ours-only | `TRAN-017` | `violations/tran-017-protocol-version-header-missing` | mcpsnoop-defect | ours | upstream: mcpsnoop-version-header-2025-11-25 |
-| 12 | mcpsnoop-only | `response-unmatched` | `good/http-origin-refused-without-id`, `draft/good/http-origin-refused-without-id` | mcpsnoop-defect | ours | upstream: mcpsnoop-origin-refusal-unmatched |
-| 13 | mcpsnoop-only | `progress-after-completion` | `good/stdio-task-progress` | mcpsnoop-defect | ours | open: whether to report it upstream is the maintainer's call; the reproduction is `corpus/good/stdio-task-progress.jsonl`, whose task handling the `2025-11-25` tasks page defines (PROG-014) |
+| 2 | mcpsnoop-only | `header-mismatch-unfounded` | `draft/violations/tran-098-header-mismatch-without-400` | spec-ambiguity | both | none: no clause to hold the finding against; were the revision to state it, the check would follow |
+| 3 | ours-only | `BASE-030` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
+| 4 | ours-only | `MRTR-002` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
+| 5 | ours-only | `TOOL-016` | `draft/violations/base-031-malformed-meta-answered-with-result`, `draft/violations/base-032-invalid-params-not-http-400` | revision-attribution | both | none: the revision is stated to our validator out of band and is absent from the trace |
+| 6 | ours-only | `BASE-030` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs` |
+| 7 | ours-only | `MRTR-002` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
+| 8 | ours-only | `TOOL-016` | `draft/violations/vers-008-initialize-error-without-versions`, `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | spec-ambiguity | undecided | open: the same decision as BASE-030 on these traces |
+| 9 | mcpsnoop-only | `progress-after-completion` | `good/stdio-task-progress` | mcpsnoop-defect | ours | open: whether to report it upstream is the maintainer's call; the reproduction is `corpus/good/stdio-task-progress.jsonl`, whose task handling the `2025-11-25` tasks page defines (PROG-014) |
 
 ### 1. `invalid-frame` (mcpsnoop-only)
 
@@ -79,29 +75,19 @@ The server answers `initialize` with `"code": -32602.5`. We report BASE-007, the
 
 Resolution: none: the same defect on the same frame, reported at different granularity
 
-### 2. `request-id-in-flight` (mcpsnoop-only)
+### 2. `header-mismatch-unfounded` (mcpsnoop-only)
 
-On Streamable HTTP the client POSTs `tools/call` id 1 and the server answers that POST, in its own `application/json` body, with an error whose `id` is `null` although the request's id was readable — a BASE-052 violation both tools report. The client then sends a new `tools/call` reusing id 1. mcpsnoop reports the reuse as an id already in flight: having failed to match the null-id error by id, it keeps request 1 open forever. But the answer arrived as the response to that very POST, so the client *has* received a response for it, and BASE-045 forbids reuse only of an id the sender has "not yet received a response for". Our framing ties a null-id answer to the request whose exchange framed it; mcpsnoop records the exchange (`exchange` is in its own capture) but does not use it here. The conversion is not the cause: the request and the error carry the same `exchange`, exactly as mcpsnoop's proxy records them.
+The trace is the fixture for the status rule alone: a `tools/list` whose every header matches its body is answered `-32020` (`HeaderMismatch`) with HTTP 500. Both tools report the status (TRAN-098, TRAN-102; mcpsnoop's `header-mismatch-status`). mcpsnoop also reports, in the same message, that the rejection had no cause: "every header on it agrees with the body". That is true of the trace, and we do not flag it: the revision says when a server must reject and names two cases in which it must not expect a header (TRAN-133, TRAN-135, a parameter that is `null` or absent, neither of which this request has), and no RFC 2119 sentence forbids a `-32020` on a matching request in general. mcpsnoop reads that as implied by the error code's meaning; the registry holds only what the text states.
 
-> **BASE-045** (MUST NOT): The request ID MUST NOT match the ID of any other request the sender has issued and not yet received a response for. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#requests)
-
-> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
-
-Resolution: upstream: mcpsnoop-null-id-answer
-
-### 3. `server-rejected-header-mismatch` (mcpsnoop-only)
-
-In each trace the server answers `-32020` (`HeaderMismatch`) to a POST whose headers match its body: a `tools/list` with every header correct (tran-098), and a `tools/call` that omits `Mcp-Param-Region` because `region` is `null` or absent — exactly what the client must do (tran-133, tran-135). mcpsnoop reports each as "a routing header disagrees with the body". By its own documentation a server's `-32020` "counts as the same condition" as a disagreement, so it takes the server's word over its own comparison — which on these frames found nothing. The defect is the server's (TRAN-133/TRAN-135: the server MUST NOT expect the header; TRAN-098: the rejection must be `400`), and mcpsnoop's finding attributes it to the client's headers. Where the client really was at fault (tran-089-sentinel-markers-miscased, tran-077-param-header-value-rejected, tran-079-param-header-value-not-mirrored) the same rule agrees with us.
+> **TRAN-098** (MUST): Servers MUST reject requests with a `400 Bad Request` HTTP status and JSON-RPC error code `-32020` (`HeaderMismatch`) if any validation fails. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
 
 > **TRAN-133** (MUST NOT): Parameter value is `null` | Client MUST omit the header | Server MUST NOT expect the header — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
 
 > **TRAN-135** (MUST NOT): Parameter not in arguments | Client MUST omit the header | Server MUST NOT expect the header — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
 
-> **TRAN-098** (MUST): Servers MUST reject requests with a `400 Bad Request` HTTP status and JSON-RPC error code `-32020` (`HeaderMismatch`) if any validation fails. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#server-behavior-for-custom-headers)
+Resolution: none: no clause to hold the finding against; were the revision to state it, the check would follow
 
-Resolution: upstream: mcpsnoop-trusts-header-mismatch-rejection
-
-### 4. `BASE-030` (ours-only)
+### 3. `BASE-030` (ours-only)
 
 Each trace's only request carries `"_meta": {}` — no protocol version anywhere, in the body or (base-032, HTTP) in a header. We judge the trace at `2026-07-28` because the corpus files it under `draft/`, which is how this repository assigns a revision; mcpsnoop infers the revision from the session and finds none, so it applies no `2026-07-28` rule. Given what each tool is told, each is right: an empty `_meta` is a violation at `2026-07-28` and none at `2025-11-25`. mcpsnoop does flag the same field set as missing wherever the session names `2026-07-28` (base-030-request-meta-missing-required-field and the probe capture agree with us).
 
@@ -109,7 +95,7 @@ Each trace's only request carries `"_meta": {}` — no protocol version anywhere
 
 Resolution: none: the revision is stated to our validator out of band and is absent from the trace
 
-### 5. `MRTR-002` (ours-only)
+### 4. `MRTR-002` (ours-only)
 
 The same request and the same reasoning as BASE-030 above: MRTR-002 restates the rule on the multi round-trip page.
 
@@ -117,7 +103,7 @@ The same request and the same reasoning as BASE-030 above: MRTR-002 restates the
 
 Resolution: none: the revision is stated to our validator out of band and is absent from the trace
 
-### 6. `TOOL-016` (ours-only)
+### 5. `TOOL-016` (ours-only)
 
 The same request and the same reasoning as BASE-030 above: TOOL-016 restates the required `_meta` fields on the tools page.
 
@@ -125,9 +111,9 @@ The same request and the same reasoning as BASE-030 above: TOOL-016 restates the
 
 Resolution: none: the revision is stated to our validator out of band and is absent from the trace
 
-### 7. `BASE-030` (ours-only)
+### 6. `BASE-030` (ours-only)
 
-A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server speaks only `2026-07-28` and refuses; in base-030-legacy-initialize-negotiated-2026-07-28 it answers naming `2026-07-28` and the session goes on under it. Judging the whole trace at `2026-07-28` (the corpus's `draft/` assignment for the first; the server's `initialize` result, which is the session's revision, for the second), we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it "also lacks the required `_meta` fields"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop 0.26.1 draws nothing on either trace. Measured 2026-10-25 on edited copies of the second trace's converted capture: it applies `request-meta-missing` to a request only when that request's own `_meta` carries `io.modelcontextprotocol/protocolVersion` `2026-07-28` (an `initialize` whose `_meta` names it and lacks the other fields is flagged, so `initialize` is not exempt); a request with no `_meta`, an empty one, or one naming `2025-11-25` draws nothing, and setting the `initialize` params' `protocolVersion` to `2026-07-28` changes nothing. So its per-request revision is the one the request states in `_meta`, not `params.protocolVersion` and not the server's answer; an earlier version of this note said it reads the request's own `protocolVersion`, which that measurement does not support. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.
+A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server speaks only `2026-07-28` and refuses; in base-030-legacy-initialize-negotiated-2026-07-28 it answers naming `2026-07-28` and the session goes on under it. Judging the whole trace at `2026-07-28` (the corpus's `draft/` assignment for the first; the server's `initialize` result, which is the session's revision, for the second), we report the `initialize` as a request missing the required `_meta` fields — deliberately: `checks/stateless/meta.rs` exempts this request from BASE-031, citing `basic/versioning`'s compatibility matrix (which says of exactly this request that it "also lacks the required `_meta` fields"), and states that the client's own defect is still reported, by BASE-030. mcpsnoop draws nothing on either trace, at 0.28.0 as at 0.26.1. Measured 2026-10-25 with 0.26.1, and not repeated since, on edited copies of the second trace's converted capture: it applies `request-meta-missing` to a request only when that request's own `_meta` carries `io.modelcontextprotocol/protocolVersion` `2026-07-28` (an `initialize` whose `_meta` names it and lacks the other fields is flagged, so `initialize` is not exempt); a request with no `_meta`, an empty one, or one naming `2025-11-25` draws nothing, and setting the `initialize` params' `protocolVersion` to `2026-07-28` changes nothing. So its per-request revision is the one the request states in `_meta`, not `params.protocolVersion` and not the server's answer; an earlier version of this note said it reads the request's own `protocolVersion`, which that measurement does not support. Whether a `2026-07-28` clause binds a request that is itself speaking `2025-11-25` is not settled by the text: the matrix describes the request as lacking the fields without saying the legacy client is non-conformant for it, and nothing makes a `2025-11-25` client subject to `2026-07-28`. The same question sits under our TRAN-071 finding on the probe capture's legacy `initialize`.
 
 > **BASE-030** (MUST): Client requests carry the following `io.modelcontextprotocol/*` fields in `meta`; fields marked as required MUST be included on every request. — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#_meta)
 
@@ -135,7 +121,7 @@ A legacy client sends `initialize` naming `2025-11-25`. In vers-008 the server s
 
 Resolution: open: decide whether a legacy-era request inside a 2026-07-28 trace is held to that revision's request-envelope clauses (BASE-030 and its restatements, TRAN-071); the current reading is recorded in `checks/stateless/meta.rs`
 
-### 8. `MRTR-002` (ours-only)
+### 7. `MRTR-002` (ours-only)
 
 The legacy `initialize` of either trace above, under MRTR-002's restatement of the same rule.
 
@@ -143,7 +129,7 @@ The legacy `initialize` of either trace above, under MRTR-002's restatement of t
 
 Resolution: open: the same decision as BASE-030 on these traces
 
-### 9. `TOOL-016` (ours-only)
+### 8. `TOOL-016` (ours-only)
 
 The legacy `initialize` of either trace above, under TOOL-016's restatement of the same rule.
 
@@ -151,37 +137,9 @@ The legacy `initialize` of either trace above, under TOOL-016's restatement of t
 
 Resolution: open: the same decision as BASE-030 on these traces
 
-### 10. `LIFE-018` (ours-only)
+### 9. `progress-after-completion` (mcpsnoop-only)
 
-A `2025-11-25` HTTP session negotiates, then sends a request without `MCP-Protocol-Version`. `2025-11-25` requires the header on every request after initialization; mcpsnoop's rule for a missing routing header ("missing where the negotiated revision requires it") fires only at `2026-07-28`. Reproduced on a session recorded by mcpsnoop's own proxy, so the conversion is not the cause: `native/version-header-omitted-2025-11-25.mcpsnoop.jsonl` (initialize, `notifications/initialized` with the header, `tools/list` without it) passes `mcpsnoop check` with every signal enabled.
-
-> **LIFE-018** (MUST): If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
-
-> **TRAN-017** (MUST): If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header)
-
-Resolution: upstream: mcpsnoop-version-header-2025-11-25
-
-### 11. `TRAN-017` (ours-only)
-
-The transport page's statement of LIFE-018's rule; the same missing header and the same mcpsnoop gap.
-
-> **TRAN-017** (MUST): If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header)
-
-Resolution: upstream: mcpsnoop-version-header-2025-11-25
-
-### 12. `response-unmatched` (mcpsnoop-only)
-
-A POST carrying `Host` and `Origin` `evil.example.com` is refused with HTTP 403 and a JSON-RPC error that has no `id`; the session then proceeds from `localhost`. The transport's security warning, at both revisions, describes exactly that answer: "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`." The refusal happens before the request is read, so there is no id to echo, and BASE-009/BASE-052's id rule does not reach a body the transport clause permits to have none. mcpsnoop reports the id-less error as matching no request. We did the same, as BASE-009, until 2026-10-13 — on the official suite's `dns-rebinding-protection` scenario against the everything server (`conformance/wire-findings.json`) — and these two traces are the regression pair for that fix.
-
-> **BASE-009** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due a malformed request). — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic#error-responses)
-
-> **BASE-052** (MUST): Error responses MUST include the same ID as the request they correspond to (except in error cases where the ID could not be read due to a malformed request). — [source](https://modelcontextprotocol.io/specification/2026-07-28/basic#error-responses)
-
-Resolution: upstream: mcpsnoop-origin-refusal-unmatched
-
-### 13. `progress-after-completion` (mcpsnoop-only)
-
-A conforming `2025-11-25` task session: the server answers a task-augmented `tools/call` with a `CreateTaskResult` (seq 4) and sends progress under the request's token while the task is `working` (seq 5, and seq 10 after a `tasks/get` that still says `working`); the task is `completed` only at seq 12. The tasks page has the token "continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned" (PROG-014) and stops progress at the task's terminal status (PROG-016), which this session respects; our validator passes it. mcpsnoop 0.26.1 warns on both notifications as arriving "after its request completed", with the text "2026-07-28 requires them to stop": it takes the `CreateTaskResult` for the request's completion and applies that revision's rule to a `2025-11-25` session. The same rule fires, correctly, on prog-019 (progress after an ordinary response) and, for the earlier of its two notifications, wrongly on prog-016 for the same reason as here; both traces agree with us at the trace level.
+A conforming `2025-11-25` task session: the server answers a task-augmented `tools/call` with a `CreateTaskResult` (seq 4) and sends progress under the request's token while the task is `working` (seq 5, and seq 10 after a `tasks/get` that still says `working`); the task is `completed` only at seq 12. The tasks page has the token "continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned" (PROG-014) and stops progress at the task's terminal status (PROG-016), which this session respects; our validator passes it. mcpsnoop warns on both notifications as arriving "after its request completed", with the text "2026-07-28 requires them to stop": it takes the `CreateTaskResult` for the request's completion and applies that revision's rule to a `2025-11-25` session. The same rule fires, correctly, on prog-019 (progress after an ordinary response) and, for the earlier of its two notifications, wrongly on prog-016 for the same reason as here; both traces agree with us at the trace level.
 
 > **PROG-014** (MUST): For task-augmented requests, the `progressToken` provided in the original request MUST continue to be used for progress notifications throughout the task's lifetime, even after the `CreateTaskResult` has been returned. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/progress#behavior-requirements)
 
@@ -193,87 +151,13 @@ Resolution: open: whether to report it upstream is the maintainer's call; the re
 
 Divergences that only a session recorded by mcpsnoop itself shows, because they turn on something our trace format does not record.
 
-### `response-unmatched` — mcpsnoop-defect, right: ours
-
-Recorded live: the reference host drives the everything server over Streamable HTTP at `2025-11-25`, through `mcp-trace-capture` and mcpsnoop's proxy at once. The server sends `elicitation/create` (and `sampling/createMessage`) on a tool call's SSE stream; the client answers each with a new POST, as the transport requires — and its HTTP pool sends that POST on a different TCP connection. mcpsnoop pairs a server request with its answer only within one connection, so it reports each answer as "response id has no matching request" and each server request as never answered: five false `warn` findings and five false `pending` ones. Rewriting the capture's `conn_id` to one value removes exactly those ten and nothing else, and our converted trace — which carries no connection — draws the remaining findings exactly. A JSON-RPC id is scoped to the session, never to a connection, and nothing obliges a client to reuse one.
-
-Evidence: `conformance/mcpsnoop/native/http-2025-11-25.mcpsnoop.jsonl`, `conformance/mcpsnoop/native/http-2025-11-25.trace.jsonl`.
-
-> **BASE-003** (MUST NOT): The request ID MUST NOT have been previously used by the requestor within the same session. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic#requests)
-
-> **TRAN-024** (MUST): Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server)
-
-Resolution: upstream: mcpsnoop-connection-scoped-ids
-
-### `protocol-version-header-missing` — mcpsnoop-defect, right: ours
-
-The live reproduction of divergence LIFE-018 above: a `2025-11-25` session through mcpsnoop's proxy whose `tools/list` POST omits `MCP-Protocol-Version` after a completed handshake. `mcpsnoop check` with every signal enabled exits 0.
-
-Evidence: `conformance/mcpsnoop/native/version-header-omitted-2025-11-25.mcpsnoop.jsonl`.
-
-> **LIFE-018** (MUST): If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
-
-> **TRAN-017** (MUST): If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server, allowing the MCP server to respond based on the MCP protocol version. — [source](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header)
-
-Resolution: upstream: mcpsnoop-version-header-2025-11-25
+None at mcpsnoop `0.28.0`.
 
 ## Upstream issue drafts
 
 Written for mcpsnoop's tracker and **not filed**: filing is the owner's call.
 
-### `mcpsnoop-connection-scoped-ids`: check: server-to-client requests answered on another connection are reported as unanswered (HTTP)
-
-**Version:** mcpsnoop 0.26.1 (npm, linux-x64).
-
-**What happens.** On a streamable-HTTP session at `2025-11-25`, the server sends `elicitation/create` on a `tools/call` SSE stream. The client answers it with a new POST, as the transport requires ("Every JSON-RPC message sent from the client MUST be a new HTTP POST request to the MCP endpoint"). The client's HTTP pool sent that POST on a different TCP connection, so it was recorded with a different `conn_id`. `mcpsnoop check` then reports `response id has no matching request` (warn) on the answer and `elicitation/create (id 0) never got a response` (pending) on the request — once per server request in the session.
-
-**Expected.** A JSON-RPC id is scoped to the session, not to a connection (`2025-11-25` basic: "The request ID MUST NOT have been previously used by the requestor within the same session"), and a client may send each POST on any connection. A server request should be paired with the client's response by id within the session.
-
-**Evidence.** Recorded by `mcpsnoop http` in front of a streamable-HTTP server, with the reference client answering four `elicitation/create` and one `sampling/createMessage`: ten findings (five warn, five pending). Rewriting every `conn_id` in the capture to one value and re-running `check` removes exactly those ten.
-
-**Suggested fix.** Key outstanding server-to-client requests by session (and direction), not by `conn_id`; keep the connection only for routing-header attribution.
-
-### `mcpsnoop-null-id-answer`: check: an id-less error returned in a POST's own body leaves the request in flight, so a later reuse is reported
-
-**Version:** mcpsnoop 0.26.1.
-
-**What happens.** Streamable HTTP, `2026-07-28`. The client POSTs `tools/call` with `id: 1`; the server answers that POST, in its own `application/json` body, with `{"jsonrpc":"2.0","id":null,"error":{"code":-32602,...}}`. `check` correctly reports `response id has no matching request` — the id was readable, so the server should have echoed it. The client then POSTs a new request reusing `id: 1`, and `check` reports `request reuses an id already in flight`.
-
-**Expected.** The request is not in flight: its answer arrived as the response to the very POST that carried it, and both envelopes carry the same `exchange`. The specification forbids reusing an id only while "the sender has issued and not yet received a response for" it. The null id is the server's defect, already reported; the reuse is not the client's.
-
-**Suggested fix.** On HTTP, when a response with a null (or unmatched) id arrives on an exchange that carried exactly one request, close that request — or at least do not count it as in flight for the reuse rule.
-
-### `mcpsnoop-trusts-header-mismatch-rejection`: check: a server's -32020 is reported as "a routing header disagrees with the body" even when every header matches
-
-**Version:** mcpsnoop 0.26.1.
-
-**What happens.** Streamable HTTP, `2026-07-28`. A `tools/call` whose tool marks `region` with `x-mcp-header`, sent with `"region": null` and therefore no `Mcp-Param-Region` header — the behaviour table says "Parameter value is null | Client MUST omit the header | Server MUST NOT expect the header". The server wrongly rejects it with `-32020` (`HeaderMismatch`). `check` reports `mismatch: a routing header disagrees with the body`. The same happens when the parameter is absent from the arguments, and when a server answers `-32020` to a `tools/list` whose `Mcp-Method` and `MCP-Protocol-Version` match the body.
-
-**Expected.** No header disagrees with the body in these requests, and mcpsnoop's own comparison found none. The faulty party is the server. The rule description says a server's `-32020` "counts as the same condition", which convicts the client's headers on the server's word.
-
-**Suggested fix.** Report a `-32020` as a mismatch only when mcpsnoop's own comparison agrees, or could not be made (for instance, the tool definition was not captured). When the comparison ran and found the headers consistent, report the rejection as the server's — a separate message, or none.
-
-### `mcpsnoop-version-header-2025-11-25`: check: a missing MCP-Protocol-Version header is not reported on 2025-11-25 sessions
-
-**Version:** mcpsnoop 0.26.1.
-
-**What happens.** A streamable-HTTP session negotiates `2025-11-25` (`initialize`, then `notifications/initialized` carrying `MCP-Protocol-Version: 2025-11-25`), then POSTs `tools/list` without the header. `check --fail-on error,invalid,warn,mismatch,pending,late-result,duplicate,deprecated,incomplete` exits 0.
-
-**Expected.** `2025-11-25` requires the header: "If using HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server." The `mismatch` signal's description already covers a routing header that "is missing where the negotiated revision requires it"; at present only `2026-07-28` is treated as requiring it.
-
-**Reproduce.** `mcpsnoop http --target <server>/mcp`, then with curl: an `initialize` POST, an `initialized` POST with the header and the returned `Mcp-Session-Id`, and a `tools/list` POST with the session id but no `MCP-Protocol-Version`. Run `mcpsnoop check` on the session.
-
-**Suggested fix.** At `2025-11-25` (and `2025-06-18`), require the header on every POST after the `initialize` exchange.
-
-### `mcpsnoop-origin-refusal-unmatched`: check: the id-less error body of a 403 Origin refusal is reported as a response with no matching request
-
-**Version:** mcpsnoop 0.26.1.
-
-**What happens.** Streamable HTTP, `2025-11-25` or `2026-07-28`. A POST arrives with `Origin: http://evil.example.com`; the server refuses it with `403 Forbidden` and the body `{"jsonrpc":"2.0","error":{"code":-32600,"message":"Forbidden: Origin not allowed"}}`. `check` reports `response id has no matching request` on that error.
-
-**Expected.** No finding. The transport's security warning reads: "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC _error response_ that has no `id`." The server refuses before it reads the request, so it has no id to echo, and the specification permits the body that results.
-
-**Suggested fix.** When an id-less error is the body of a `403` answering a request that carried an `Origin` header, treat it as that exchange's refusal rather than as an unmatched response.
+None drafted at mcpsnoop `0.28.0`.
 
 ## The rule map
 
@@ -285,16 +169,17 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `invalid-frame` | `frame on the protocol channel is not valid JSON-RPC` | *BASE-008*, *TRAN-004*, *TRAN-005* | *BASE-042*, *TRAN-117*, *TRAN-118* | body | 3 | A frame that does not parse as a JSON-RPC message at all (a non-JSON line, an array, an object of no JSON-RPC shape). A frame that parses but breaks a narrower JSON-RPC rule is left to the rules below. |
 | `request-id-type` | `request id has type * MCP requires a string or integer id` | BASE-001 | BASE-043 | body | 1 | A request id that is neither a string nor an integer. |
 | `request-id-null` | `request id is null; MCP requires a string or integer id` | BASE-001, BASE-002 | BASE-043, BASE-044 | body | 1 | A request id that is `null`. The message itself names both clauses: `null` is not a string or integer id, and MCP forbids it outright. |
-| `request-id-in-flight` | `request reuses an id already in flight` | *BASE-003* | BASE-045 | pairing | 2 | A request reusing the id of one of its sender's requests that has not been answered. At `2025-11-25` the clause is wider — no reuse within the session at all — and in-flight reuse is the part mcpsnoop checks. |
-| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 10 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. |
+| `request-id-in-flight` | `request reuses an id already in flight` | *BASE-003* | BASE-045 | pairing | 1 | A request reusing the id of one of its sender's requests that has not been answered. At `2025-11-25` the clause is wider — no reuse within the session at all — and in-flight reuse is the part mcpsnoop checks. |
+| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 3 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. |
 | `response-duplicate` | `duplicate response for the same id` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 1 | A second response for an id already answered, which corresponds to no outstanding request. |
+| `error-without-request-id` | `error response does not carry the id of the request it answers` | BASE-009 | BASE-052 | http | 5 | An error with no `id` returned as the answer to a POST whose request id was readable. New in 0.28.0, which pairs such an error with the request of its own HTTP exchange where 0.26.1 reported it as matching no request. Seen only on `2026-07-28` traces; the `2025-11-25` mapping is the same sentence of that revision. |
 | `response-without-result-or-error` | `response has neither result nor error` | BASE-010 | BASE-047 | body | 1 | A response carrying neither `result` nor `error`. |
 | `response-with-result-and-error` | `response has both result and error` | *BASE-008* | *BASE-042* | body | 0 | A response carrying both `result` and `error`, which JSON-RPC 2.0 forbids. Template read from the binary; no corpus trace exercises it. |
 | `result-type-missing` | `result is missing required resultType` | — | BASE-048 | body | 1 | A result without `resultType`. The field does not exist at `2025-11-25`. |
 | `client-sent-response` | `client sent a JSON-RPC response, which * no longer defines` | — | TRAN-060, TRAN-119, BASE-084 | body | 1 | A client sending a JSON-RPC response at `2026-07-28`, where a server sends no requests to answer. |
 | `server-sent-request` | `server sent a JSON-RPC request *, which * replaced with the MRTR pattern` | — | BASE-084, MRTR-001, TRAN-066, TRAN-120 | body | 1 | A server-initiated JSON-RPC request at `2026-07-28`, which replaced them with multi round-trip requests. |
 | `request-meta-missing` | `request _meta is missing required io.modelcontextprotocol/` | — | BASE-030, MRTR-002, TOOL-016 | body | 6 | A request without one of the `_meta` fields `2026-07-28` requires on every request. |
-| `protocol-version-header-missing` | `required routing header MCP-Protocol-Version is missing` | LIFE-018, TRAN-017 | TRAN-071 | http | 1 | A POST without the `MCP-Protocol-Version` header where the negotiated revision requires it. |
+| `protocol-version-header-missing` | `required routing header MCP-Protocol-Version is missing`<br>`required header MCP-Protocol-Version is missing` | LIFE-018, TRAN-017 | TRAN-071 | http | 2 | A POST without the `MCP-Protocol-Version` header where the negotiated revision requires it. |
 | `method-name-header-missing` | `required routing header Mcp-Method is missing`<br>`required routing header Mcp-Name is missing` | — | TRAN-058 | http | 2 | A POST without its `Mcp-Method` or `Mcp-Name` request metadata header. |
 | `param-header-missing` | `required routing header Mcp-Param-* is missing for body parameter` | — | TRAN-079, TRAN-130 | http | 4 | A `tools/call` carrying a parameter its tool marks with `x-mcp-header`, sent without the mirrored `Mcp-Param-*` header. |
 | `protocol-version-header-disagrees` | `MCP-Protocol-Version header * disagrees with _meta protocolVersion` | — | TRAN-072 | http | 7 | An `MCP-Protocol-Version` header that differs from the body's `_meta` protocol version. |
@@ -303,7 +188,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `param-header-disagrees` | `routing header Mcp-Param-* disagrees with body parameter` | — | TRAN-079, *TRAN-086*, *TRAN-087*, *TRAN-089*, *TRAN-092* | http | 4 | An `Mcp-Param-*` header that is not the mirrored body value after Base64 decoding. The encoding clauses are caught only where a fault changes the value (a miscased sentinel does not decode); an unencoded value equal to the body passes. |
 | `param-header-without-value` | `routing header Mcp-Param-* is present but body parameter * is absent or null` | — | TRAN-132, TRAN-134 | http | 2 | An `Mcp-Param-*` header sent although the body parameter is `null` or absent. |
 | `batch-routing-headers` | `routing headers are invalid on a JSON-RPC batch` | *TRAN-026* | *TRAN-059* | http | 0 | Routing headers on a POST whose body is a batch. Template read from the binary; mcpsnoop reports an HTTP batch only when routing headers ride it. |
-| `server-rejected-header-mismatch` | `a routing header disagrees with the body` | — | *TRAN-058*, *TRAN-071*, *TRAN-072*, *TRAN-077*, *TRAN-079*, *TRAN-086*, *TRAN-087*, *TRAN-089*, *TRAN-092*, *TRAN-130*, *TRAN-132*, *TRAN-134* | http | 10 | The server answered `-32020` (`HeaderMismatch`). mcpsnoop counts the rejection itself as the routing fault, which convicts the client's headers on the server's word. |
+| `server-rejected-header-mismatch` | `a routing header disagrees with the body` | — | *TRAN-058*, *TRAN-071*, *TRAN-072*, *TRAN-077*, *TRAN-079*, *TRAN-086*, *TRAN-087*, *TRAN-089*, *TRAN-092*, *TRAN-130*, *TRAN-132*, *TRAN-134* | http | 7 | The server answered `-32020` (`HeaderMismatch`). mcpsnoop counts the rejection itself as the routing fault, which convicts the client's headers on the server's word. |
+| `header-mismatch-unfounded` | `server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body` | — | *TRAN-133*, *TRAN-135* | http | 3 | The server answered `-32020` to a request whose headers mcpsnoop itself compared with the body and found in agreement. New in 0.28.0; 0.26.1 reported these as the client's fault. It says the rejection was unfounded, not which clause the server broke: the two clauses mapped are the cases the revision names, a header omitted because its parameter is `null` or absent. |
+| `header-mismatch-status` | `a HeaderMismatch rejection must come with HTTP 400` | — | TRAN-098, TRAN-102 | http | 1 | A `-32020` (`HeaderMismatch`) error sent with an HTTP status other than `400`. New in 0.28.0. |
 | `response-content-type` | `the response to a request * the transport * application/json or text/event-stream` | TRAN-029 | TRAN-063 | http | 4 | A POST carrying a request answered with a `Content-Type` other than `application/json` or `text/event-stream`, or with none. |
 | `cacheable-without-ttl` | `cacheable * result declares no ttlMs, which * requires` | — | *CACH-001* | body | 9 | A complete result of a cacheable operation without `ttlMs`. CACH-001 asks for caching hints; mcpsnoop checks `ttlMs` and not `cacheScope`. |
 | `cache-scope-across-pages` | `cacheScope * on a later page of * disagrees with` | — | CACH-015, CACH-016 | body | 1 | Pages of one list request carrying different `cacheScope` values. |
@@ -323,6 +210,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `progress-after-completion` | `progress notification for token * arrived after its request completed` | PROG-019 | PROG-008 | body | 4 | A progress notification after its request was answered. |
 | `server-cancellation` | `server cancelled *, and * lets a server cancel only a subscriptions/listen request` | — | CANC-003, CANC-011 | body | 2 | A server-sent `notifications/cancelled` naming anything but a `subscriptions/listen` request. |
 | `input-schema-not-object` | `advertises an inputSchema that is not a JSON object` | TOOL-003 | TOOL-025 | body | 1 | A tool whose `inputSchema` is not a JSON Schema object. |
+| `output-schema-unmet` | `declares an outputSchema and returned no structuredContent`<br>`returned structuredContent that breaks its outputSchema` | TOOL-011 | TOOL-040 | body | 3 | A tool that declares an `outputSchema` and answers without `structuredContent`, or with `structuredContent` the schema rejects. New in 0.28.0. |
 | `x-mcp-header-chain` | `declares an x-mcp-header under *, which * does not allow in the chain` | — | TRAN-082, TRAN-137, TOOL-045 | body | 5 | An `x-mcp-header` on a property not reachable through `properties` alone. |
 | `x-mcp-header-repeated` | `declares x-mcp-header * on more than one property` | — | *TRAN-080*, *TOOL-033* | body | 1 | One `x-mcp-header` name on two properties of a tool: one of the constraints TRAN-080 lists. |
 | `task-for-undeclaring-client` | `a task handle uses the io.modelcontextprotocol/tasks extension, which the client never advertised` | — | TASK-001, *VERS-005* | body | 1 | A `CreateTaskResult` answering a request whose client capabilities do not declare the tasks extension. The tasks extension's own clause, TASK-001 — reported in the extension's block and never scored — names exactly this; mcpsnoop cites the core negotiation clause VERS-005, of which it is one case and which our registry excludes because each extension, not the core, says what falling back means. |
@@ -332,7 +220,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | Trace | Revision | Ours | We flag | mcpsnoop | Rules fired | Set aside | Relation |
 |---|---|---|---|---|---|---|---|
 | `good/http-authorization` | 2025-11-25 | pass | — | silent | — | — | both clean |
-| `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | flags | `response-unmatched` | — | **divergent** |
+| `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-cancellation` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-client-features` | 2025-11-25 | pass | — | silent | — | — | both clean |
@@ -428,13 +316,13 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/tool-008-name-duplicate` | 2025-11-25 | pass-with-warnings | `TOOL-008` | silent | — | — | beyond mcpsnoop |
 | `violations/tool-009-embedded-resource-without-capability` | 2025-11-25 | pass-with-warnings | `TOOL-009` | silent | — | — | beyond mcpsnoop |
 | `violations/tool-010-structured-without-text` | 2025-11-25 | pass-with-warnings | `TOOL-010` | silent | — | — | beyond mcpsnoop |
-| `violations/tool-011-output-schema-no-structured-result` | 2025-11-25 | fail | `TOOL-011` | silent | — | — | beyond mcpsnoop |
-| `violations/tool-011-structured-content-not-conforming` | 2025-11-25 | fail | `TOOL-011` | silent | — | — | beyond mcpsnoop |
+| `violations/tool-011-output-schema-no-structured-result` | 2025-11-25 | fail | `TOOL-011` | flags | `output-schema-unmet` | — | agree |
+| `violations/tool-011-structured-content-not-conforming` | 2025-11-25 | fail | `TOOL-011` | flags | `output-schema-unmet` | — | agree |
 | `violations/tran-004-stdout-invalid-message` | 2025-11-25 | fail | `BASE-008`, `TRAN-004`, `wire-schema` | flags | `invalid-frame` | — | agree |
 | `violations/tran-005-stdin-invalid-message` | 2025-11-25 | fail | `BASE-008`, `TRAN-005`, `wire-schema` | flags | `invalid-frame` | — | agree |
 | `violations/tran-011-session-id-invisible-ascii` | 2025-11-25 | fail | `TRAN-011` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-013-session-id-not-echoed` | 2025-11-25 | fail | `TRAN-013` | silent | — | — | beyond mcpsnoop |
-| `violations/tran-017-protocol-version-header-missing` | 2025-11-25 | fail | `LIFE-018`, `TRAN-017` | silent | — | — | **divergent** |
+| `violations/tran-017-protocol-version-header-missing` | 2025-11-25 | fail | `LIFE-018`, `TRAN-017` | flags | `protocol-version-header-missing` | — | agree |
 | `violations/tran-018-declined-version-header-refused-400` | 2025-11-25 | pass-with-warnings | `TRAN-018` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-018-protocol-version-mismatched` | 2025-11-25 | pass-with-warnings | `TRAN-018` | silent | — | — | beyond mcpsnoop |
 | `violations/tran-020-declined-version-header-accepted` | 2025-11-25 | fail | `TRAN-018`, `TRAN-020` | silent | — | — | beyond mcpsnoop |
@@ -457,7 +345,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/http-close-after-another-response` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-concurrent-posts` | 2026-07-28 | pass | — | silent | — | `method-name-header-missing`, `protocol-version-header-missing` | both clean |
 | `draft/good/http-dual-era-modern-request-first` | 2026-07-28 | pass | — | silent | — | — | both clean |
-| `draft/good/http-origin-refused-without-id` | 2026-07-28 | pass | — | flags | `response-unmatched` | — | **divergent** |
+| `draft/good/http-origin-refused-without-id` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-stream-closed-by-client` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-upstream-abort` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-x-mcp-header-omitted` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -488,7 +376,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/auth-133-scope-challenged-incrementally` | 2026-07-28 | pass-with-warnings | `AUTH-133` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `DISC-002`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-128` | silent | — | — | **divergent** |
 | `draft/violations/base-030-malformed-request-id-reused-correctly` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
-| `draft/violations/base-030-malformed-request-refused-without-id` | 2026-07-28 | fail | `BASE-030`, `BASE-052`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing`, `response-unmatched` | — | agree |
+| `draft/violations/base-030-malformed-request-refused-without-id` | 2026-07-28 | fail | `BASE-030`, `BASE-052`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `error-without-request-id`, `request-meta-missing` | — | agree |
 | `draft/violations/base-030-request-meta-missing-required-field` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `CACH-001`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `cacheable-without-ttl`, `request-meta-missing` | — | agree |
 | `draft/violations/base-030-unsupported-version-refused-as-invalid-params` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
 | `draft/violations/base-031-malformed-meta-answered-with-result` | 2026-07-28 | fail | `BASE-030`, `BASE-031`, `CACH-001`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | silent | — | — | **divergent** |
@@ -506,7 +394,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/base-040-traceparent-version-ff` | 2026-07-28 | fail | `BASE-040` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-045-request-id-reused-in-flight` | 2026-07-28 | fail | `BASE-045`, `CACH-001`, `wire-schema` | flags | `cacheable-without-ttl`, `request-id-in-flight` | — | agree |
 | `draft/violations/base-048-result-without-result-type` | 2026-07-28 | fail | `BASE-048`, `wire-schema` | flags | `result-type-missing` | — | agree |
-| `draft/violations/base-052-null-id-error-then-id-reused` | 2026-07-28 | fail | `BASE-052`, `wire-schema` | flags | `request-id-in-flight`, `response-unmatched` | — | **divergent** |
+| `draft/violations/base-052-null-id-error-then-id-reused` | 2026-07-28 | fail | `BASE-052`, `wire-schema` | flags | `error-without-request-id` | — | agree |
 | `draft/violations/base-057-undefined-reserved-error-code` | 2026-07-28 | fail | `BASE-057` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-058-withdrawn-error-code` | 2026-07-28 | fail | `BASE-058`, `BASE-083`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-060-app-code-in-reserved-range` | 2026-07-28 | pass-with-warnings | `BASE-060` | silent | — | — | beyond mcpsnoop |
@@ -626,9 +514,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tool-022-tools-list-order-changes` | 2026-07-28 | pass-with-warnings | `TOOL-022` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tool-034-mirrored-integer-out-of-range` | 2026-07-28 | fail | `TOOL-034`, `TRAN-081` | silent | — | `method-name-header-missing`, `param-header-missing`, `protocol-version-header-missing` | beyond mcpsnoop |
 | `draft/violations/tool-038-embedded-resource-undeclared` | 2026-07-28 | pass-with-warnings | `TOOL-038` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/tool-040-structured-content-not-conforming` | 2026-07-28 | fail | `TOOL-040` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/tool-040-structured-content-not-conforming` | 2026-07-28 | fail | `TOOL-040` | flags | `output-schema-unmet` | — | agree |
 | `draft/violations/tool-045-x-mcp-header-in-defs` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
-| `draft/violations/tran-058-mcp-name-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-058`, `TRAN-141`, `wire-schema` | flags | `name-header-disagrees`, `response-unmatched` | — | agree |
+| `draft/violations/tran-058-mcp-name-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-058`, `TRAN-141`, `wire-schema` | flags | `error-without-request-id`, `name-header-disagrees` | — | agree |
 | `draft/violations/tran-058-request-metadata-headers-missing` | 2026-07-28 | fail | `TRAN-058`, `TRAN-141` | flags | `method-name-header-missing` | — | agree |
 | `draft/violations/tran-060-client-posts-a-response` | 2026-07-28 | fail | `BASE-046`, `CACH-001`, `TRAN-060`, `TRAN-119`, `wire-schema` | flags | `cacheable-without-ttl`, `client-sent-response`, `response-unmatched` | — | agree |
 | `draft/violations/tran-061-notification-answered-200` | 2026-07-28 | fail | `TRAN-061` | silent | — | — | beyond mcpsnoop |
@@ -638,12 +526,12 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tran-068-sse-without-accel-buffering` | 2026-07-28 | pass-with-warnings | `TRAN-068` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-070-message-after-stream-close` | 2026-07-28 | fail | `TRAN-070` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-071-protocol-version-header-missing` | 2026-07-28 | fail | `CACH-001`, `TRAN-071`, `wire-schema` | flags | `cacheable-without-ttl`, `protocol-version-header-missing` | — | agree |
-| `draft/violations/tran-072-mismatch-rejected-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-072`, `wire-schema` | flags | `protocol-version-header-disagrees`, `response-unmatched` | — | agree |
+| `draft/violations/tran-072-mismatch-rejected-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-072`, `wire-schema` | flags | `error-without-request-id`, `protocol-version-header-disagrees` | — | agree |
 | `draft/violations/tran-072-protocol-version-header-mismatched` | 2026-07-28 | fail | `TRAN-072` | flags | `protocol-version-header-disagrees`, `server-rejected-header-mismatch` | — | agree |
 | `draft/violations/tran-072-unsupported-body-version-header-mismatch` | 2026-07-28 | fail | `TRAN-072` | flags | `protocol-version-header-disagrees`, `server-rejected-header-mismatch` | — | agree |
 | `draft/violations/tran-072-unsupported-body-version-refused-as-unsupported` | 2026-07-28 | fail | `TRAN-072` | flags | `protocol-version-header-disagrees` | — | agree |
 | `draft/violations/tran-073-header-mismatch-not-rejected` | 2026-07-28 | fail | `CACH-001`, `TRAN-072`, `TRAN-073`, `wire-schema` | flags | `cacheable-without-ttl`, `protocol-version-header-disagrees` | — | agree |
-| `draft/violations/tran-073-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-072`, `TRAN-073`, `wire-schema` | flags | `protocol-version-header-disagrees`, `response-unmatched` | — | agree |
+| `draft/violations/tran-073-mismatch-refused-without-id` | 2026-07-28 | fail | `BASE-052`, `TRAN-072`, `TRAN-073`, `wire-schema` | flags | `error-without-request-id`, `protocol-version-header-disagrees` | — | agree |
 | `draft/violations/tran-074-unsupported-version-accepted` | 2026-07-28 | fail | `CACH-001`, `TOOL-019`, `TRAN-074`, `VERS-001`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-074-unsupported-version-without-400` | 2026-07-28 | fail | `TRAN-074` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-074-unsupported-version-without-supported-list` | 2026-07-28 | fail | `TRAN-074`, `VERS-001`, `wire-schema` | silent | — | — | beyond mcpsnoop |
@@ -663,13 +551,13 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/tran-097-header-body-mismatch-accepted` | 2026-07-28 | fail | `TRAN-079`, `TRAN-097`, `TRAN-100`, `TRAN-131` | flags | `param-header-disagrees` | — | agree |
 | `draft/violations/tran-097-integer-header-different-number` | 2026-07-28 | fail | `TRAN-079`, `TRAN-097`, `TRAN-100`, `TRAN-131` | flags | `param-header-disagrees` | — | agree |
 | `draft/violations/tran-097-mismatch-after-concurrent-posts` | 2026-07-28 | fail | `TRAN-058`, `TRAN-097`, `TRAN-100`, `TRAN-131`, `TRAN-141` | flags | `name-header-disagrees` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
-| `draft/violations/tran-098-header-mismatch-without-400` | 2026-07-28 | fail | `TRAN-098`, `TRAN-102` | flags | `server-rejected-header-mismatch` | — | **divergent** |
+| `draft/violations/tran-098-header-mismatch-without-400` | 2026-07-28 | fail | `TRAN-098`, `TRAN-102` | flags | `header-mismatch-status`, `header-mismatch-unfounded` | — | **divergent** |
 | `draft/violations/tran-123-cancellation-without-request-id` | 2026-07-28 | fail | `CANC-005`, `TRAN-123`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-124-message-after-cancel-notification` | 2026-07-28 | fail | `TRAN-124` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/tran-132-null-parameter-header-sent` | 2026-07-28 | fail | `TRAN-132` | flags | `param-header-without-value` | — | agree |
-| `draft/violations/tran-133-omitted-null-header-rejected` | 2026-07-28 | fail | `TRAN-133` | flags | `server-rejected-header-mismatch` | — | **divergent** |
+| `draft/violations/tran-133-omitted-null-header-rejected` | 2026-07-28 | fail | `TRAN-133` | flags | `header-mismatch-unfounded` | — | agree |
 | `draft/violations/tran-134-absent-parameter-header-sent` | 2026-07-28 | fail | `TRAN-134` | flags | `param-header-without-value` | — | agree |
-| `draft/violations/tran-135-omitted-absent-header-rejected` | 2026-07-28 | fail | `TRAN-135` | flags | `server-rejected-header-mismatch` | — | **divergent** |
+| `draft/violations/tran-135-omitted-absent-header-rejected` | 2026-07-28 | fail | `TRAN-135` | flags | `header-mismatch-unfounded` | — | agree |
 | `draft/violations/tran-136-missing-param-header-accepted` | 2026-07-28 | fail | `TRAN-079`, `TRAN-130`, `TRAN-136` | flags | `param-header-missing` | — | agree |
 | `draft/violations/tran-137-x-mcp-header-under-items` | 2026-07-28 | fail | `TOOL-045`, `TRAN-082`, `TRAN-137` | flags | `x-mcp-header-chain` | `method-name-header-missing`, `protocol-version-header-missing` | agree |
 | `draft/violations/tran-141-mcp-name-header-missing` | 2026-07-28 | fail | `TRAN-058`, `TRAN-141` | flags | `method-name-header-missing` | — | agree |

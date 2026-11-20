@@ -1,5 +1,5 @@
 {
-  "mcpsnoop": "0.26.1",
+  "mcpsnoop": "0.28.0",
   "rules": [
     {
       "id": "jsonrpc-version",
@@ -59,6 +59,13 @@
       "reading": "A second response for an id already answered, which corresponds to no outstanding request."
     },
     {
+      "id": "error-without-request-id",
+      "match": ["error response does not carry the id of the request it answers"],
+      "maps": { "2025-11-25": ["BASE-009"], "2026-07-28": ["BASE-052"] },
+      "context": "http",
+      "reading": "An error with no `id` returned as the answer to a POST whose request id was readable. New in 0.28.0, which pairs such an error with the request of its own HTTP exchange where 0.26.1 reported it as matching no request. Seen only on `2026-07-28` traces; the `2025-11-25` mapping is the same sentence of that revision."
+    },
+    {
       "id": "response-without-result-or-error",
       "match": ["response has neither result nor error"],
       "maps": { "2025-11-25": ["BASE-010"], "2026-07-28": ["BASE-047"] },
@@ -97,7 +104,10 @@
     },
     {
       "id": "protocol-version-header-missing",
-      "match": ["required routing header MCP-Protocol-Version is missing"],
+      "match": [
+        "required routing header MCP-Protocol-Version is missing",
+        "required header MCP-Protocol-Version is missing"
+      ],
       "maps": { "2025-11-25": ["LIFE-018", "TRAN-017"], "2026-07-28": ["TRAN-071"] },
       "context": "http",
       "reading": "A POST without the `MCP-Protocol-Version` header where the negotiated revision requires it."
@@ -171,6 +181,21 @@
       "partial": ["TRAN-058", "TRAN-071", "TRAN-072", "TRAN-077", "TRAN-079", "TRAN-086", "TRAN-087", "TRAN-089", "TRAN-092", "TRAN-130", "TRAN-132", "TRAN-134"],
       "context": "http",
       "reading": "The server answered `-32020` (`HeaderMismatch`). mcpsnoop counts the rejection itself as the routing fault, which convicts the client's headers on the server's word."
+    },
+    {
+      "id": "header-mismatch-unfounded",
+      "match": ["server rejected the request with -32020 HeaderMismatch, but every header on it agrees with the body"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-133", "TRAN-135"] },
+      "partial": ["TRAN-133", "TRAN-135"],
+      "context": "http",
+      "reading": "The server answered `-32020` to a request whose headers mcpsnoop itself compared with the body and found in agreement. New in 0.28.0; 0.26.1 reported these as the client's fault. It says the rejection was unfounded, not which clause the server broke: the two clauses mapped are the cases the revision names, a header omitted because its parameter is `null` or absent."
+    },
+    {
+      "id": "header-mismatch-status",
+      "match": ["a HeaderMismatch rejection must come with HTTP 400"],
+      "maps": { "2025-11-25": [], "2026-07-28": ["TRAN-098", "TRAN-102"] },
+      "context": "http",
+      "reading": "A `-32020` (`HeaderMismatch`) error sent with an HTTP status other than `400`. New in 0.28.0."
     },
     {
       "id": "response-content-type",
@@ -291,6 +316,12 @@
       "match": ["advertises an inputSchema that is not a JSON object"],
       "maps": { "2025-11-25": ["TOOL-003"], "2026-07-28": ["TOOL-025"] },
       "reading": "A tool whose `inputSchema` is not a JSON Schema object."
+    },
+    {
+      "id": "output-schema-unmet",
+      "match": ["declares an outputSchema and returned no structuredContent", "returned structuredContent that breaks its outputSchema"],
+      "maps": { "2025-11-25": ["TOOL-011"], "2026-07-28": ["TOOL-040"] },
+      "reading": "A tool that declares an `outputSchema` and answers without `structuredContent`, or with `structuredContent` the schema rejects. New in 0.28.0."
     },
     {
       "id": "x-mcp-header-chain",

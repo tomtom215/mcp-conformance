@@ -1098,6 +1098,15 @@ not yet published to crates.io)
   through rmcp. The vendored `2026-07-28` schema is upstream `main` at `8a18b4b`.
   `mcp-conformance-cli` gains `base64` and `jsonschema` (both already in the tree).
 
+- Interop matrix pins: TypeScript SDK 1.32.2, `@modelcontextprotocol/server` 2.4.0
+  with `node` 2.1.2, rmcp 3.10.0 (the Rust leg was at 3.7.0). Re-recorded: every
+  cell judged as before except TypeScript v2 at `2026-07-28` (core pass 72 → 73).
+
+- `mcpsnoop` calibration pin 0.26.1 → 0.28.0, re-measured over 358 traces. 0.28.0
+  no longer shows the five defects the page triaged against 0.26.1, and adds rules
+  this map now reads (an id-less error, an unfounded or wrongly-statused `-32020`,
+  `outputSchema`). Divergent traces 13 → 7; agreeing 79 → 86.
+
 - **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
   `2026-07-28` scenarios pass 42 of 42 against the server serving `2025-11-25`
