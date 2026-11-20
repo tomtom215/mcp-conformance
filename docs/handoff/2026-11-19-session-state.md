@@ -28,8 +28,9 @@ defaults that need no flags, a redesigned report and workbench, a GitHub Marketp
 2. The visual baselines are taken (`19653fd`, from run 555's artifact); nothing is owed there
    unless the report or workbench changes again.
 3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
-4. Open the pull request when asked: its sixteen mutation shards are the first full mutation run
-   over today's code.
+4. Pull request 79 is open (asked for on 2026-11-20). Its `Mutants (PR diff)` shards are the
+   first full mutation run over this code: read them and close the survivors.
+5. **The protected-resource metadata probes wait on a decision** (see "Authorization probes").
 
 ## Landed on 2026-11-20
 
@@ -44,7 +45,26 @@ defaults that need no flags, a redesigned report and workbench, a GitHub Marketp
 | The report and workbench redesign | `50d329c` | Screenshots viewed (two by the maintainer's session, 56 by the agent); the repository's browser specs run by the agent on this machine's Chromium; **not yet on CI's** |
 | 20 of the official suite's 22 `auth/*` client scenarios, through rmcp's OAuth client in the reference host (`--oauth-conformance`, feature `oauth`) | `eb53b40` | `cargo xtask conformance` exit 0; `cargo deny` ok with ten exact-pinned duplicate-version skips |
 
-Registry now: `2025-11-25` 114 judged of 348; `2026-07-28` 192 judged of 501.
+| The invalid-token probe: 12 authorization clauses judged on the one public `Authorization` value a recorder keeps | the commit titled "the invalid-token probe" | Unit tests; six corpus traces; four end-to-end tests against a token-guarded stand-in server, one asserting the user's credential reaches no file and no output |
+
+Registry now: `2025-11-25` 120 judged of 348; `2026-07-28` 198 judged of 501.
+
+## Authorization probes
+
+Done: the invalid-token probe (`AUTH-042`, `AUTH-044`, `AUTH-047`, `AUTH-048`, `AUTH-081`,
+`AUTH-082` and `AUTH-121`, `AUTH-123`, `AUTH-126`, `AUTH-127`, `AUTH-190`, `AUTH-191`).
+
+Not done, and waiting on the owner: the Protected Resource Metadata probes. Judging them needs
+two additions to the trace format, an `http` event's request path and the JSON document a
+metadata URL returned, and the first reverses a line of the security model ("no request target
+... is recorded at all"). The proposal is to record a path only when it starts with
+`/.well-known/`, which RFC 8615 reserves for public metadata. With that, six clauses can be judged
+soundly: `AUTH-011`/`AUTH-142` (a served document names at least one authorization server) and
+`AUTH-006`/`AUTH-010`/`AUTH-091`/`AUTH-141` (the URL a challenge's `resource_metadata` names
+serves a document). `AUTH-012`/`AUTH-144` cannot: proving a server offers neither discovery
+mechanism needs the MCP endpoint's own path, which stays unrecorded. The audience clauses
+(`AUTH-043`, `AUTH-059`, `AUTH-083` and their three counterparts) need a real token minted for
+another audience, which only the operator can supply.
 
 ## What the classification of the exclusions found
 
@@ -52,11 +72,11 @@ All 566 clauses excluded on the morning of 2026-11-20 were read by five agents a
 clause's quote and the code: 240 have no wire observable, 30 happen between other parties, 131
 bind a client and need it put under a scripted server, 41 restate clauses judged under other IDs,
 24 need the recorder to capture more (stream identity, SSE `id` and `retry`, stdin close, header
-name casing, the request target), and 100 looked judgeable. Of those 100, 23 are now judged; the
+name casing, the request target), and 100 looked judgeable. Of those 100, 35 are now judged; the
 agents declined 40 or so of the rest as unsound on a closer reading (each exclusion text now says
-why); the authorization probes (26 rows: protected-resource metadata, a garbage bearer token) are
-**not started** and need `check` to make requests outside the MCP endpoint. The per-clause files
-are in the session's scratchpad, not the repository.
+why); of the 26 authorization rows, 12 are judged (the invalid-token probe) and the
+protected-resource metadata ones wait on a decision (see "Authorization probes"). The per-clause
+files are in the session's scratchpad, not the repository.
 
 So the ceiling for a tool that reads the wire is far below every clause. What would move it
 next, in order of yield: the authorization probes; a scripted server to put clients under (131
