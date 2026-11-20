@@ -21,6 +21,15 @@ in the sections below.
   `mcp-conformance check -- python my_server.py`, or `--url <endpoint>`. No client to
   write, no SDK, no Node.js. Read-only by default (it calls only tools the server
   annotates `readOnlyHint: true`), bounded, and it names everything it left alone.
+- **Nothing to configure.** A bare `mcp-conformance` says where to start; `check` with
+  no flags also leaves the report as a page to open (`report.html` beside the
+  recording) and ends with one plain sentence; `--html-report FILE` writes the page
+  beside any other format. `check` resumes an event stream a server closes before its
+  answer (`Last-Event-ID`).
+- **Every scenario the official suite lists.** `mcp-conformance test` and this
+  project's own gate run all 32 server scenarios of suite `0.1.16`, the two it marks
+  pending included; the everything server passes them (47 checks) with the new
+  `test_reconnection` fixture.
 - **One binary.** `mcp-conformance` also offers `validate`, `requirements` and
   `completions`, which are `mcp-trace-validator`'s from the same definitions.
 - **Baselines**: `--baseline` and `--write-baseline` gate on *new* findings, so a
@@ -97,6 +106,11 @@ below is stated again in its entry, with the reasoning.
   `context::stateless`, which holds the same items.
 
 ### Fixed
+
+- **`check` gave up on a server that closed an answer's event stream to be polled**
+  (SEP-1699): it reported the session ended and exercised nothing after it. It now
+  returns with `Last-Event-ID`, after the `retry` the server asked for (capped at two
+  seconds, three times at most).
 
 - **`mcp-everything-server` in its `2025-11-25` mode named `2026-07-28` among the
   revisions it supported** (rmcp's whole list, in `server/discover` and in what

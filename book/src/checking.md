@@ -87,7 +87,12 @@ The report is [`validate`'s](reading-a-report.md), viewed for the server: every
 finding is listed with the party it is held against, and only the server's (and those
 held against nobody) decide the verdict. The flags are `validate`'s too:
 `--format json|junit|sarif|html`, `--strict`, `--all`, `--area`, `--level`,
-`--baseline`, `--write-baseline`, `--allow-stale-baseline`.
+`--baseline`, `--write-baseline`, `--allow-stale-baseline`, `--html-report`.
+
+With no flag at all you also get the report as a page: `check` writes `report.html`
+beside the recording and prints its path, and ends with one plain sentence saying whether
+the server broke a rule. `--html-report FILE` puts the page where you say (and is how to
+get one together with `-o`, or beside a JUnit or SARIF report in CI).
 
 | Exit | Meaning |
 |-----:|---------|
@@ -143,15 +148,15 @@ traffic.
 ## The recording
 
 `-o session.jsonl` names the trace (`--force` overwrites it); without `-o` it is a new
-file in a new private directory under the system's temporary one, and its path is
-printed. It is an ordinary [trace](trace-format.md):
+file in a new private directory under the system's temporary one, with `report.html`
+beside it, and both paths are printed. It is an ordinary [trace](trace-format.md):
 
 ```text
 # judge it again, for both parties
 mcp-conformance validate session.jsonl
 
-# one self-contained page
-mcp-conformance validate --format html session.jsonl > report.html
+# one self-contained page, beside the text report
+mcp-conformance validate --html-report report.html session.jsonl
 
 # keep it in the workbench's library
 mcp-conformance library import session.jsonl

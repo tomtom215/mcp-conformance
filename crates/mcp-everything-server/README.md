@@ -61,6 +61,16 @@ is almost certainly the client's.
   `structuredContent`), which the suite does not exercise but the spec
   defines.
 
+  `test_reconnection` (SEP-1699, the suite's `server-sse-polling` scenario)
+  closes the SSE stream its own call arrived on — after an event carrying an
+  id and a `retry` interval — and delivers the result on the GET the client
+  resumes with (`Last-Event-ID`). It holds the result until that GET arrives
+  (five seconds at most), because rmcp drops a request's stream state once the
+  response is sent. On stdio and at `2026-07-28`, where there is no such
+  stream, it answers directly. `reconnection::sessions::ResumableSessions`, a
+  thin wrapper over rmcp's `LocalSessionManager`, is what tells the handler
+  which stream is its own.
+
   **Every listing is paginated**, and the split is deliberate: the first page
   of `tools/list`, `prompts/list`, `resources/list` and
   `resources/templates/list` is exactly the catalogue the suite's scenarios

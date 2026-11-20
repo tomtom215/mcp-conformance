@@ -61,16 +61,6 @@ pub const HTTP_TRANSPORT_SCENARIOS: [&str; 3] = [
     "server-sse-multiple-streams",
 ];
 
-/// The pinned suite's *pending* server scenarios: listed by its `list`
-/// command, but left out of the `active` set its `server` command runs by
-/// default.
-///
-/// `mcp-conformance test --command` chooses its scenarios from `list` (one
-/// invocation per scenario), and leaves these out so a stdio server is run
-/// against the same set an HTTP one is. `cargo xtask conformance` checks this
-/// list against what the pinned suite's default run actually runs.
-pub const PENDING_SERVER_SCENARIOS: [&str; 2] = ["json-schema-2020-12", "server-sse-polling"];
-
 /// One check the suite reported.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]

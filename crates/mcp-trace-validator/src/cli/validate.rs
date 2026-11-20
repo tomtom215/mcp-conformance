@@ -35,6 +35,7 @@ use crate::cli::{
 
 pub(crate) mod baseline;
 mod many;
+mod page;
 
 /// The most findings the default human report lists under one clause. A
 /// recording that repeats one defect throughout is otherwise hundreds of
@@ -56,6 +57,8 @@ pub(crate) struct Output<'a> {
     /// Human output lists only these clauses (`--area`, `--level`); nothing a
     /// report decides depends on it.
     pub(crate) filter: &'a Filter,
+    /// Also write the HTML report here (`--html-report`).
+    pub(crate) page: Option<&'a Path>,
 }
 
 /// Where the registries come from, resolved once for every trace in the run.
@@ -165,6 +168,11 @@ pub(crate) fn run(
             return EXIT_USAGE;
         }
     };
+    if let Some(path) = output.page
+        && !page::write(path, &judged, &unjudged, &run)
+    {
+        return EXIT_USAGE;
+    }
     let rendered = match judged.as_slice() {
         [one] if !many => render_one(one, output, &run),
         _ => many::render(&judged, &unjudged, output, &run),

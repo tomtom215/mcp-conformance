@@ -297,9 +297,9 @@ fn finished(ran: Result<Result<bool, mcp_trace_capture::Stop>, String>) -> Resul
     }
 }
 
-/// The suite's listed scenarios a stdio server is run against: its default
-/// (`active`) set, less the HTTP-transport scenarios, which are reported as
-/// not run with why.
+/// The suite's listed scenarios a stdio server is run against: all of them,
+/// the ones the suite marks pending included, less the HTTP-transport
+/// scenarios, which are reported as not run with why.
 fn stdio_scenarios(listed: Vec<String>) -> (Vec<String>, Vec<(String, &'static str)>) {
     let mut run = Vec::new();
     let mut not_run = Vec::new();
@@ -308,11 +308,6 @@ fn stdio_scenarios(listed: Vec<String>) -> (Vec<String>, Vec<(String, &'static s
             not_run.push((
                 scenario,
                 "exercises the streamable-HTTP transport, which a stdio server does not have",
-            ));
-        } else if suite::PENDING_SERVER_SCENARIOS.contains(&scenario.as_str()) {
-            not_run.push((
-                scenario,
-                "pending in the pinned suite: its default run leaves it out",
             ));
         } else {
             run.push(scenario);

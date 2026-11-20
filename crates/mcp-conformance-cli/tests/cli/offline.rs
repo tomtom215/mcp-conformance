@@ -21,7 +21,9 @@ shift 2
 case "$1" in
   --version) echo "$FAKE_SUITE_VERSION"; exit 0 ;;
   list)
-    printf 'Server scenarios (test against a server):\n  - ping [2025-11-25]\n  - dns-rebinding-protection [2025-11-25]\n  - json-schema-2020-12 [2025-11-25]\n'
+    printf 'Server scenarios (test against a server):\n  - ping [2025-11-25]\n  - dns-rebinding-protection [2025-11-25]\n'
+    # One the pinned suite marks pending, when a test asks for it.
+    if [ -n "$FAKE_PENDING" ]; then printf '  - json-schema-2020-12 [2025-11-25]\n'; fi
     exit 0 ;;
   server) ;;
   *) echo "unexpected: $*" >&2; exit 9 ;;
@@ -139,7 +141,13 @@ fn run_with(
 #[test]
 fn a_passing_stdio_server_exits_0_with_both_verdicts_reported() {
     let setup = setup("pass");
-    let output = run(&setup, "SUCCESS", mcp_conformance_cli::suite::VERSION, &[]);
+    let output = run_with(
+        &setup,
+        "SUCCESS",
+        mcp_conformance_cli::suite::VERSION,
+        &[],
+        &[("FAKE_PENDING", "1")],
+    );
     let message = stderr(&output);
     assert_eq!(output.status.code(), Some(0), "{message}");
     let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -153,8 +161,8 @@ fn a_passing_stdio_server_exits_0_with_both_verdicts_reported() {
         .collect();
     assert_eq!(
         scenarios,
-        ["ping"],
-        "the pending and HTTP-transport ones are not run"
+        ["json-schema-2020-12", "ping"],
+        "the suite's pending scenario is run; the HTTP-transport one is not"
     );
     let not_run: Vec<&str> = report["suite"]["not_run"]
         .as_array()
@@ -162,9 +170,9 @@ fn a_passing_stdio_server_exits_0_with_both_verdicts_reported() {
         .iter()
         .map(|entry| entry["scenario"].as_str().unwrap())
         .collect();
-    assert_eq!(not_run, ["dns-rebinding-protection", "json-schema-2020-12"]);
+    assert_eq!(not_run, ["dns-rebinding-protection"]);
     let traces = report["sessions"]["traces"].as_array().unwrap();
-    assert_eq!(traces.len(), 1, "{report:#}");
+    assert_eq!(traces.len(), 2, "{report:#}");
     assert_eq!(report["sessions"]["verdict"], "pass");
     assert_eq!(report["agreement"]["holds"], true);
     assert!(message.contains("verdict: pass"), "{message}");

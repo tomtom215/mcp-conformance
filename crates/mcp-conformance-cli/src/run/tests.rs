@@ -225,7 +225,7 @@ fn the_subject_is_the_end_of_the_session_its_flag_names() {
 }
 
 #[test]
-fn a_stdio_server_is_run_against_the_default_set_less_the_http_transport() {
+fn a_stdio_server_is_run_against_every_listed_scenario_less_the_http_transport() {
     let listed = [
         "ping",
         "dns-rebinding-protection",
@@ -237,23 +237,23 @@ fn a_stdio_server_is_run_against_the_default_set_less_the_http_transport() {
     .map(ToOwned::to_owned)
     .to_vec();
     let (run, not_run) = stdio_scenarios(listed);
-    assert_eq!(run, ["ping", "tools-list"]);
+    // `json-schema-2020-12` is pending in the pinned suite, and run all the same.
+    assert_eq!(run, ["ping", "json-schema-2020-12", "tools-list"]);
     let names: Vec<&str> = not_run.iter().map(|(name, _)| name.as_str()).collect();
     assert_eq!(
         names,
         [
             "dns-rebinding-protection",
             "server-sse-polling",
-            "json-schema-2020-12",
             "server-sse-multiple-streams"
         ]
     );
     assert!(not_run[0].1.contains("streamable-HTTP transport"));
     assert!(
-        not_run[1].1.contains("streamable-HTTP transport"),
-        "transport wins over pending"
+        not_run
+            .iter()
+            .all(|(_, why)| why.contains("streamable-HTTP transport"))
     );
-    assert!(not_run[2].1.contains("pending"));
 }
 
 #[test]

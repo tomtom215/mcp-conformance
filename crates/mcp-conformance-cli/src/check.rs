@@ -153,12 +153,37 @@ fn conclude(
         }
         Some(Ok(()) | Err(Ended::Bound)) => {}
     }
-    let report = args.report.clone().viewed_for(Party::Server);
-    Ok(validator::judge(
+    let mut report = args.report.clone().viewed_for(Party::Server);
+    // With the recording in a directory of this run's own making, the page
+    // goes beside it: nobody has to know a flag to get something to open.
+    if args.output.is_none() {
+        report = report.with_html_report(trace.with_file_name("report.html"));
+    }
+    let code = validator::judge(
         &[trace.display().to_string()],
         &report,
         &validator::JudgingArgs::default(),
-    ))
+    );
+    if report.is_human() {
+        match code {
+            0 => eprintln!(
+                "mcp-conformance check: result: the server broke no rule this run could judge \
+                 (warnings, if any are listed, are the specification's recommendations)"
+            ),
+            1 => eprintln!(
+                "mcp-conformance check: result: the server broke at least one rule; each is \
+                 listed above with the specification's own sentence and a link to it"
+            ),
+            _ => {}
+        }
+    }
+    if let Some(page) = report.html_report().filter(|page| page.is_file()) {
+        eprintln!(
+            "mcp-conformance check: the report as a page to open in a browser: {}",
+            page.display()
+        );
+    }
+    Ok(code)
 }
 
 /// Establishes the session in the era `version` asks for and exercises it.

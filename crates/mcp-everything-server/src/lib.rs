@@ -24,7 +24,9 @@
 //!   ([`prompts`]), completions, and logging-level filtering ([`logging`]) —
 //!   plus `get-structured-content`, the TypeScript everything server's
 //!   structured-output tool (`outputSchema` + `structuredContent`), which
-//!   the suite does not exercise but the spec defines. Every listing is
+//!   the suite does not exercise but the spec defines. [`reconnection`]
+//!   holds `test_reconnection`, the server-initiated SSE disconnect and
+//!   resume of SEP-1699. Every listing is
 //!   served in two pages ([`pagination`]): the suite's catalogue first, then
 //!   icons, annotations, `resource_link` content, an audio prompt and
 //!   `x-mcp-header` designations behind a `nextCursor`. The crate README
@@ -54,6 +56,7 @@ pub mod policy;
 /// and the binary tests pin the coupling against the real executable.
 pub const READINESS_LINE_PREFIX: &str = "listening on ";
 pub mod prompts;
+pub mod reconnection;
 pub mod resources;
 pub mod server;
 pub mod subscriptions;

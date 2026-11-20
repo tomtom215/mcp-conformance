@@ -305,6 +305,9 @@ fn run_suite(root: &Path, results_dir: &Path, address: &str, suite: &str) -> Exi
         .arg("server")
         .arg("--url")
         .arg(format!("http://{address}/mcp"))
+        // Every listed scenario, the suite's pending ones included.
+        .arg("--suite")
+        .arg("all")
         .arg("--spec-version")
         .arg(SPEC_VERSION)
         .arg("--expected-failures")

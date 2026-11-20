@@ -34,6 +34,12 @@ use crate::proxy;
 /// How long connecting to the proxy may take; it is on this machine.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// The most times one answer's stream is resumed after the server closes it.
+const MAX_RESUMPTIONS: usize = 3;
+
+/// The longest wait before resuming, whatever `retry` the server asked for.
+const MAX_RETRY_WAIT_MS: u64 = 2_000;
+
 /// How the recorder's proxy opens the body of the `502` it answers with when
 /// it cannot reach the URL (`mcp_trace_capture`'s `upstream_failed`); the URL
 /// without its query and the cause follow.
@@ -234,34 +240,77 @@ impl Http {
         let mut events = Events::default();
         let mut read = 0_usize;
         let mut server_requests = 0;
-        while let Some(chunk) = body.next().await {
-            let chunk = chunk
-                .map_err(|error| Failure::Transport(format!("reading the answer: {error}")))?;
-            read = read.saturating_add(chunk.len());
-            if read > max_response {
-                return Err(Failure::TooLarge);
-            }
-            for data in events.feed(&chunk) {
-                let Ok(message) = serde_json::from_str::<Value>(&data) else {
-                    continue;
-                };
-                match classify(message, out.id) {
-                    Incoming::Answer(message) => {
-                        return Ok(Answer {
-                            message,
-                            session,
-                            server_requests,
-                        });
+        let mut resumed = 0;
+        loop {
+            while let Some(chunk) = body.next().await {
+                let chunk = chunk
+                    .map_err(|error| Failure::Transport(format!("reading the answer: {error}")))?;
+                read = read.saturating_add(chunk.len());
+                if read > max_response {
+                    return Err(Failure::TooLarge);
+                }
+                for data in events.feed(&chunk) {
+                    let Ok(message) = serde_json::from_str::<Value>(&data) else {
+                        continue;
+                    };
+                    match classify(message, out.id) {
+                        Incoming::Answer(message) => {
+                            return Ok(Answer {
+                                message,
+                                session,
+                                server_requests,
+                            });
+                        }
+                        Incoming::Request(request) => {
+                            server_requests += 1;
+                            self.notify(&requests.answer(&request)).await?;
+                        }
+                        Incoming::Other => {}
                     }
-                    Incoming::Request(request) => {
-                        server_requests += 1;
-                        self.notify(&requests.answer(&request)).await?;
-                    }
-                    Incoming::Other => {}
                 }
             }
+            // The stream ended before the answer. A server may close it and
+            // deliver the rest when the client comes back for it.
+            resumed += 1;
+            match self.resume(&events, resumed).await? {
+                Some(next) => body = next,
+                None => return Err(Failure::Closed),
+            }
         }
-        Err(Failure::Closed)
+    }
+
+    /// Comes back for a stream the server closed before the answer: a GET
+    /// naming the last event received (`Last-Event-ID`), after the wait the
+    /// server asked for (`retry`, capped). `None` when there is nothing to
+    /// resume from — no event carried an id — when the server does not offer
+    /// the stream again, or after [`MAX_RESUMPTIONS`].
+    async fn resume(
+        &mut self,
+        events: &Events,
+        attempt: usize,
+    ) -> Result<Option<BodyDataStream>, Failure> {
+        let Some(last) = events.last_id().filter(|_| attempt <= MAX_RESUMPTIONS) else {
+            return Ok(None);
+        };
+        let wait = events.retry().unwrap_or(0).min(MAX_RETRY_WAIT_MS);
+        tokio::time::sleep(std::time::Duration::from_millis(wait)).await;
+        let mut request = self.request(Method::GET, None)?;
+        let Ok(last) = axum::http::HeaderValue::from_str(last) else {
+            return Ok(None);
+        };
+        request.headers_mut().insert("last-event-id", last);
+        let response = match self.client.request(request).await {
+            Ok(response) => response.map(Body::new),
+            Err(error) => {
+                return Err(Failure::Transport(format!(
+                    "the request did not reach the recording proxy: {error}"
+                )));
+            }
+        };
+        Ok(response
+            .status()
+            .is_success()
+            .then(|| response.into_body().into_data_stream()))
     }
 
     /// Remembers the session the server assigned, for every later request.

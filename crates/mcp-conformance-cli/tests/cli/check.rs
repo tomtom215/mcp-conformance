@@ -557,6 +557,100 @@ fn an_unreachable_url_is_a_run_that_could_not_be_made() {
 }
 
 #[test]
+fn a_stream_the_server_closes_before_the_answer_is_resumed_for_it() {
+    // `test_reconnection` closes its POST's event stream and delivers the
+    // result when the client returns with `Last-Event-ID` (SEP-1699).
+    let runtime = runtime();
+    let address = serve(&runtime, ServedRevision::V2025_11_25);
+    let dir = scratch("check-http-resume");
+    let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
+    let output = binary()
+        .args(["check", "--call", "test_reconnection", "--url"])
+        .arg(format!("http://{address}/mcp"))
+        .arg("-o")
+        .arg(&trace)
+        .arg("--summary")
+        .arg(&summary)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let summary = json(&summary);
+    assert_eq!(summary["unanswered"], serde_json::json!([]), "{summary}");
+    assert_eq!(summary["tools"]["errors"], 0, "{summary}");
+    // The session went on after it: the listings that follow tools were made.
+    assert!(summary["prompts"]["listed"].as_u64() > Some(0), "{summary}");
+    let recorded = std::fs::read_to_string(&trace).unwrap();
+    assert!(recorded.contains("\"last-event-id\""), "{recorded}");
+    let both = judged_for_both_parties(&trace);
+    assert_eq!(both.status.code(), Some(0), "{}", stdout(&both));
+}
+
+#[test]
+fn with_no_flags_the_report_is_also_left_as_a_page_and_the_result_is_said_plainly() {
+    const PAGE: &str = "mcp-conformance check: the report as a page to open in a browser: ";
+    let dir = scratch("check-page");
+    let (script, noted) = (dir.join("server.sh"), dir.join("noted"));
+    std::fs::write(&script, SERVER).unwrap();
+    let output = binary()
+        .args(["check", "--timeout", "2", "--", "sh"])
+        .arg(&script)
+        .arg("plain")
+        .arg(&noted)
+        .output()
+        .unwrap();
+    let said = stderr(&output);
+    assert_eq!(output.status.code(), Some(0), "{said}");
+    let page = said
+        .lines()
+        .find_map(|line| line.strip_prefix(PAGE))
+        .unwrap_or_else(|| panic!("no page named:\n{said}"));
+    let html = std::fs::read_to_string(page).unwrap();
+    assert!(html.starts_with("<!DOCTYPE html>"), "{}", &html[..60]);
+    // Beside the recording, in the run's own directory.
+    let trace = said
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix("trace "))
+        .unwrap()
+        .trim();
+    assert_eq!(Path::new(page).parent(), Path::new(trace).parent());
+    assert!(
+        said.contains("result: the server broke no rule this run could judge"),
+        "{said}"
+    );
+    std::fs::remove_dir_all(Path::new(page).parent().unwrap()).unwrap();
+
+    // A recording kept where the caller said gets a page only where the
+    // caller says; and a document on stdout is not followed by prose.
+    let run = |flags: &[&str]| {
+        let output = binary()
+            .args(["check", "--timeout", "2", "--force", "-o"])
+            .arg(dir.join("t.jsonl"))
+            .args(flags)
+            .args(["--", "sh"])
+            .arg(&script)
+            .arg("plain")
+            .arg(&noted)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+        stderr(&output)
+    };
+    let said = run(&["--format", "json"]);
+    assert!(!said.contains(PAGE) && !said.contains("result:"), "{said}");
+    let named = dir.join("r.html");
+    let said = run(&["--html-report", named.to_str().unwrap()]);
+    assert!(
+        said.contains(&format!("{PAGE}{}", named.display())),
+        "{said}"
+    );
+    assert!(
+        std::fs::read_to_string(&named)
+            .unwrap()
+            .starts_with("<!DOCTYPE html>")
+    );
+}
+
+#[test]
 fn the_validators_subcommands_are_offered_under_this_name() {
     let listing = binary()
         .args(["requirements", "LIFE-001"])

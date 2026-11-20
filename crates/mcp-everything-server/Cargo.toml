@@ -49,7 +49,9 @@ mcp-conformance-core = { workspace = true, optional = true }
 # The notification-staging tools sleep between messages ("~50ms" is part of
 # the scenario contract), so the library needs tokio's clock; the runtime
 # itself still comes from the binary or the test harness.
-tokio = { workspace = true, features = ["time"] }
+# `sync` is for `test_reconnection`, which waits on a `Notify` for the client's
+# resuming GET rather than on a delay.
+tokio = { workspace = true, features = ["sync", "time"] }
 
 # Version-coupling shim (a *ceiling*, not a floor). rmcp and its proc-macro
 # crate are lockstep-coupled — the macro expands to calls into `rmcp`'s

@@ -107,6 +107,11 @@ pub struct ReportArgs {
     /// List the baseline's stale entries without failing the run for them.
     #[arg(long, requires = "baseline")]
     allow_stale_baseline: bool,
+    /// Also write the report as a self-contained HTML page to FILE, whatever
+    /// `--format` prints: the verdict, each finding at its event in the
+    /// message timeline, and every clause's outcome. It loads nothing.
+    #[arg(long, value_name = "FILE")]
+    html_report: Option<PathBuf>,
     #[command(flatten)]
     selection: selection::Selection,
     /// Human output: list every clause with its outcome, every finding,
@@ -133,6 +138,21 @@ impl ReportArgs {
             Party::Server => PartyArg::Server,
         });
         self
+    }
+
+    /// These arguments with the HTML report also written to `path` unless
+    /// `--html-report` named a file: how `check` leaves a page to open beside
+    /// the recording it made.
+    #[must_use]
+    pub fn with_html_report(mut self, path: PathBuf) -> Self {
+        self.html_report.get_or_insert(path);
+        self
+    }
+
+    /// Where the HTML report is also written, if anywhere.
+    #[must_use]
+    pub fn html_report(&self) -> Option<&std::path::Path> {
+        self.html_report.as_deref()
     }
 
     /// Whether the report is the terminal-oriented text, which a command may
@@ -250,6 +270,7 @@ pub fn judge(traces: &[String], report: &ReportArgs, judging: &JudgingArgs) -> u
             all: report.all,
             party: report.party.map(PartyArg::party),
             filter: &filter,
+            page: report.html_report.as_deref(),
         },
         &validate::Sources {
             registry: judging.registry.as_deref(),

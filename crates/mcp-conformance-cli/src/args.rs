@@ -39,10 +39,22 @@ Exit status (each command's --help has its table):
                    2 the run could not be made or judged
   watch            the recorder's: the server's own code (stdio)";
 
-/// Check a server, validate recordings, watch a session, run the official
-/// suite through a recording tap, and keep a library of recordings.
+/// What the binary is and where someone with a server begins: the first
+/// thing `--help`, and a bare invocation, print.
+const START_HERE: &str = "\
+Check a Model Context Protocol (MCP) server against the specification.
+
+Start here, with your server's own start command or its URL:
+  mcp-conformance check -- python my_server.py
+  mcp-conformance check --url http://localhost:3000/mcp
+
+It reads and lists only (no tool with side effects is called), prints which
+rules the server broke with the specification's own sentence for each, and
+leaves a report to open in a browser. Exit status 0 means no rule was broken.";
+
+/// Check a Model Context Protocol (MCP) server against the specification.
 #[derive(Debug, Parser)]
-#[command(name = "mcp-conformance", version, about, long_about = None, after_help = ALL_EXIT_CODES)]
+#[command(name = "mcp-conformance", version, about = START_HERE, long_about = None, after_help = ALL_EXIT_CODES)]
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub(crate) command: Command,
@@ -50,10 +62,11 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
-    /// Check a server: exercise it as a conforming client would, record the
-    /// session, and report which of the specification's requirements it met,
-    /// broke, or never came near.
+    /// Check a server and report every rule it broke. Start here.
     ///
+    /// It exercises the server as a conforming client would, records the
+    /// session, and reports which of the specification's requirements the
+    /// server met, broke, or never came near.
     /// Give a stdio server's command after `--`, or a Streamable HTTP
     /// server's endpoint with `--url`. It needs no client, no SDK and no
     /// Node.js. It reads by default: it lists what the server declares, reads
@@ -64,47 +77,55 @@ pub(crate) enum Command {
     /// its flags; the run's own account of what it exercised goes to stderr.
     #[command(after_help = crate::check::args::EXIT_CODES)]
     Check(Box<crate::check::args::CheckArgs>),
-    /// Validate recorded traces against the specification
-    /// (`mcp-trace-validator validate`, flag for flag).
+    /// Judge sessions already recorded (traces) against the specification.
+    ///
+    /// `mcp-trace-validator validate`, flag for flag.
     #[command(
         after_help = "Exit status: 0 pass (warnings pass unless --strict), 1 a clause \
         failed, 2 bad invocation or nothing judgeable or output not written, 3 malformed trace."
     )]
     Validate(mcp_trace_validator::cli::ValidateArgs),
-    /// Print the requirement registry this build validates against, part of
-    /// it, or single requirements in full (`mcp-trace-validator requirements`).
+    /// Look up the rules: all of them, some, or one in full by its ID.
+    ///
+    /// The requirement registry this build validates against
+    /// (`mcp-trace-validator requirements`).
     Requirements(mcp_trace_validator::cli::RequirementsArgs),
     /// Print a shell completion script for `mcp-conformance`.
     Completions {
         /// The shell to complete for.
         shell: clap_complete::Shell,
     },
-    /// Run the pinned official suite against a server or a client, recording
-    /// its traffic, and report the suite's checks, the clause report of the
-    /// recorded sessions, and whether the two agree.
+    /// Run the official conformance suite too, and compare the two verdicts.
     ///
+    /// Runs the pinned official suite against a server or a client, recording
+    /// its traffic, and reports the suite's checks, the clause report of the
+    /// recorded sessions, and whether the two agree.
     /// Needs Node.js 18 or newer with `npx` on PATH: the suite is a Node
     /// package, fetched by npx at exactly the version this build pins.
     #[command(after_help = EXIT_CODES)]
     Test(Box<TestArgs>),
-    /// Record a session exactly as `mcp-trace-capture` does — stdio wrapper or
-    /// HTTP proxy, same flags, same trace — and judge it while it runs: each
+    /// Sit between a real client and a server, and report findings live.
+    ///
+    /// Records a session exactly as `mcp-trace-capture` does — stdio wrapper or
+    /// HTTP proxy, same flags, same trace — and judges it while it runs: each
     /// new finding printed (stderr) as the exchange that shows it completes,
     /// a live tally, the validator's report at the end, and with `--otlp` one
     /// OpenTelemetry span per exchange.
     #[command(after_help = WATCH_EXIT_CODES)]
     Watch(Box<WatchArgs>),
-    /// Open the workbench: a local web page over a library of recordings —
-    /// search, the session timeline and inspector, two-session diff, live
-    /// tail, dashboards, and administration (import, tags, retention,
-    /// delete, export, redaction).
+    /// Open the workbench: browse, search and compare recordings in a browser.
     ///
+    /// A local web page over a library of recordings — search, the session
+    /// timeline and inspector, two-session diff, live tail, dashboards, and
+    /// administration (import, tags, retention, delete, export, redaction).
     /// Listens on 127.0.0.1 and prints a link carrying a single-use token;
     /// every request must come from the browser that opened it. Sends
     /// nothing anywhere.
     Serve(Box<ServeArgs>),
-    /// The library from the command line: the dashboards' numbers, import,
-    /// redaction, retention, tags, delete and export.
+    /// Manage the workbench's library of recordings from the command line.
+    ///
+    /// The dashboards' numbers, import, redaction, retention, tags, delete and
+    /// export.
     Library(Box<LibraryArgs>),
     /// Carries a client under test to the suite's server through the recorder;
     /// `test --client-command` runs it as the client command it gives the

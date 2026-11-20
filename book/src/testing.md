@@ -43,7 +43,10 @@ suite's scenarios exercise the HTTP transport itself — `dns-rebinding-protecti
 `server-sse-polling` and `server-sse-multiple-streams` — and would judge the bridge rather
 than your server, so they are not run; the report lists them as not run, with why.
 
-To run some scenarios rather than the suite's default set, name each:
+With no scenario named, `test` runs every server scenario the pinned suite lists (32 at
+`0.1.16`), the two it marks pending among them (`json-schema-2020-12` and
+`server-sse-polling`), which the suite's own default run leaves out. To run some scenarios
+rather than all of them, name each:
 
 ```text
 mcp-conformance test --url http://localhost:3000/mcp --scenario tools-list --scenario ping

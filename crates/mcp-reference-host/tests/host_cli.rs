@@ -280,9 +280,9 @@ fn the_subscribe_and_sweep_phases_both_run_and_report() {
         "including the read that is meant to fail: {stderr}"
     );
     // And the tool loop still ran, with the log level asked for.
-    // Eighteen: the sixteen first-page tools and the two on `tools/list`'s
-    // second page, reached by following its `nextCursor`.
-    assert!(stderr.contains("completed 18 turn(s)"), "{stderr}");
+    // Nineteen: every tool the server lists across both pages of
+    // `tools/list`, the second reached by following its `nextCursor`.
+    assert!(stderr.contains("completed 19 turn(s)"), "{stderr}");
 }
 
 /// The probe session, driven through the binary.
