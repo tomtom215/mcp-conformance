@@ -20,14 +20,11 @@ State at the end of 2026-11-20. The owner accepted ADR-0024 and ADR-0025, asked 
 once it is judged ready, and widened the ask the same day: coverage as near 100% as feasible,
 defaults that need no flags, a redesigned report and workbench, a GitHub Marketplace listing.
 
-1. Read CI on the branch tip. Run 556 (`19653fd`) was read whole: 33 of 35 jobs `success`,
-   among them `Visual` on the new baselines, every test and clippy leg on Linux, macOS and
-   Windows at 1.100.0 and 1.88, `Conformance`, `Coverage`, `Semver` and the container image. The
-   two failures are fixed in the commit after it and that commit's run has not been read: the
-   `GitHub Action` job asserted a finding-free report from a `check` that now sends probes (its
-   step passes `--no-probes`), and the informational `Minimal versions` job could not build
-   rmcp's `auth` code against `http` 1.1.0 (floor raised to 1.2; the whole job then passed
-   locally on a nightly-generated minimal lockfile, 2439 tests).
+1. CI on the code tip is green: run 557 (`249932d`) completed `success`, all 34 jobs, among
+   them `Visual` on the redesign's baselines, every test and clippy leg on Linux, macOS and
+   Windows at 1.100.0 and 1.88, `Conformance`, `Coverage`, `Semver`, the `GitHub Action` job, the
+   container image and the informational `Minimal versions` job. Run 556 before it failed two
+   jobs, both fixed in `249932d`. The commit that carries this line changes only this file.
 2. The visual baselines are taken (`19653fd`, from run 555's artifact); nothing is owed there
    unless the report or workbench changes again.
 3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
