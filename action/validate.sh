@@ -154,6 +154,13 @@ if [[ -n "${JUNIT_FILE:-}" ]]; then
   mcp-trace-validator validate --format junit "${args[@]}" "${traces[@]}" > "$JUNIT_FILE" 2> /dev/null || true
 fi
 
+# The page a person opens: every clause and finding, loading nothing. A
+# release from before the HTML report prints none; leave no empty file then.
+if [[ -n "${HTML_FILE:-}" ]]; then
+  mcp-trace-validator validate --format html "${args[@]}" "${traces[@]}" > "$HTML_FILE" 2> /dev/null || true
+  [[ -s "$HTML_FILE" ]] || rm -f "$HTML_FILE"
+fi
+
 # A run that could not start wrote no document, leaving an empty file.
 problem=$(grep -m 1 '^error: ' "$RUNNER_TEMP/mcp-conformance.err")
 problem=${problem#error: }

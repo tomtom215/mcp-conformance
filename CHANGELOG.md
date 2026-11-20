@@ -25,7 +25,8 @@ in the sections below.
   no flags also leaves the report as a page to open (`report.html` beside the
   recording) and ends with one plain sentence; `--html-report FILE` writes the page
   beside any other format. `check` resumes an event stream a server closes before its
-  answer (`Last-Event-ID`).
+  answer (`Last-Event-ID`). The GitHub Action writes the page too (`html-file`,
+  default `mcp-conformance-report.html`).
 - **Every scenario the official suite lists.** `mcp-conformance test` and this
   project's own gate run all 32 server scenarios of suite `0.1.16`, the two it marks
   pending included; the everything server passes them (47 checks) with the new

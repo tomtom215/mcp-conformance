@@ -807,6 +807,7 @@ jobs:
           capture-dir: capture-check
           sarif-file: check.sarif
           junit-file: check.xml
+          html-file: check.html
       # A server that cannot be started is a run that could not be made: exit
       # 2, the step failed, and the reports still written.
       - name: A server that cannot be checked
@@ -853,6 +854,8 @@ jobs:
           jq -e '.runs[0].invocations[0].executionSuccessful == false' refused.sarif
           grep -q 'negotiated protocol revision 2024-11-05' refused.xml
           jq -e '.runs[0].results[0].ruleId == "BASE-003"' fail.sarif
+          # The page a person opens, written where asked.
+          grep -q '<!DOCTYPE html>' check.html
           grep -q '<failure' fail.xml
           # Recorded sessions: one trace per leg, judged clean — no finding at
           # all, warnings included. Both ends are this project's, so any finding

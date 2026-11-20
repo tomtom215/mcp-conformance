@@ -84,8 +84,9 @@ To judge traces a step of your own recorded:
 
 The action builds `mcp-trace-validator` from the ref you name (or, with
 `version: 0.6.0`, downloads that release's prebuilt binary and checks its checksum),
-prints the findings to the log and the job summary, writes `mcp-conformance.sarif` and
-`mcp-conformance-junit.xml`, and fails the step when a clause fails. Uploading the
+prints the findings to the log and the job summary, writes `mcp-conformance.sarif`,
+`mcp-conformance-junit.xml` and `mcp-conformance-report.html` (the report as one
+self-contained page, for an upload-artifact step), and fails the step when a clause fails. Uploading the
 SARIF log needs `permissions: security-events: write` on the job; findings then appear
 in the repository's code scanning view, each on the trace line that holds the event.
 The inputs — `revision`, `strict`, `fail-on-findings`, the output paths — are listed in

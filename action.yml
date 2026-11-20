@@ -138,6 +138,13 @@ inputs:
     description: Where to write the JUnit XML report (empty to skip).
     required: false
     default: mcp-conformance-junit.xml
+  html-file:
+    description: >-
+      Where to write the report as one self-contained HTML page, for an
+      upload-artifact step (empty to skip). A release older than the HTML
+      report writes none.
+    required: false
+    default: mcp-conformance-report.html
   fail-on-findings:
     description: >-
       Fail the step when the run's exit status is not 0. `false` never fails
@@ -161,6 +168,9 @@ outputs:
   junit-file:
     description: The JUnit report written, if any.
     value: ${{ inputs.junit-file }}
+  html-file:
+    description: The HTML report, where one was written.
+    value: ${{ inputs.html-file }}
   client-exit-code:
     description: With `capture`, the client command's exit status.
     value: ${{ steps.capture.outputs.client-exit-code }}
@@ -214,6 +224,7 @@ runs:
         STRICT: ${{ inputs.strict }}
         SARIF_FILE: ${{ inputs.sarif-file }}
         JUNIT_FILE: ${{ inputs.junit-file }}
+        HTML_FILE: ${{ inputs.html-file }}
       run: '"$GITHUB_ACTION_PATH/action/validate.sh"'
     - name: Fail when the client failed
       if: inputs.capture != '' && steps.capture.outputs.client-exit-code != '0'

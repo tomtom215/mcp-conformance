@@ -122,7 +122,7 @@ writes SARIF and JUnit; the step fails when a clause does:
 | `baseline` | A file of accepted findings; only findings it does not list fail the step |
 | `strict`, `party`, `revision` | Warnings fail; count one party's findings; name the revisions |
 | `version` | A release whose prebuilt, checksum-verified binaries to download; empty builds from the action's own source |
-| `sarif-file`, `junit-file`, `fail-on-findings` | Where the reports go, and whether findings fail the step |
+| `sarif-file`, `junit-file`, `html-file`, `fail-on-findings` | Where the reports go (SARIF, JUnit, and one HTML page to upload as an artifact), and whether findings fail the step |
 
 Three things to know before you add it:
 
