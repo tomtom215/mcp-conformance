@@ -197,6 +197,10 @@ mod check;
 mod check_auth;
 
 #[cfg(unix)]
+#[path = "cli/check_answers.rs"]
+mod check_answers;
+
+#[cfg(unix)]
 #[path = "cli/check_edges.rs"]
 mod check_edges;
 
