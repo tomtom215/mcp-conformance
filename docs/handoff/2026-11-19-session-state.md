@@ -20,12 +20,16 @@ State at the end of 2026-11-20. The owner accepted ADR-0024 and ADR-0025, asked 
 once it is judged ready, and widened the ask the same day: coverage as near 100% as feasible,
 defaults that need no flags, a redesigned report and workbench, a GitHub Marketplace listing.
 
-1. Read CI on the branch tip. The last run read whole was 550 (`2cfd290`, `success`). Everything
-   after it landed in a few hours and each push cancelled the run before it; run 552 failed
-   `Documentation` (a stale falsifier, fixed in `860fd75`) and `Visual`.
-2. **Visual baselines.** All 32 are stale since the redesign (`50d329c`) and can only be taken on
-   the CI runner: download the tip run's `visual-diffs` artifact, check its digest, look at the
-   images, copy each `*-actual.png` over `visual/tests/__screenshots__/<name>.png`.
+1. Read CI on the branch tip. Run 556 (`19653fd`) was read whole: 33 of 35 jobs `success`,
+   among them `Visual` on the new baselines, every test and clippy leg on Linux, macOS and
+   Windows at 1.100.0 and 1.88, `Conformance`, `Coverage`, `Semver` and the container image. The
+   two failures are fixed in the commit after it and that commit's run has not been read: the
+   `GitHub Action` job asserted a finding-free report from a `check` that now sends probes (its
+   step passes `--no-probes`), and the informational `Minimal versions` job could not build
+   rmcp's `auth` code against `http` 1.1.0 (floor raised to 1.2; the whole job then passed
+   locally on a nightly-generated minimal lockfile, 2439 tests).
+2. The visual baselines are taken (`19653fd`, from run 555's artifact); nothing is owed there
+   unless the report or workbench changes again.
 3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
 4. Open the pull request when asked: its sixteen mutation shards are the first full mutation run
    over today's code.
@@ -81,9 +85,9 @@ The owner asked for the release when it is adversarially judged ready. It is not
 - About 9,000 lines landed in one day from seven agents. Mutation testing covers the transport
   checks (100 of 100 caught), the OAuth code (72, all caught after a test fix) and a fifth of the
   feature checks; the base and client-feature checks, the probes and the redesign have had none.
-- No CI run has been read whole on any commit after `2cfd290`. Windows and macOS have not built
-  today's code.
-- The redesign has not been compared on CI's Chromium, and no screen reader has been run on it.
+- CI has run today's code on all three platforms (run 556), but the mutation job runs only on
+  a pull request, and none is open.
+- No screen reader has been run on the redesign.
 - One judgement in the new checks is worth a second opinion before it ships as a MUST-level
   failure: `RES-019` fails a server that refuses a read under a scheme it names nowhere with a
   code other than `-32602`.

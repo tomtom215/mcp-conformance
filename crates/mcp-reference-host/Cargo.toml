@@ -83,8 +83,11 @@ reqwest = { workspace = true, optional = true }
 futures = { version = ">=0.3.30, <0.4", optional = true }
 sse-stream = { version = ">=0.2.4, <0.3", optional = true }
 # Feature `oauth`: the `StreamableHttpClient` trait's header-map types. Already
-# in the tree (reqwest's and rmcp's own); floor 1.1 is reqwest's `http ^1.1`.
-http = { version = ">=1.1, <2", optional = true }
+# in the tree (reqwest's and rmcp's own). The floor is 1.2, not reqwest's 1.1:
+# rmcp's `auth` code names `StatusCode::TOO_EARLY`, which 1.1.0 does not have
+# (CI's minimal-versions job, 2026-11-20; reproduced by pinning the lock: 1.1.0
+# fails, 1.2.0 builds), and rmcp declares no floor for it.
+http = { version = ">=1.2, <2", optional = true }
 # Minimal-versions floor shim for feature `oauth`: oauth2 5.0.0 declares
 # thiserror "1.0" and does not compile against 1.0.0 (unresolved import and a
 # missing `as_display`; reproduced 2026-11-20 by pinning the lock to 1.0.0,

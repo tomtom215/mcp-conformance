@@ -797,13 +797,16 @@ jobs:
           junit-file: badclient.xml
           fail-on-findings: "false"
       # `check`: the action exercises the server itself. Every tool is called,
-      # and the session is judged for the server.
+      # and the session is judged for the server. Without `check`'s probes
+      # here: they are requests made wrong on purpose, so the report holds
+      # them against the client, and this step is the one asserted below to
+      # produce no finding at all. `cargo xtask conformance` runs the probes.
       - name: A stdio server, checked
         id: check
         uses: ./ # zizmor: ignore[self-repository]
         with:
           check: target/debug/mcp-everything-server --transport stdio --protocol-version 2026-07-28
-          check-options: --call-all
+          check-options: --call-all --no-probes
           capture-dir: capture-check
           sarif-file: check.sarif
           junit-file: check.xml
