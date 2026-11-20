@@ -16,13 +16,58 @@ short of the release commit, and did not bump the version, tag or publish.
 
 ## Do this first
 
-1. Read the CI run on the branch tip (`gh run list --branch claude/busy-cray-9rvb8c`). Runs
-   542 (on `70c65d7`) and 543 (on `67bcf61`) completed with `success`; the commit that carries
-   this line changes only this file and its JSON copy. Before them, 536 failed twelve jobs and
-   541 four, each addressed in the table below; the pushes between were cancelled by the next.
-2. Decide the three questions under "Maintainer decisions", then open the pull request. Its
-   `Mutants (PR diff)` run will be the first mutation run over the transport and driver code (see
-   "Not done").
+State on 2026-11-20, after the owner accepted ADR-0024 and ADR-0025, asked for the release once it
+is judged ready, and then widened the ask (coverage as near 100% as feasible, defaults that need no
+flags, a redesigned report and workbench, a GitHub Marketplace listing).
+
+1. Read CI on the branch tip. Run 548 (`55845b9`) completed `success`; 547 failed two jobs, both
+   fixed in `55845b9` (the `clap_complete` floor and eight visual baselines).
+2. **Agents were working in git worktrees under `.claude/worktrees/` when this was written**, each
+   told to commit locally and never push. Their branches are `worktree-agent-<id>`; cherry-pick or
+   merge what is sound, then regenerate (`cargo xtask bless`, `coverage`, `draft-coverage`,
+   `mcpsnoop --render`; the mcpsnoop measurement needs the binary) and take visual baselines from
+   CI. What each was asked for is under "In flight". They were started from `main` by mistake and
+   told to rebase onto this branch; check that each did.
+3. The `0.7.0` release commit (`RELEASING.md`, checklist step 1) is **not made**. The release
+   pass so far is under "Release pass". Do it after the in-flight work lands or is set aside.
+
+## In flight
+
+| Work | Where | State |
+|---|---|---|
+| Redesign of the HTML report and the workbench (design tokens, summary visualisation, plain-language first screen) | worktree agent, `crates/mcp-trace-validator/src/html*`, `crates/mcp-conformance-cli/src/workbench/ui/` | Running. All 32 visual baselines will need re-taking from CI |
+| Newly judgeable clauses, as stimulus-conditional passive checks: server features; transport; base, lifecycle, MRTR, roots, elicitation | three worktree agents; brief at the scratchpad's `checks-brief.md` (not in the repository) | Running. They commit registry, checks, tests and corpus traces, and leave goldens and tables to be regenerated after merging |
+| The 22 `auth/*` client scenarios of the official suite, through rmcp's `auth` feature in the reference host | worktree agent | Running; may conclude it cannot be done soundly |
+| `check` sending the stimuli those checks recognise (probes), on by default where safe | not started | Depends on the checks above: each defines its stimulus |
+
+The classification behind the checks work: all 566 excluded core clauses were read by five
+agents, each against the clause's quote and the code. 240 have no wire observable, 30 happen
+between other parties (client and authorization server), 131 bind a client and need it put under a
+scripted server, 41 restate clauses judged under other IDs, 24 need the recorder to capture more
+(stream identity, SSE fields, stdin close), and 100 are judgeable: 19 from a recording and 81 when a
+client sends a deliberate stimulus. The per-clause rows are model output, unverified until a check
+is written; the brief says so. So the honest ceiling for a wire tool is far below 100% of clauses,
+and the route to it is probes in `check`, a client harness, and a recorder that captures more.
+
+## Release pass
+
+Run on 2026-11-20 against the tip of the day.
+
+| Check | Result |
+|---|---|
+| `cargo xtask semver --unreleased` (cargo-semver-checks 0.51.0, built from crates.io) | Every break it lists is in the changelog's table; three capture types that lost `UnwindSafe` were missing from the row and were added |
+| `cargo package` of the five published crates, `cargo deny --all-features check` | exit 0; `advisories ok, bans ok, licenses ok, sources ok` |
+| `cargo install --path crates/mcp-conformance-cli --locked` into an empty root, then `check` against `server-memory`, `server-filesystem`, `server-everything` from npm | exit 0 each; `pass-with-warnings`, `pass`, `pass-with-warnings` |
+| Hostile inputs to the installed binary | Two defects, both fixed with tests: an unreachable URL was reported as "the server answered HTTP 502" (the recorder's own status); a program that cannot start was named twice |
+| CI's minimal-versions job | `completions` panicked inside `clap_complete` 4.6.0 and older; floor raised to 4.6.3 (bisected) |
+| `cargo +1.88.0 test --workspace --all-features` | 2233 passed; the 2 failures were tests edited while it ran, and pass on a re-run of that crate |
+| Not done | The release commit; a rehearsal run of `release.yml`; the README read as GitHub renders it |
+
+Measured and not acted on: with its pending set (`--suite all`), the pre-release
+`0.2.0-alpha.12` suite reports 117 passing and 22 failing checks in 13 scenarios against the
+everything server's `2026-07-28` mode (`server-stateless`, `json-schema-2020-12`,
+`http-custom-header-server-validation` and ten `input-required-result-*`), with 5 unexplained
+wire-schema divergences. `draft-readiness` stays on the active set (42 passing, 0 failing).
 
 ## What was asked, and what was found
 
