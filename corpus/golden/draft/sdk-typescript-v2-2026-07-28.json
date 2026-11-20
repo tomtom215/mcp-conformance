@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "pass",
   "totals": {
-    "pass": 72,
+    "pass": 73,
     "fail": 0,
     "warn": 0,
     "excluded": 320,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 109
+    "not_observed": 108
   },
   "requirements": [
     {
@@ -477,7 +477,7 @@
       "id": "VERS-004",
       "level": "MUST",
       "actor": "both",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "VERS-008",
@@ -1107,5 +1107,232 @@
       "quote": "This is the source of truth for all protocol messages and structures.",
       "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#schema"
     }
-  }
+  },
+  "extensions": [
+    {
+      "extension": "io.modelcontextprotocol/skills",
+      "verdict": "pass",
+      "totals": {
+        "pass": 3,
+        "fail": 0,
+        "warn": 0,
+        "excluded": 65,
+        "unsupported": 0,
+        "not_applicable": 0,
+        "not_observed": 32
+      },
+      "requirements": [
+        {
+          "id": "SKILL-002",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-003",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-004",
+          "level": "MUST NOT",
+          "actor": "client",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-005",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "pass"
+        },
+        {
+          "id": "SKILL-007",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-008",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-011",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-012",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-013",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-014",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-015",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-018",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "pass"
+        },
+        {
+          "id": "SKILL-019",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "pass"
+        },
+        {
+          "id": "SKILL-020",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-026",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-027",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-029",
+          "level": "SHOULD",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-034",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-035",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-036",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-037",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-042",
+          "level": "SHOULD NOT",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-044",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-045",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-047",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-048",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-049",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-050",
+          "level": "MUST",
+          "actor": "client",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-051",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-053",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-065",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-066",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-100",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-067",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        },
+        {
+          "id": "SKILL-071",
+          "level": "MUST",
+          "actor": "server",
+          "outcome": "not-observed"
+        }
+      ]
+    }
+  ]
 }
