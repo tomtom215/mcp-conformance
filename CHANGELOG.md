@@ -1107,6 +1107,8 @@ not yet published to crates.io)
   this map now reads (an id-less error, an unfounded or wrongly-statused `-32020`,
   `outputSchema`). Divergent traces 13 → 7; agreeing 79 → 86.
 
+- `@playwright/test` 1.63.0 → 1.64.1 (the visual suite; Dependabot #66).
+
 - **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's
   `2026-07-28` scenarios pass 42 of 42 against the server serving `2025-11-25`
