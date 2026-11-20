@@ -206,7 +206,7 @@ const FALSIFIERS: &[Falsifier] = &[
             "violation_traces_fail_and_match_goldens",
         ]),
         file: "corpus/golden/base-001-request-id-boolean.json",
-        edit: Edit::Replace("\"pass\": 16,", "\"pass\": 17,"),
+        edit: Edit::Replace("\"pass\": 17,", "\"pass\": 18,"),
         expect: "base-001-request-id-boolean",
     },
 ];
