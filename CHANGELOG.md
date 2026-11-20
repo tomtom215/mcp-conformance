@@ -98,6 +98,16 @@ below is stated again in its entry, with the reasoning.
 
 ### Fixed
 
+- **`mcp-everything-server` in its `2025-11-25` mode named `2026-07-28` among the
+  revisions it supported** (rmcp's whole list, in `server/discover` and in what
+  `initialize` would agree to) and did not keep that revision's rules: no `serverInfo`
+  in results (`BASE-037`), and log notifications no request asked for (`LOG-008`).
+  `mcp-conformance check` found it. The mode now names the revisions up to its own and
+  answers a `2026-07-28` request with `UnsupportedProtocolVersionError` (`-32022`, HTTP
+  `400`) listing them. **Behaviour change** for anyone who sent that mode `2026-07-28`
+  requests: use `--protocol-version 2026-07-28`. `cargo xtask draft-readiness` measures
+  the stateless mode alone (42 passing / 0 failing on `0.2.0-alpha.12`).
+
 - **`mcp-conformance test` held a server to the official suite's own client's
   findings.** A conforming third-party server ended `agreement: does not hold`
   because the suite's client calls `logging/setLevel` and others on servers that

@@ -184,7 +184,14 @@ so it could not tell the two apart. This project's registry could, and flagged
 the `2025-11-25` server for returning cacheable results without the cache hints
 `2026-07-28` requires (CACH-001). Six weeks later `alpha.11` added a schema check
 and found the same clause, independently, from the other side. The server's SDK
-then fixed it: since rmcp 3.5.1 both legs score 42 passing / 0 failing.
+then fixed it, and from rmcp 3.5.1 both servers scored 42 passing / 0 failing.
+
+The pair ended there. Asked `server/discover`, the `2025-11-25` server still named
+`2026-07-28` among the revisions it supported, and `mcp-conformance check`, which
+believes what a server says, held it to that revision and found two clauses it did
+not keep (`BASE-037`, `LOG-008`), where the suite's scenarios passed. Since
+2026-11-20 that server names only the revisions it serves and refuses the rest, so
+the measurement now has one leg: the server that implements `2026-07-28`.
 
 ## The next revision
 

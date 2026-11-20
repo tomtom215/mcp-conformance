@@ -78,33 +78,20 @@ fn legs(root: &Path) -> Result<usize, String> {
     let server = binary(root, "mcp-everything-server");
     let mut sessions = 0;
     for revision in REVISIONS {
-        // The legacy mode is rmcp's dual-era surface: asked `server/discover`
-        // it names `2026-07-28` too, so the legacy sessions name the revision
-        // they mean, and the modern ones take the default (the probe).
-        let speak = if revision == REVISIONS[0] {
-            vec!["--spec-version".to_owned(), revision.to_owned()]
-        } else {
-            Vec::new()
-        };
+        // No `--spec-version`: each mode names only the revisions it serves,
+        // so the default (ask `server/discover`, fall back to `initialize`)
+        // must arrive at the served one, and the summary is held to that.
         let stdio = [
-            speak.clone(),
-            vec![
-                "--".to_owned(),
-                server.display().to_string(),
-                "--protocol-version".to_owned(),
-                revision.to_owned(),
-            ],
-        ]
-        .concat();
+            "--".to_owned(),
+            server.display().to_string(),
+            "--protocol-version".to_owned(),
+            revision.to_owned(),
+        ];
         session(root, &dir, &format!("stdio-{revision}"), revision, &stdio)?;
         let Some((mut child, address)) = start_server(root, &dir.join("tap"), revision) else {
             return Err("the everything server did not start".to_owned());
         };
-        let http = [
-            speak,
-            vec!["--url".to_owned(), format!("http://{address}/mcp")],
-        ]
-        .concat();
+        let http = ["--url".to_owned(), format!("http://{address}/mcp")];
         let outcome = session(root, &dir, &format!("http-{revision}"), revision, &http);
         let _ = child.kill();
         let _ = child.wait();

@@ -4,11 +4,8 @@
 # ADR 0024: `check` — an Exerciser That Does Only What a Conforming Client Does
 
 **Date:** 2026-10-24
-**Status:** Implemented 2026-11-19 on the maintainer's instruction to make the toolkit
-usable by someone with only a server; formal acceptance is the maintainer's, and is given
-by tagging the release that ships the command (rejecting it is removing the command
-before that tag). What was built, and where it departs from the text below, is in
-"As built" at the end.
+**Status:** Accepted (by the maintainer, 2026-11-20; implemented 2026-11-19; what was
+built, and where it departs from the text below, is in "As built" at the end)
 **Author:** Tom F. (maintainer); drafted by Claude Code
 
 ---
@@ -160,17 +157,17 @@ checked against the code and a test:
   (CHANGELOG, `Unreleased`).
 - **Item 10.** `cargo xtask exerciser` (also a leg of `cargo xtask conformance`): four
   sessions, stdio and HTTP at both revisions, `--call-all`, each required to exit `0`
-  and to judge clean under `validate --strict` with no party view. The legacy sessions
-  pass `--spec-version 2025-11-25`, because the everything server's legacy mode
-  answers `server/discover` naming `2026-07-28` (see below).
+  and to judge clean under `validate --strict` with no party view, and to have run
+  under the revision the server mode serves, which the default negotiation must find.
 
 **Found by the first runs.** The everything server in its default (`2025-11-25`) mode
-answers `server/discover` with rmcp's whole version list, `2026-07-28` included, and a
-client that believes it and speaks that revision is then answered without
+answered `server/discover` with rmcp's whole version list, `2026-07-28` included, and a
+client that believed it and spoke that revision was then answered without
 `serverInfo` in results (`BASE-037`, SHOULD) and, in a `--call-all` run, with log
 notifications no request asked for (`LOG-008`, MUST NOT). The official suite's
-`2026-07-28` scenarios pass on that mode (the `draft-readiness` legacy leg), so this
-is a difference the clause report sees and the scenarios do not. It is left as it is
-here: that mode's dual-era surface is a recorded, deliberate measurement, and whether
-it should stop naming a revision it does not fully keep is a decision for the
-maintainer, not a side effect of this change.
+`2026-07-28` scenarios passed on that mode (the `draft-readiness` legacy leg), so this
+was a difference the clause report sees and the scenarios do not. **Decided 2026-11-20:** the
+legacy mode names only the revisions it serves and refuses the rest with
+`UnsupportedProtocolVersionError`; the `draft-readiness` legacy leg is gone with the
+behaviour it measured; and the exerciser leg uses the default negotiation for both
+modes, which now arrives at the served revision in each.

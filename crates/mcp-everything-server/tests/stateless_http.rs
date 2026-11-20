@@ -416,11 +416,11 @@ async fn every_result_names_the_server_over_the_wire() {
 }
 
 #[tokio::test]
-async fn the_older_revision_still_names_itself_only_where_rmcp_does() {
-    // `2025-11-25` defines no `serverInfo` in a result's `_meta`, and the
-    // legacy server answering a `2026-07-28` request — what `draft-readiness`
-    // drives every run — is that server held to a revision it does not
-    // implement. Its answer is unchanged: the field stays off `tools/list`.
+async fn the_older_revision_does_not_serve_the_newer_one() {
+    // The legacy mode used to answer a `2026-07-28` request with rmcp's
+    // dual-era surface, under rules it did not keep (no `serverInfo` in a
+    // result's `_meta`). It now refuses the revision and says which it
+    // serves, which is what a server that does not implement one owes.
     let legacy = mcp_everything_server::http::router(
         HttpSecurityPolicy::default(),
         ServedRevision::V2025_11_25,
@@ -433,16 +433,13 @@ async fn the_older_revision_still_names_itself_only_where_rmcp_does() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
         .await
         .unwrap();
-    let text = String::from_utf8_lossy(&body).into_owned();
-    let payload = text
-        .lines()
-        .find_map(|line| line.strip_prefix("data: "))
-        .unwrap_or(&text);
-    let answer: Value = serde_json::from_str(payload).unwrap();
-    let result = answer.get("result").unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(named_server(result), None, "{result}");
+    let answer: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(answer["error"]["code"], -32022, "{answer}");
+    let supported = answer["error"]["data"]["supported"].as_array().unwrap();
+    assert!(supported.contains(&Value::from("2025-11-25")), "{answer}");
+    assert!(!supported.contains(&Value::from("2026-07-28")), "{answer}");
 }

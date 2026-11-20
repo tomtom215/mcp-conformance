@@ -12,12 +12,17 @@
 //! records the score against a committed baseline
 //! (`conformance/draft-readiness.json`).
 //!
-//! Two legs, one per [`SERVED_REVISIONS`] entry, because the server now has a
-//! `2026-07-28` mode of its own. The legacy leg is the migration-distance
-//! measurement this task was built for. The stateless leg measures the new
-//! mode against the same scenarios, which is the only number that says
-//! anything about the new code — and its recording is the workspace's one
-//! captured session of a *conforming* stateless server.
+//! One leg: the server's `2026-07-28` mode. Until 2026-11-20 there was a
+//! second, the legacy (`2025-11-25`) mode held to the same scenarios, as the
+//! migration-distance measurement this task was built for. It scored the same
+//! as the stateless mode, because rmcp answered a per-request-versioned
+//! request whichever revision the handler advertised; the clause report did
+//! not agree (`BASE-037`, and `LOG-008` once `mcp-conformance check` called
+//! every tool), and the legacy mode now names only the revisions it serves
+//! and refuses the rest. A leg whose every scenario is refused measures
+//! nothing, and the distance it once estimated has been zero since the
+//! stateless mode shipped. Scenario keys keep the served-revision prefix, so
+//! the baseline's shape is unchanged and a second mode could be added back.
 //!
 //! The revision itself shipped on 2026-07-28 (register 1.5h), so "draft" in
 //! this task's name now describes the *scenarios*, not the specification: they
@@ -37,9 +42,10 @@
 //! still move, so a disagreement here is as likely to be the suite settling as
 //! a defect, and folding it into the agreement gate would make a released
 //! pin's verdict hostage to an alpha's. The reconciliation still happens — the
-//! two recordings this task takes are committed to `corpus/draft/captured/`,
-//! where the golden suite replays them through the `2026-07-28` registry on
-//! every `cargo test`. It is simply a separate reckoning from this one. The
+//! recording this task takes is committed to `corpus/draft/captured/` (beside
+//! the legacy mode's last one, of 2026-10-13, kept as captured), where the
+//! golden suite replays them through the `2026-07-28` registry on every
+//! `cargo test`. It is simply a separate reckoning from this one. The
 //! one reconciliation that does run here is the wire schema's: the runner's
 //! `wire-schema-valid` check names the messages it flags, so each leg's are
 //! compared with the validator's over that leg's recording, against
@@ -88,16 +94,10 @@ const RESULTS_DIR: &str = "target/draft-readiness";
 /// ([ADR-0006](../../docs/plan/decisions/0006-capability-gated-applicability.md)).
 pub(super) type Scenario = BTreeMap<String, String>;
 
-/// The server modes measured, by the `--protocol-version` each is started with.
-///
-/// Two legs, not one, since the server gained a `2026-07-28` mode: the legacy
-/// leg answers "how far is the migration", which is what this task was built to
-/// measure, and the stateless leg answers "and how much does the new mode
-/// actually get right" — a question the first leg cannot reach, because a
-/// server implementing the older revision fails the newer scenarios for reasons
-/// that say nothing about the newer code. Scenario keys are prefixed with the
-/// revision served, so one baseline holds both and a change in either is news.
-const SERVED_REVISIONS: [&str; 2] = ["2025-11-25", "2026-07-28"];
+/// The server modes measured: the stateless one (the module docs say why the
+/// legacy mode is no longer among them). Scenario keys are prefixed with the
+/// revision served.
+const SERVED_REVISIONS: [&str; 1] = ["2026-07-28"];
 
 pub(crate) fn run(bless: bool) -> ExitCode {
     let root = crate::workspace_root();
@@ -151,10 +151,10 @@ pub(crate) fn run(bless: bool) -> ExitCode {
 /// it recorded nothing at all here — it keyed every exchange on
 /// `Mcp-Session-Id` and `2026-07-28` has no sessions — so these runs threw away
 /// the only independently-generated traffic of the revision this workspace can
-/// obtain. Each leg's recording now lands in
-/// `target/draft-readiness/<revision>/tap/001-stateless.jsonl`, and both are
+/// obtain. The recording now lands in
+/// `target/draft-readiness/<revision>/tap/001-stateless.jsonl`, and is
 /// committed under `corpus/draft/captured/`, where the golden suite
-/// re-validates them on every `cargo test`.
+/// re-validates it on every `cargo test`.
 fn measure(root: &Path, leg: &Path, revision: &str) -> Result<BTreeMap<String, Scenario>, String> {
     let tap_dir = leg.join("tap");
     let (mut server, address) = crate::conformance::start_server(root, &tap_dir, revision)

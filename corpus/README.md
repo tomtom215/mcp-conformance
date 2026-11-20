@@ -284,6 +284,13 @@ and URL mode's `elicitationId` (URL-mode elicitation itself remains), and moved
 `list_changed` notifications into subscriptions. Each listing is the first page;
 neither session follows `nextCursor`.
 
+**The legacy half of this pair is a dated recording.** Since 2026-11-20 the
+`2025-11-25` server names only the revisions it serves, and answers a `2026-07-28`
+request with `UnsupportedProtocolVersionError`, so `official-suite-2026-07-28-scenarios.jsonl`
+records a behaviour the server no longer has. It is kept as captured on 2026-10-13
+(the golden suite still replays it), `cargo xtask draft-readiness` no longer
+measures that mode, and what follows describes the pair as it was recorded.
+
 **The one finding left: BASE-037, a warning, on the legacy leg.** Of that
 server's 24 results only the `server/discover` one carries
 `io.modelcontextprotocol/serverInfo` in its `_meta`; rmcp sets it there and on
