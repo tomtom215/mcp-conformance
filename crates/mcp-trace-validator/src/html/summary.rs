@@ -7,6 +7,7 @@ use core::fmt::Write as _;
 
 use super::escape::Text;
 use super::{Scope, Trace, trace_verdict};
+use super::{chart, hero};
 use crate::baseline::{Entry, Notes};
 use crate::report::{Outcome, Report, Totals, Unjudged, Verdict};
 
@@ -46,7 +47,7 @@ fn badge(out: &mut String, verdict: Verdict) {
 pub(super) fn masthead(out: &mut String, scope: &Scope<'_>, eyebrow: &str) {
     let _ = writeln!(
         out,
-        "<header class=\"masthead\"><div class=\"wrap\">\n<p class=\"eyebrow\">{eyebrow}</p>\n\
+        "<header class=\"masthead\"><div class=\"wrap\">\n<p class=\"eyebrow\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>{eyebrow}</p>\n\
          <h1 class=\"trace-name\">{}</h1>",
         Text(&scope.name())
     );
@@ -94,7 +95,7 @@ fn meta(out: &mut String, scope: &Scope<'_>) {
 pub(super) fn run_masthead(out: &mut String, total: usize) {
     let _ = writeln!(
         out,
-        "<header class=\"masthead\"><div class=\"wrap\">\n<p class=\"eyebrow\">MCP trace validation run</p>\n\
+        "<header class=\"masthead\"><div class=\"wrap\">\n<p class=\"eyebrow\"><span class=\"brand-mark\" aria-hidden=\"true\"></span>MCP trace validation run</p>\n\
          <h1>{total} {}</h1>\n</div></header>",
         if total == 1 { "trace" } else { "traces" }
     );
@@ -107,17 +108,13 @@ pub(super) fn run_summary(
     unjudged: &[Unjudged],
     overall: Verdict,
 ) {
-    let _ = write!(
+    let _ = writeln!(
         out,
-        "<section class=\"panel verdict v-{}\" aria-label=\"Run verdict\">\n<p class=\"verdict-line\">",
+        "<section class=\"panel verdict v-{}\" aria-label=\"Run verdict\">",
         verdict_class(overall)
     );
-    badge(out, overall);
-    out.push_str("<span class=\"verdict-why\">the most severe verdict of the run");
-    if !unjudged.is_empty() {
-        out.push_str(", which left a trace unjudged");
-    }
-    out.push_str("</span></p>\n<ol class=\"runlist\">\n");
+    hero::run(out, traces, unjudged, overall);
+    out.push_str("<ol class=\"runlist\">\n");
     for (index, (trace, reports)) in traces.iter().enumerate() {
         let _ = write!(
             out,
@@ -143,29 +140,28 @@ pub(super) fn run_summary(
     out.push_str("</ol>\n</section>\n");
 }
 
-/// The verdict panel: the verdict, why, and the counts — one card per revision
-/// when there are several.
+/// The verdict panel: the verdict, what it means and what to do next, then
+/// the counts drawn and named — one card per revision when there are several.
 pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
     let overall = trace_verdict(scope.reports);
-    let _ = write!(
+    let _ = writeln!(
         out,
-        "<section class=\"panel verdict v-{}\" aria-label=\"Verdict\">\n<p class=\"verdict-line\">",
-        verdict_class(overall)
+        "<section class=\"panel verdict v-{}\" aria-label=\"{}\" id=\"{}\">",
+        verdict_class(overall),
+        scope.landmark("Verdict"),
+        scope.id("summary")
     );
-    badge(out, overall);
     if let [report] = scope.reports {
-        let _ = writeln!(
-            out,
-            "<span class=\"verdict-why\">{}</span></p>",
-            why(report)
-        );
-        tally(out, &report.totals);
-        schema_line(out, report);
+        hero::open(out, overall, &hero::headline(report));
+        hero::next_step(out, scope, overall);
+        hero::close(out, &why(report));
+        counts(out, report);
     } else {
-        let _ = writeln!(
+        hero::open(out, overall, &hero::revisions_headline(scope.reports));
+        hero::next_step(out, scope, overall);
+        hero::close(
             out,
-            "<span class=\"verdict-why\">the most severe of {} revisions</span></p>",
-            scope.reports.len()
+            &format!("the most severe of {} revisions", scope.reports.len()),
         );
         out.push_str("<div class=\"revisions\">\n");
         for report in scope.reports {
@@ -178,14 +174,25 @@ pub(super) fn verdict(out: &mut String, scope: &Scope<'_>) {
                 Text(&report.revision)
             );
             badge(out, report.effective_verdict());
-            let _ = writeln!(out, "</p>\n<p class=\"verdict-why\">{}</p>", why(report));
-            tally(out, &report.totals);
-            schema_line(out, report);
+            let _ = writeln!(
+                out,
+                "</p>\n<p class=\"headline\">{}</p>\n<p class=\"verdict-why\">{}</p>",
+                Text(&hero::headline(report)),
+                why(report)
+            );
+            counts(out, report);
             out.push_str("</section>\n");
         }
         out.push_str("</div>\n");
     }
     out.push_str("</section>\n");
+}
+
+/// One report's counts: drawn, then named, then the wire schema's own line.
+fn counts(out: &mut String, report: &Report) {
+    chart::breakdown(out, &report.totals);
+    tally(out, &report.totals);
+    schema_line(out, report);
 }
 
 /// Why the report reached its verdict, in a sentence — and, under a party
@@ -249,7 +256,7 @@ fn causes(report: &Report) -> String {
 }
 
 /// `count` and the noun that agrees with it.
-fn plural(count: u32, one: &str, many: &str) -> String {
+pub(super) fn plural(count: u32, one: &str, many: &str) -> String {
     format!("{count} {}", if count == 1 { one } else { many })
 }
 
@@ -441,12 +448,17 @@ pub(super) fn contents(out: &mut String, scope: &Scope<'_>) {
     };
     let _ = writeln!(
         out,
-        "<nav class=\"contents\" aria-label=\"Sections\"><a href=\"#{}\">Clauses to act on \
+        "<nav class=\"contents\" aria-label=\"{}\"><p class=\"contents-title\">On this page</p>\
+         <a href=\"#{}\">Summary</a><a href=\"#{}\">Clauses to act on \
          <span class=\"count\">{attention}</span></a>{extensions}<a href=\"#{}\">Message timeline \
-         <span class=\"count\">{}</span></a><a href=\"#{}\">Accounting</a></nav>",
+         <span class=\"count\">{}</span></a><a href=\"#{}\">Results by area</a>\
+         <a href=\"#{}\">Accounting</a></nav>",
+        scope.landmark("Sections"),
+        scope.id("summary"),
         scope.id("findings"),
         scope.id("timeline"),
         scope.trace.events.len(),
+        scope.id("areas"),
         scope.id("accounting"),
     );
 }

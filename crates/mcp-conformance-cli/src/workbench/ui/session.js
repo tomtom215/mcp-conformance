@@ -5,7 +5,7 @@
 // timeline (each finding linked to its event and back), the inspector, and
 // following a trace that is still being written.
 
-import { h, replace, api, badge, pill, notice, enc } from './dom.js';
+import { h, replace, api, badge, pill, notice, enc, stackedBar, emptyState, plural } from './dom.js';
 import { eventItem } from './inspector.js';
 import { redactDialog, tagsDialog, confirmDialog } from './admin.js';
 
@@ -29,19 +29,76 @@ function provenance(summary) {
   return rows.length ? h('section', { class: 'panel provenance', 'aria-label': 'Provenance' }, rows) : null;
 }
 
+const GLYPHS = { pass: '✓', 'pass-with-warnings': '!', fail: '✕' };
+const TONES = { 'pass-with-warnings': 'warn', unjudged: 'incomplete' };
+
+/** What the verdict means, in a sentence a newcomer can act on. */
+function headline(data) {
+  const { summary, totals } = data;
+  if (summary.verdict === 'unjudged') return 'This recording could not be judged, so it has no result.';
+  if (totals.length > 1) return `Judged at ${totals.length} protocol revisions; the result shown is the most severe of them.`;
+  const t = totals[0]?.totals || {};
+  switch (summary.verdict) {
+    case 'fail':
+      return t.fail
+        ? `This session broke ${plural(t.fail, 'MUST-level rule')}${t.warn ? ` and did not follow ${plural(t.warn, 'recommendation')}` : ''}.`
+        : 'This session sent messages that do not match the protocol\'s schema.';
+    case 'pass-with-warnings':
+      return `No required rule was broken, but ${plural(t.warn, 'recommendation was', 'recommendations were')} not followed.`;
+    case 'pass':
+      return `No rule was broken: all ${t.pass} rules this session could be checked against held.`;
+    default:
+      return `${plural(t.unsupported, 'rule')} could not be checked by this version of the tool, so the result is not a pass.`;
+  }
+}
+
+/** The line under the headline: where to start. */
+function nextStep(data) {
+  const { summary, findings } = data;
+  const label = h('strong', {}, 'What to do next');
+  if (summary.verdict === 'unjudged') return h('p', { class: 'next' }, label, summary.unjudged);
+  if (!findings.length) return h('p', { class: 'next' }, label, 'Nothing to fix. A pass covers only what this session did; the counts below say how many rules never came up in it.');
+  const first = findings[0];
+  return h('p', { class: 'next' }, label, 'Start with ',
+    h('a', { href: `#/s/${enc(summary.id)}/${first.key}` }, first.requirement),
+    ': it says what was seen and quotes the rule, and “Go to event” opens the exact message.');
+}
+
+/** One revision's counts: two bars, then every number by name. */
+function counts(report) {
+  const t = report.totals;
+  const checked = t.pass + t.fail + t.warn;
+  const unchecked = t.not_observed + t.not_applicable + t.excluded + t.unsupported;
+  const ORDER = ['fail', 'warn', 'pass', 'unsupported', 'not_observed', 'not_applicable', 'excluded'];
+  return [
+    h('div', { class: 'breakdown' },
+      h('div', { class: 'bk-row' },
+        h('p', { class: 'bk-label' }, h('strong', {}, plural(checked, 'rule')), ' checked against this session'),
+        stackedBar([['fail', t.fail], ['warn', t.warn], ['pass', t.pass]])),
+      h('div', { class: 'bk-row' },
+        h('p', { class: 'bk-label' }, h('strong', {}, plural(unchecked, 'rule')), ' not checked here; the counts below say why'),
+        stackedBar([['unsupported', t.unsupported], ['not-observed', t.not_observed], ['not-applicable', t.not_applicable], ['excluded', t.excluded]]))),
+    h('dl', { class: 'tally' }, ORDER.map((key) => {
+      const value = t[key];
+      return h('div', { class: `t-${key.replace('_', '-')}${value ? '' : ' zero'}` }, h('dt', {}, key.replace('_', ' ')), h('dd', {}, String(value)));
+    })),
+  ];
+}
+
 function verdictPanel(data) {
   const summary = data.summary;
-  if (summary.verdict === 'unjudged') {
-    return h('section', { class: 'panel verdict v-incomplete' },
-      h('div', { class: 'verdict-line' }, badge('unjudged'), h('span', { class: 'verdict-why' }, summary.unjudged)));
-  }
-  return h('section', { class: `panel verdict v-${summary.verdict === 'pass-with-warnings' ? 'warn' : summary.verdict}` },
-    data.totals.map((report) => h('div', { class: 'rev-totals' },
-      h('div', { class: 'verdict-line' }, badge(report.verdict), h('span', { class: 'revision-name' }, report.revision)),
-      h('dl', { class: 'tally' }, ['pass', 'fail', 'warn', 'unsupported', 'not_observed', 'not_applicable', 'excluded'].map((key) => {
-        const value = report.totals[key];
-        return h('div', { class: `t-${key.replace('_', '-')}${value ? '' : ' zero'}` }, h('dt', {}, key.replace('_', ' ')), h('dd', {}, String(value)));
-      })))));
+  const tone = TONES[summary.verdict] || summary.verdict;
+  const several = data.totals.length > 1;
+  return h('section', { class: `panel verdict v-${tone}`, 'aria-label': 'Result' },
+    h('div', { class: 'hero' },
+      h('span', { class: 'hero-icon glyph', 'aria-hidden': 'true' }, GLYPHS[summary.verdict] || '?'),
+      h('div', { class: 'hero-body' },
+        h('p', { class: 'verdict-line' }, badge(summary.verdict)),
+        h('p', { class: 'headline' }, headline(data)),
+        nextStep(data))),
+    summary.verdict === 'unjudged' ? null : data.totals.map((report) => h('div', { class: 'rev-totals' },
+      several ? h('p', { class: 'verdict-line' }, h('span', { class: 'revision-name' }, report.revision), badge(report.verdict, true)) : null,
+      counts(report))));
 }
 
 function findingItem(id, finding, selected) {
@@ -57,16 +114,18 @@ function findingItem(id, finding, selected) {
         ? h('a', { class: 'to-event', href: `#/s/${enc(id)}/e${finding.seq}` }, `Go to event #${finding.seq}`)
         : h('span', { class: 'none' }, 'not at one event'),
       h('span', { class: 'check' }, finding.check)),
-    finding.quote ? h('details', { class: 'clause-quote' }, h('summary', {}, 'The clause'),
+    finding.quote ? h('details', { class: 'clause-quote' }, h('summary', {}, 'The rule it is held to'),
       h('blockquote', { class: 'quote' }, h('p', {}, finding.quote)),
-      finding.url ? h('a', { class: 'spec-link', href: finding.url, target: '_blank' }, 'Specification') : null) : null);
+      finding.url ? h('a', { class: 'spec-link', href: finding.url, target: '_blank' }, 'Read it in the specification') : null) : null);
 }
 
 function drawFindings() {
   const { id, data, at } = state;
   replace(state.findingsList, data.findings.length
     ? data.findings.map((finding) => findingItem(id, finding, at === finding.key))
-    : h('li', { class: 'empty' }, data.summary.verdict === 'unjudged' ? 'Not judged, so no findings.' : 'No findings: every judged clause held.'));
+    : data.summary.verdict === 'unjudged'
+      ? emptyState('No findings', 'This recording was not judged.', null, 'li')
+      : emptyState('No findings', 'Every rule this session could be checked against held.', null, 'li'));
   replace(state.findingsCount, String(data.findings.length));
 }
 
@@ -74,7 +133,7 @@ function drawTimeline() {
   const { id, events, at } = state;
   replace(state.timeline, events.length
     ? events.map((event) => eventItem(id, event, at === `e${event.seq}`))
-    : h('li', { class: 'empty' }, 'The trace holds no events.'));
+    : emptyState('No events', 'The trace holds no events.', null, 'li'));
   replace(state.eventCount, `${events.length} of ${state.data.total_events} events`);
   state.more.hidden = state.data.next === null || state.data.next === undefined;
 }
@@ -106,18 +165,22 @@ async function poll() {
   if (state.followBottom) state.timeline.lastElementChild?.scrollIntoView({ block: 'end' });
 }
 
+function fact(label, value, title = null) {
+  return h('div', {}, h('dt', {}, label), h('dd', { title }, value));
+}
+
 function header(summary) {
   const facts = summary.facts || {};
   return h('div', { class: 'page-head session-head' },
     h('div', { class: 'head-main' },
       h('p', { class: 'eyebrow' }, h('a', { href: '#/' }, 'Library'), ' / Session'),
       h('h1', { class: 'trace-name' }, summary.id),
-      h('p', { class: 'meta' },
-        h('span', {}, 'Recorded ', h('strong', {}, summary.when || 'date unknown')),
-        h('span', {}, 'Server ', h('strong', {}, facts.server || 'not recorded')),
-        h('span', {}, 'Client ', h('strong', {}, facts.client || 'not recorded')),
-        h('span', {}, 'Transport ', h('strong', {}, facts.transport)),
-        h('span', {}, 'SHA-256 ', h('strong', { title: summary.sha256 }, summary.sha256.slice(0, 12)))),
+      h('dl', { class: 'facts' },
+        fact('Recorded', summary.when || 'date unknown'),
+        fact('Server', facts.server || 'not recorded'),
+        fact('Client', facts.client || 'not recorded'),
+        fact('Transport', facts.transport),
+        fact('SHA-256', summary.sha256.slice(0, 12), summary.sha256)),
       h('div', { class: 'tags' }, summary.tags.map((tag) => h('span', { class: 'tag' }, tag)),
         h('button', { type: 'button', class: 'link', on: { click: () => tagsDialog(summary.id, summary.tags, () => render(state.main, { id: summary.id, at: state.at })) } }, summary.tags.length ? 'Edit tags' : 'Add tags'))),
     h('div', { class: 'actions' },

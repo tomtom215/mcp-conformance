@@ -1,0 +1,155 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright 2026 Tom F. (https://github.com/tomtom215) */
+/* The HTML report's stylesheet, part 1 of 3 (mcp-trace-validator, src/html/tokens.css,
+   then style.css, then detail.css, joined in that order). Inline in every report and
+   admitted by its Content Security Policy by digest; the workbench serves the same text as
+   /assets/report.css and builds on its tokens.
+
+   1. Tokens: every colour, size, radius, shadow and duration the two surfaces use. Nothing
+      below this block names a colour of its own.
+   2. Base, layout, then one block per part of the page.
+
+   Colour: each token is light-dark(light, dark), resolved by `color-scheme`, which follows
+   the reader's system setting (the workbench can pin it with [data-theme]).
+   Fonts: DejaVu first. Linux desktops alias the platform UI names (system-ui, Segoe UI,
+   Helvetica Neue, even sans-serif) to whatever font the machine prefers, so a stack led by
+   them renders differently on every Linux box; DejaVu (fonts-dejavu-core, installed wherever
+   fontconfig is) is the same everywhere, which is what the screenshot baselines rely on.
+   macOS and Windows rarely carry DejaVu and fall through to their own UI faces. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and ink. */
+  --bg: light-dark(#f5f6f8, #0d1117);
+  --surface: light-dark(#ffffff, #151a23);
+  --raised: light-dark(#ffffff, #1b212c);
+  --sunken: light-dark(#eef0f4, #1e2531);
+  --border: light-dark(#dde1e8, #2b3341);
+  --border-strong: light-dark(#838c9b, #6f7a8c);
+  --text: light-dark(#171b26, #e7ebf2);
+  --muted: light-dark(#566072, #9aa5b5);
+
+  /* Meaning. Each has an ink (text, marks) and a wash (the tint behind it). */
+  --accent: light-dark(#3046c8, #93a5ff);
+  --accent-wash: light-dark(#e9ecfd, #1b2140);
+  --on-accent: light-dark(#ffffff, #0d1117);
+  --success: light-dark(#12703a, #4cc779);
+  --success-wash: light-dark(#e4f4ea, #12291c);
+  --warning: light-dark(#855000, #e8b84a);
+  --warning-wash: light-dark(#fdf1d3, #2e2611);
+  --danger: light-dark(#b91c2c, #ff8b85);
+  --danger-wash: light-dark(#fdeaec, #34171a);
+  --info: light-dark(#6537c2, #c3a3ff);
+  --info-wash: light-dark(#f0eafd, #271d3d);
+  --neutral: var(--muted);
+  --neutral-wash: var(--sunken);
+  --target: light-dark(#fff4c2, #3a3212);
+
+  /* Chart fills: the four results as marks. Not the inks above: a mark needs 3:1 against
+     its surface and to stay apart from its neighbour under colour-vision deficiency, which
+     text-dark amber and red do not (checked with the dataviz palette validator). */
+  --fill-pass: light-dark(#168a55, #2f9f6c);
+  --fill-warn: light-dark(#c08a00, #b98c1e);
+  --fill-fail: light-dark(#cf2440, #e8616b);
+  --fill-unsupported: light-dark(#6a45d8, #9580ee);
+  /* Chart neutrals: three steps for the three reasons a rule was not checked. */
+  --n-1: light-dark(#6b7586, #8c97a8);
+  --n-2: light-dark(#a0a8b5, #596373);
+  --n-3: light-dark(#cdd2da, #353e4c);
+
+  /* The two directions of a session. */
+  --c2s: var(--accent);
+  --s2c: light-dark(#0b6b5d, #4cc9b0);
+
+  /* Type: two families and one scale. */
+  --sans: "DejaVu Sans", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "DejaVu Sans Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-2xs: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.0625rem;
+  --fs-xl: 1.3125rem;
+  --fs-2xl: 1.625rem;
+  --fs-3xl: 2.25rem;
+  --lh-tight: 1.25;
+  --lh-body: 1.55;
+
+  /* Space: a 4px scale. */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
+
+  /* Shape and depth. */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-ink: light-dark(rgb(23 27 38 / 0.08), rgb(0 0 0 / 0.5));
+  --shadow-1: 0 1px 2px var(--shadow-ink);
+  --shadow-2: 0 1px 2px var(--shadow-ink), 0 8px 24px -8px var(--shadow-ink);
+  --shadow-3: 0 2px 4px var(--shadow-ink), 0 24px 48px -12px var(--shadow-ink);
+
+  /* Motion and focus. */
+  --dur: 140ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --focus: var(--accent);
+  --ring: 2px solid var(--focus);
+
+  /* Names the workbench's older rules used; kept as aliases. */
+  --radius: var(--r-md);
+  --surface-2: var(--sunken);
+}
+
+/* Tones: a verdict or outcome class sets --tone, and what it styles reads it. */
+.v-pass, .o-pass, .g-pass { --tone: var(--success); --tone-wash: var(--success-wash); }
+.v-warn, .o-warn { --tone: var(--warning); --tone-wash: var(--warning-wash); }
+.v-fail, .o-fail { --tone: var(--danger); --tone-wash: var(--danger-wash); }
+.v-unsupported, .v-incomplete, .o-unsupported { --tone: var(--info); --tone-wash: var(--info-wash); }
+.o-excluded, .o-not-applicable, .o-not-observed, .g-excluded, .g-not-applicable, .g-not-observed {
+  --tone: var(--neutral); --tone-wash: var(--neutral-wash);
+}
+
+/* Fills: one class per outcome, for a bar's segment (fill) or a legend's swatch (background). */
+.s-pass { fill: var(--fill-pass); background: var(--fill-pass); }
+.s-warn { fill: var(--fill-warn); background: var(--fill-warn); }
+.s-fail { fill: var(--fill-fail); background: var(--fill-fail); }
+.s-unsupported { fill: var(--fill-unsupported); background: var(--fill-unsupported); }
+.s-not-observed, .s-unjudged { fill: var(--n-1); background: var(--n-1); }
+.s-not-applicable { fill: var(--n-2); background: var(--n-2); }
+.s-excluded, .s-unchecked { fill: var(--n-3); background: var(--n-3); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--fs-md)/var(--lh-body) var(--sans);
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.18em; transition: color var(--dur) var(--ease); }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: var(--ring); outline-offset: 2px; border-radius: var(--r-sm); }
+code, pre { font-family: var(--mono); font-size: 0.9em; }
+h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.01em; }
+p { margin: 0 0 var(--sp-3); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+
+.skip { position: absolute; left: -999rem; top: var(--sp-2); z-index: 20; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--surface); box-shadow: var(--shadow-2); }
+.skip:focus { left: var(--sp-4); }
+
+.wrap { max-width: 78rem; margin: 0 auto; padding-left: var(--sp-4); padding-right: var(--sp-4); }
+main.wrap { padding-top: var(--sp-5); padding-bottom: var(--sp-4); }
+@media (min-width: 48rem) {
+  .wrap { padding-left: var(--sp-8); padding-right: var(--sp-8); }
+  main.wrap { padding-top: var(--sp-8); }
+}
