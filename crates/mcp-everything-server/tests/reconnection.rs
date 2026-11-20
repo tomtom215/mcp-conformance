@@ -192,6 +192,27 @@ mod http {
         );
     }
 
+    /// Opens a `2025-11-25` session whose client declares `elicitation`, and
+    /// returns its id.
+    async fn eliciting_session(app: &axum::Router) -> String {
+        let initialize = INITIALIZE.replace(
+            r#""capabilities":{}"#,
+            r#""capabilities":{"elicitation":{}}"#,
+        );
+        let response = send(app, post(None).body(Body::from(initialize)).unwrap()).await;
+        let session = response.headers()["mcp-session-id"]
+            .to_str()
+            .unwrap()
+            .to_owned();
+        body_until_closed(response).await;
+        send(
+            app,
+            post(Some(&session)).body(Body::from(INITIALIZED)).unwrap(),
+        )
+        .await;
+        session
+    }
+
     /// The wrapper around rmcp's session manager passes on what a client
     /// posts into a session, and not only the requests it opens streams for:
     /// here the client's answer to the server's own request, without which
@@ -203,21 +224,7 @@ mod http {
         use tokio_stream::StreamExt as _;
 
         let app = router(ServedRevision::default());
-        let initialize = INITIALIZE.replace(
-            r#""capabilities":{}"#,
-            r#""capabilities":{"elicitation":{}}"#,
-        );
-        let response = send(&app, post(None).body(Body::from(initialize)).unwrap()).await;
-        let session = response.headers()["mcp-session-id"]
-            .to_str()
-            .unwrap()
-            .to_owned();
-        body_until_closed(response).await;
-        send(
-            &app,
-            post(Some(&session)).body(Body::from(INITIALIZED)).unwrap(),
-        )
-        .await;
+        let session = eliciting_session(&app).await;
 
         let call = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_elicitation","arguments":{"message":"who?"}}}"#;
         let response = send(&app, post(Some(&session)).body(Body::from(call)).unwrap()).await;
