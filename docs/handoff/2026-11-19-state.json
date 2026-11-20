@@ -69,11 +69,11 @@
     },
     {
       "id": "mutation-testing-of-new-code",
-      "status": "partial",
+      "status": "check_modules_done_C1_V2_not_run",
       "needs": [
         "the PR's Mutants run; expect survivors in check/session.rs and check/wire/"
       ],
-      "note": "pure check modules: 146 mutants, survivors closed; transports, driver and the merged C1/V2 code not run"
+      "note": "check: no survivor or timeout in the last run of each file; six files not re-run after the final edits; the merged C1/V2 code not run"
     },
     {
       "id": "everything-server-legacy-mode-names-2026-07-28",

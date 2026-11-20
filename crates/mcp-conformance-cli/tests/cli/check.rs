@@ -10,6 +10,11 @@
 //! The stdio leg against the real everything server binary is `cargo xtask
 //! conformance`'s: a test of this crate cannot name another package's binary.
 
+// The helpers `check_edges` shares are `pub(crate)`, which rustc's
+// `unreachable_pub` asks for and clippy's `redundant_pub_crate` objects to;
+// this follows rustc, as the crates' private modules do.
+#![allow(clippy::redundant_pub_crate)]
+
 use std::net::SocketAddr;
 
 use mcp_everything_server::policy::HttpSecurityPolicy;
@@ -19,7 +24,7 @@ use serde_json::Value;
 use super::*;
 
 /// The everything server on a loopback port, for the life of `runtime`.
-fn serve(runtime: &tokio::runtime::Runtime, revision: ServedRevision) -> SocketAddr {
+pub(crate) fn serve(runtime: &tokio::runtime::Runtime, revision: ServedRevision) -> SocketAddr {
     runtime.block_on(async {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
@@ -29,7 +34,7 @@ fn serve(runtime: &tokio::runtime::Runtime, revision: ServedRevision) -> SocketA
     })
 }
 
-fn runtime() -> tokio::runtime::Runtime {
+pub(crate) fn runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -37,7 +42,7 @@ fn runtime() -> tokio::runtime::Runtime {
         .unwrap()
 }
 
-fn stdout(output: &Output) -> String {
+pub(crate) fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
@@ -92,10 +97,8 @@ fn a_modern_http_server_is_exercised_and_the_exerciser_itself_breaks_no_clause()
         summary["resources"]["exercised"].as_u64().unwrap() >= 1,
         "{summary}"
     );
-    assert!(
-        summary["prompts"]["exercised"].as_u64().unwrap() >= 1,
-        "{summary}"
-    );
+    assert_eq!(summary["trace"], trace.display().to_string());
+    prompts_and_errors_are_accounted_for(&summary);
     // The recording shows the transport's request metadata, a designated
     // parameter mirrored among it, and no legacy session.
     let recorded = std::fs::read_to_string(&trace).unwrap();
@@ -114,6 +117,30 @@ fn a_modern_http_server_is_exercised_and_the_exerciser_itself_breaks_no_clause()
     // fail here.
     let both = judged_for_both_parties(&trace);
     assert_eq!(both.status.code(), Some(0), "{}", stdout(&both));
+}
+
+/// What the summary of a `--call-all` run against the everything server
+/// says of its prompts and of the tools that answer with an error.
+fn prompts_and_errors_are_accounted_for(summary: &Value) {
+    // The everything server lists five prompts, two of which require
+    // arguments: those two are named and left, the other three fetched.
+    assert_eq!(summary["prompts"]["exercised"], 3, "{summary}");
+    let mut left = names(summary, "requires arguments");
+    left.sort();
+    assert_eq!(
+        left,
+        [
+            "test_prompt_with_arguments",
+            "test_prompt_with_embedded_resource"
+        ]
+    );
+    // Some of its tools need a client capability this client does not
+    // declare, and answer with a JSON-RPC error: counted, as errors.
+    let errors = summary["tools"]["errors"].as_u64().unwrap();
+    assert!(
+        errors >= 1 && errors < summary["tools"]["exercised"].as_u64().unwrap(),
+        "{summary}"
+    );
 }
 
 #[test]
@@ -180,40 +207,54 @@ fn the_report_takes_validates_flags_and_formats() {
 
 /// A stdio server in `sh`: reads requests line by line and answers by method,
 /// echoing each request's id. `$1` selects the behaviour under test.
-const SERVER: &str = r#"mode=$1
+pub(crate) const SERVER: &str = r#"mode=$1
 answer() { printf '{"jsonrpc":"2.0","id":%s,"result":%s}\n' "$id" "$1"; }
 while IFS= read -r line; do
   id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p')
   case "$line" in
     *'"server/discover"'*)
       [ "$mode" = dies-on-probe ] && exit 3
+      [ "$mode" = modern-annotated ] && answer '{"resultType":"complete","supportedVersions":["2026-07-28"],"capabilities":{"tools":{}}}' && continue
       printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32601,"message":"Method not found"}}\n' "$id" ;;
     *'"initialize"'*)
       [ "$mode" = silent ] && continue
+      [ "$mode" = lingers ] && printf '%s' "$$" > "$2"
+      [ "$mode" = unterminated ] && printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":"2025-11-25","capabilities":{},"serverInfo":{"name":"sh-server","version":"1"}}}' "$id" && exit 0
       version=2025-11-25
       [ "$mode" = old ] && version=2024-11-05
       answer '{"protocolVersion":"'$version'","capabilities":{"tools":{}},"serverInfo":{"name":"sh-server","version":"1"}}' ;;
     *'"ping"'*)
       [ "$mode" = asks ] && printf '{"jsonrpc":"2.0","id":"s-1","method":"roots/list"}\n' && IFS= read -r reply && printf '%s\n' "$reply" > "$2"
-      answer '{}' ;;
+      answer '{}'
+      [ "$mode" = dies-later ] && exit 0 ;;
     *'"tools/list"'*)
+      [ "$mode" = annotated ] || [ "$mode" = modern-annotated ] && answer '{"tools":[{"name":"mirrors","inputSchema":{"type":"object","properties":{"tags":{"type":"array","items":{"type":"string","x-mcp-header":"Tag"}}}},"annotations":{"readOnlyHint":true}}]}' && continue
       answer '{"tools":[{"name":"look","inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}},{"name":"touch","inputSchema":{"type":"object","required":["n"],"properties":{"n":{"type":"integer","minimum":3}}}},{"name":"odd","inputSchema":{"type":"object","required":["p"],"properties":{"p":{"type":"string","pattern":"^a+$"}}},"annotations":{"readOnlyHint":true}}]}' ;;
     *'"tools/call"'*)
       printf '%s\n' "$line" >> "$2"
+      [ "$mode" = wants-input ] && answer '{"resultType":"input_required","inputRequests":{}}' && continue
       answer '{"content":[{"type":"text","text":"done"}]}' ;;
   esac
 done
+[ "$mode" = lingers ] && sleep 10
 "#;
 
 /// `check` over the stand-in in `mode`; returns the output, the run's
 /// summary, and what the stand-in noted in its side file.
-fn stand_in(name: &str, mode: &str, flags: &[&str]) -> (Output, Value, String) {
+pub(crate) fn stand_in(name: &str, mode: &str, flags: &[&str]) -> (Output, Value, String) {
     let dir = scratch(name);
     let (script, noted, summary) = (dir.join("server.sh"), dir.join("noted"), dir.join("s.json"));
     std::fs::write(&script, SERVER).unwrap();
-    let output = binary()
-        .arg("check")
-        .args(flags)
+    let mut command = binary();
+    command.arg("check").args(flags);
+    // Two seconds an answer unless the test says otherwise: the stand-in
+    // answers at once, and a client that has stopped hearing it (which is
+    // what several mutations of the transport produce) should fail a test
+    // in seconds, not hang it for the default thirty.
+    if !flags.contains(&"--timeout") {
+        command.args(["--timeout", "2"]);
+    }
+    command
         .arg("--summary")
         .arg(&summary)
         .arg("-o")
@@ -221,9 +262,20 @@ fn stand_in(name: &str, mode: &str, flags: &[&str]) -> (Output, Value, String) {
         .args(["--", "sh"])
         .arg(&script)
         .arg(mode)
-        .arg(&noted)
-        .output()
+        .arg(&noted);
+    // A stand-in that outlives `check` must not hold the test: it inherits
+    // these, and a pipe would stay open as long as it lives.
+    let (out, err) = (dir.join("stdout"), dir.join("stderr"));
+    let status = command
+        .stdout(std::fs::File::create(&out).unwrap())
+        .stderr(std::fs::File::create(&err).unwrap())
+        .status()
         .unwrap();
+    let output = Output {
+        status,
+        stdout: std::fs::read(&out).unwrap(),
+        stderr: std::fs::read(&err).unwrap(),
+    };
     let summary = std::fs::read_to_string(&summary)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
@@ -235,7 +287,7 @@ fn stand_in(name: &str, mode: &str, flags: &[&str]) -> (Output, Value, String) {
     )
 }
 
-fn names(summary: &Value, reason: &str) -> Vec<String> {
+pub(crate) fn names(summary: &Value, reason: &str) -> Vec<String> {
     summary["skipped"]
         .as_array()
         .unwrap()
@@ -289,6 +341,10 @@ fn a_named_tool_is_called_with_arguments_built_from_its_schema() {
         !calls.contains("ghost"),
         "an unlisted name is said, never sent"
     );
+    // One name alone: only that tool is added to the read-only one.
+    let (_, summary, calls) = stand_in("check-call-one", "plain", &["--call", "touch"]);
+    assert_eq!(summary["tools"]["exercised"], 2);
+    assert_eq!(calls.lines().count(), 2, "{calls}");
     // `--call-all` does not call what no arguments can be built for.
     let (_, summary, calls) = stand_in("check-call-all", "plain", &["--call-all"]);
     assert_eq!(summary["tools"]["exercised"], 2);

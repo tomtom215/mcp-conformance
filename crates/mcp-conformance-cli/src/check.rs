@@ -215,6 +215,14 @@ async fn drive(
                     .into();
                 session.initialize().await?
             }
+            Err(Ended::Lost(Failure::Closed)) => {
+                // Over HTTP a stream that ends unanswered is one exchange
+                // lost, not the server: the endpoint is still there.
+                session.summary.negotiation = "the stream answering `server/discover` ended \
+                     without an answer, so the session fell back to `initialize`"
+                    .into();
+                session.initialize().await?
+            }
             Err(ended) => return Err(ended),
         }
     } else {
@@ -301,15 +309,17 @@ fn fresh_trace() -> Result<PathBuf, String> {
 
 /// A builder for a directory only its owner can enter (mode `0700` on Unix;
 /// elsewhere the system's temporary directory is already the user's own).
-#[cfg(unix)]
+///
+/// One function with the Unix step inside it, not one function per
+/// platform: a body compiled on no machine that tests it is a body no test
+/// can hold.
 fn private_dir() -> std::fs::DirBuilder {
-    use std::os::unix::fs::DirBuilderExt as _;
+    #[cfg_attr(not(unix), allow(unused_mut))]
     let mut builder = std::fs::DirBuilder::new();
-    builder.mode(0o700);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt as _;
+        builder.mode(0o700);
+    }
     builder
-}
-
-#[cfg(not(unix))]
-fn private_dir() -> std::fs::DirBuilder {
-    std::fs::DirBuilder::new()
 }

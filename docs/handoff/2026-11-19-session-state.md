@@ -61,7 +61,8 @@ Each line is from a command run in this session.
 | The container image carries `mcp-conformance` | **Not built here** (no Docker daemon); CI's `image` job asserts the binary, and was not among run 541's four failed jobs (its own log was not read) |
 | What run 541 found | Three Windows jobs: the new `mod check;` in `tests/cli.rs` had been inserted between `#[cfg(unix)]` and the `offline` module it guarded. Both modules are Unix-only now; `check`'s end-to-end tests have not been tried on Windows |
 | Visual baselines | The 12 changed screenshots are the runner's own `-actual.png` from run 541's `visual-diffs` artifact (its SHA-256 equals the digest GitHub lists, `4b28e541…99e4`). Looked at: the library (the `2026-07-28` Rust session now names its server), the dashboard (one row fewer in "Findings by server", the unnamed one), and the failing report (its only differing rows are the schema link's commit). One search expectation followed: `server:rust*` now finds both Rust sessions |
-| Mutation testing of `check`'s pure modules | `cargo mutants` 27.1.0 over `arguments.rs`, `headers.rs`, `request.rs`, `sse.rs`, `summary.rs`: 146 mutants, 12 survived the first run (10 boundaries in argument building, one CRLF case, one count), tests added, 1 survived the second (bounds that meet), a test added and that mutation applied by hand to see it fail. None in `headers.rs` or `request.rs` in either run |
+| Mutation testing of `check` (`cargo mutants` 27.1.0, about 280 mutants in twelve files) | Started at 35 survivors and 6 timeouts; ended with none in the last run of each file. Last runs: `check.rs`, `arguments.rs`, `headers.rs`, `request.rs` in the final pass (126 caught, 0 missed, 0 timeouts; that pass was cut off by a worker restart 10 mutants into `session.rs`); `wire/stdio.rs` 10 caught, 0 missed, 0 timeouts; `session.rs` 0 missed before one line was added to it (below); `session/listing.rs`, `wire.rs`, `wire/http.rs` 0 missed; `sse.rs` and `summary.rs` 0 missed after their tests, the last survivor killed by hand. **Not re-run after the final edits:** `session.rs`, `sse.rs`, `summary.rs`, `wire/http.rs`, `wire.rs`, `session/listing.rs` |
+| What the mutation work found beyond test gaps | **A defect:** a request the server sends during `initialize` was answered and not counted in the summary (fixed; a hand-written HTTP server in the tests shows it). **A behaviour:** an HTTP server whose stream ended without answering the `server/discover` probe ended the run; `check` now falls back to `initialize` on the same endpoint. **A structure:** the non-Unix variant of a two-function `cfg` pair is compiled on no machine that runs the mutation job, so it could never be killed; it is one function now. **Timeouts:** stand-in tests run with `--timeout 2`, so a mutant that makes the client deaf fails in seconds instead of hanging |
 
 **The final chain, on the tree this file is committed with** (2026-11-19, Rust 1.100.0):
 `cargo test --workspace --all-features --no-fail-fast` ran 2,221 tests: 2,220 passed and one
@@ -104,11 +105,11 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 ## Not done
 
-- **Mutation testing of `check`'s transports and driver** (`check.rs`, `check/session.rs`,
-  `check/session/listing.rs`, `check/wire.rs`, `check/wire/stdio.rs`, `check/wire/http.rs`) and of
-  the code merged from `wip/C1` and `wip/V2`. Only the pure modules were run here (table above);
-  these need the end-to-end tests per mutant. The PR's sixteen shards will run them: expect
-  survivors and close them the way `f8f1ca0` did.
+- **Mutation testing of the code merged from `wip/C1` and `wip/V2`**, and a last pass over the
+  six `check` files named in the table above. The PR's sixteen shards run all of it; C1's and V2's
+  agents reported killing the mutants they tried, and nobody has run the whole diff.
+- **`check`'s end-to-end tests on Windows.** Both test modules are `#[cfg(unix)]` (their
+  stand-ins are `sh` scripts); the HTTP legs would run anywhere and have not been tried there.
 - **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each is the open or closed
   state of GitHub issues in other repositories, which this session's access could not read.
 - **Interop matrix pins.** `interop/rust` still pins rmcp `=3.7.0` (inside RUSTSEC-2026-0462);

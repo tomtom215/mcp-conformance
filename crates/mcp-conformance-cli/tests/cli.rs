@@ -193,6 +193,10 @@ fn the_relay_refuses_to_run_outside_test() {
 mod check;
 
 #[cfg(unix)]
+#[path = "cli/check_edges.rs"]
+mod check_edges;
+
+#[cfg(unix)]
 #[path = "cli/offline.rs"]
 mod offline;
 

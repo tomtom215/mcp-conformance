@@ -27,7 +27,9 @@ Only what a conforming client sends, addressed only to what the server listed:
    learn what a server supports. A server that answers as a `2026-07-28` server is
    spoken to in that revision; any other answer and it opens with the `2025-11-25`
    `initialize` handshake instead, as a client that supports both does. A stdio
-   server that exits on the probe is started again and opened with `initialize`.
+   server that exits on the probe is started again and opened with `initialize`;
+   an HTTP server whose stream ends without answering it is asked again on the
+   same endpoint.
    `--spec-version 2025-11-25` or `2026-07-28` speaks one revision only.
 2. **What the server declared.** `tools/list`, `resources/list`,
    `resources/templates/list` and `prompts/list`, each only if the server declared

@@ -156,6 +156,10 @@ impl Session<'_> {
                     .push(format!("initialize: {failure}"));
                 Ended::Lost(failure)
             })?;
+        // The handshake's exchange is made here, not through `ask`, so what it
+        // showed is added here too: a server may send a request before it
+        // answers `initialize`.
+        self.summary.server_requests += answer.server_requests;
         let Some(result) = answer.message.get("result") else {
             let refusal = answer
                 .message
