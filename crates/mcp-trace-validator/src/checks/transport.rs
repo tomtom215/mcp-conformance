@@ -19,12 +19,21 @@ use super::FindingSink;
 use crate::context::TraceContext;
 
 mod accept;
+mod input;
+mod origin;
 mod post;
+mod session;
 mod status;
+#[cfg(test)]
+mod testkit;
+mod twin;
 mod version;
 
 pub(super) use accept::{client_get_accept_header, client_post_accept_header};
+pub(super) use input::unaccepted_input_error_status;
+pub(super) use origin::invalid_origin_403;
 pub(super) use post::client_messages_use_post;
+pub(super) use session::{missing_session_id_400, terminated_session_404};
 pub(super) use status::{
     accepted_input_status, get_stream_content_type, request_success_content_type,
 };

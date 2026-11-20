@@ -70,7 +70,9 @@
         "section": "basic/transports#sending-messages-to-the-server",
         "quote": "If the server cannot accept the input, it MUST return an HTTP error status code (e.g., 400 Bad Request)."
       },
-      "exclusion": "Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
+      "checks": [
+        "transport.unaccepted-input-error-status"
+      ]
     },
     {
       "id": "TRAN-029",

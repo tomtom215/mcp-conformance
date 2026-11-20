@@ -203,7 +203,9 @@
         "section": "basic/transports/streamable-http#server-validation",
         "quote": "When validating integer parameter values, servers SHOULD compare the header value and the body value numerically rather than as strings (e.g., `42.0` and `42` are considered equal)."
       },
-      "exclusion": "Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097."
+      "checks": [
+        "transport.integer-header-compared-numerically"
+      ]
     },
     {
       "id": "TRAN-102",
@@ -231,7 +233,9 @@
         "section": "basic/transports/streamable-http#server-validation",
         "quote": "For headers that permit the Base64 sentinel encoding (`Mcp-Name` and `Mcp-Param-{Name}`), servers MUST decode encoded values (see Value Encoding) before comparing them to the body value."
       },
-      "exclusion": "Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between."
+      "checks": [
+        "transport.encoded-header-decoded"
+      ]
     },
     {
       "id": "TRAN-104",

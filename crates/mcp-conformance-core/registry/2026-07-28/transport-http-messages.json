@@ -115,7 +115,9 @@
         "section": "basic/transports/streamable-http#sending-messages",
         "quote": "If the server cannot accept it, it MUST return an HTTP error status code (e.g., `400 Bad Request`)."
       },
-      "exclusion": "Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25."
+      "checks": [
+        "transport.unaccepted-input-error-status"
+      ]
     },
     {
       "id": "TRAN-063",

@@ -12,7 +12,7 @@
         "section": "basic/transports/stdio",
         "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
       },
-      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+      "exclusion": "Restates TRAN-001 at 2025-11-25 verbatim, and the same boundary holds: an embedded newline is read as the delimiter and splits the message into lines that are not valid messages, which the stdio recorder keeps (as string payloads) and which are judged under TRAN-117 and TRAN-118. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-116",
@@ -25,7 +25,7 @@
         "section": "basic/transports/stdio",
         "quote": "The client MAY capture, forward, or ignore the server's `stderr` output and SHOULD NOT assume `stderr` output indicates error conditions."
       },
-      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-021 at 2025-11-25."
     },
     {
       "id": "TRAN-117",

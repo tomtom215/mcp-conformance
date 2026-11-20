@@ -127,6 +127,14 @@ pub(super) const ROWS: &[Check] = &[
         stateless::transport::header_body_match_validated
     ),
     check!(
+        "transport.encoded-header-decoded",
+        stateless::transport::encoded_header_decoded
+    ),
+    check!(
+        "transport.integer-header-compared-numerically",
+        stateless::transport::integer_header_compared_numerically
+    ),
+    check!(
         "transport.unsupported-version-error",
         stateless::transport::unsupported_version_error
     ),

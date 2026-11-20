@@ -38,7 +38,9 @@
         "section": "basic/transports/streamable-http#security-&-endpoint",
         "quote": "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden."
       },
-      "exclusion": "A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests."
+      "checks": [
+        "transport.invalid-origin-403"
+      ]
     },
     {
       "id": "TRAN-053",

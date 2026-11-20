@@ -134,6 +134,22 @@ const SHIPPED: &[Check] = &[
         "transport.accepted-input-status",
         transport::accepted_input_status
     ),
+    check!(
+        "transport.unaccepted-input-error-status",
+        transport::unaccepted_input_error_status
+    ),
+    check!(
+        "transport.invalid-origin-403",
+        transport::invalid_origin_403
+    ),
+    check!(
+        "transport.terminated-session-404",
+        transport::terminated_session_404
+    ),
+    check!(
+        "transport.missing-session-id-400",
+        transport::missing_session_id_400
+    ),
     check!("tools.capability-declared", tools::capability_declared),
     check!("tools.input-schema-object", tools::input_schema_object),
     check!("tools.name-length", tools::name_length),

@@ -56,9 +56,10 @@ pub(in crate::checks) use stream::{
     no_messages_after_cancellation,
 };
 pub(in crate::checks) use validation::{
-    header_body_match_validated, header_mismatch_status, invalid_param_header_rejected,
-    unknown_method_404, unsupported_version_error, unsupported_version_error_http,
-    unsupported_version_status, version_mismatch_rejected,
+    encoded_header_decoded, header_body_match_validated, header_mismatch_status,
+    integer_header_compared_numerically, invalid_param_header_rejected, unknown_method_404,
+    unsupported_version_error, unsupported_version_error_http, unsupported_version_status,
+    version_mismatch_rejected,
 };
 
 /// `Mcp-Name`'s source field, by method — the Standard Request Headers table.
