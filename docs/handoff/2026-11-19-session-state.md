@@ -16,38 +16,81 @@ short of the release commit, and did not bump the version, tag or publish.
 
 ## Do this first
 
-State on 2026-11-20, after the owner accepted ADR-0024 and ADR-0025, asked for the release once it
-is judged ready, and then widened the ask (coverage as near 100% as feasible, defaults that need no
-flags, a redesigned report and workbench, a GitHub Marketplace listing).
+State at the end of 2026-11-20. The owner accepted ADR-0024 and ADR-0025, asked for the release
+once it is judged ready, and widened the ask the same day: coverage as near 100% as feasible,
+defaults that need no flags, a redesigned report and workbench, a GitHub Marketplace listing.
 
-1. Read CI on the branch tip. Run 548 (`55845b9`) completed `success`; 547 failed two jobs, both
-   fixed in `55845b9` (the `clap_complete` floor and eight visual baselines).
-2. **Agents were working in git worktrees under `.claude/worktrees/` when this was written**, each
-   told to commit locally and never push. Their branches are `worktree-agent-<id>`; cherry-pick or
-   merge what is sound, then regenerate (`cargo xtask bless`, `coverage`, `draft-coverage`,
-   `mcpsnoop --render`; the mcpsnoop measurement needs the binary) and take visual baselines from
-   CI. What each was asked for is under "In flight". They were started from `main` by mistake and
-   told to rebase onto this branch; check that each did.
-3. The `0.7.0` release commit (`RELEASING.md`, checklist step 1) is **not made**. The release
-   pass so far is under "Release pass". Do it after the in-flight work lands or is set aside.
+1. Read CI on the branch tip. The last run read whole was 550 (`2cfd290`, `success`). Everything
+   after it landed in a few hours and each push cancelled the run before it; run 552 failed
+   `Documentation` (a stale falsifier, fixed in `860fd75`) and `Visual`.
+2. **Visual baselines.** All 32 are stale since the redesign (`50d329c`) and can only be taken on
+   the CI runner: download the tip run's `visual-diffs` artifact, check its digest, look at the
+   images, copy each `*-actual.png` over `visual/tests/__screenshots__/<name>.png`.
+3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
+4. Open the pull request when asked: its sixteen mutation shards are the first full mutation run
+   over today's code.
 
-## In flight
+## Landed on 2026-11-20
 
-| Work | Where | State |
+| Work | Commits | How it was checked |
 |---|---|---|
-| Redesign of the HTML report and the workbench (design tokens, summary visualisation, plain-language first screen) | worktree agent, `crates/mcp-trace-validator/src/html*`, `crates/mcp-conformance-cli/src/workbench/ui/` | Running. All 32 visual baselines will need re-taking from CI |
-| Newly judgeable clauses, as stimulus-conditional passive checks: server features; transport; base, lifecycle, MRTR, roots, elicitation | three worktree agents; brief at the scratchpad's `checks-brief.md` (not in the repository) | Running. They commit registry, checks, tests and corpus traces, and leave goldens and tables to be regenerated after merging |
-| The 22 `auth/*` client scenarios of the official suite, through rmcp's `auth` feature in the reference host | worktree agent | Running; may conclude it cannot be done soundly |
-| `check` sending the stimuli those checks recognise (probes), on by default where safe | not started | Depends on the checks above: each defines its stimulus |
+| Every server scenario the official suite lists (32, the two it marks pending included); the `test_reconnection` fixture in the everything server | `0a58b86` | `cargo xtask conformance` exit 0: 47 checks, 0 failed |
+| Defaults for someone who knows no flag: a bare invocation says where to start; `check` writes `report.html` beside its recording and ends with one plain sentence; `--html-report`; the Action's `html-file` | `0a58b86`, `5135729` | Tests of the binary; a run against `server-filesystem` from npm |
+| `check` resumes an event stream a server closes before its answer (SEP-1699) | `0a58b86` | Unit and end-to-end tests; found by the gate the moment the fixture existed |
+| 23 clauses moved from excluded to judged, as stimulus-conditional checks | `7b8b359`, `412bc85`, `a16b262`, `aa804d3` (regenerated in `efb1560`, `b10a6d6`) | No existing good, captured or SDK trace fails or warns on any of them; 37 new corpus traces; workspace tests |
+| `watch` no longer prints a finding and withdraws it when a first `initialize` is refused | `b10a6d6` | The live-corpus invariant over every trace |
+| `check` probes, on by default (`--no-probes`) | `d8c3e25` | End-to-end at both revisions over HTTP; the gate's exerciser leg runs every subject with and without them |
+| The report and workbench redesign | `50d329c` | Screenshots viewed (two by the maintainer's session, 56 by the agent); the repository's browser specs run by the agent on this machine's Chromium; **not yet on CI's** |
+| 20 of the official suite's 22 `auth/*` client scenarios, through rmcp's OAuth client in the reference host (`--oauth-conformance`, feature `oauth`) | `eb53b40` | `cargo xtask conformance` exit 0; `cargo deny` ok with ten exact-pinned duplicate-version skips |
 
-The classification behind the checks work: all 566 excluded core clauses were read by five
-agents, each against the clause's quote and the code. 240 have no wire observable, 30 happen
-between other parties (client and authorization server), 131 bind a client and need it put under a
-scripted server, 41 restate clauses judged under other IDs, 24 need the recorder to capture more
-(stream identity, SSE fields, stdin close), and 100 are judgeable: 19 from a recording and 81 when a
-client sends a deliberate stimulus. The per-clause rows are model output, unverified until a check
-is written; the brief says so. So the honest ceiling for a wire tool is far below 100% of clauses,
-and the route to it is probes in `check`, a client harness, and a recorder that captures more.
+Registry now: `2025-11-25` 114 judged of 348; `2026-07-28` 192 judged of 501.
+
+## What the classification of the exclusions found
+
+All 566 clauses excluded on the morning of 2026-11-20 were read by five agents against each
+clause's quote and the code: 240 have no wire observable, 30 happen between other parties, 131
+bind a client and need it put under a scripted server, 41 restate clauses judged under other IDs,
+24 need the recorder to capture more (stream identity, SSE `id` and `retry`, stdin close, header
+name casing, the request target), and 100 looked judgeable. Of those 100, 23 are now judged; the
+agents declined 40 or so of the rest as unsound on a closer reading (each exclusion text now says
+why); the authorization probes (26 rows: protected-resource metadata, a garbage bearer token) are
+**not started** and need `check` to make requests outside the MCP endpoint. The per-clause files
+are in the session's scratchpad, not the repository.
+
+So the ceiling for a tool that reads the wire is far below every clause. What would move it
+next, in order of yield: the authorization probes; a scripted server to put clients under (131
+rows); a recorder that keeps stream identity and SSE fields (24 rows).
+
+## Findings about this project's own reference server
+
+- With its pending set, the pre-release `0.2.0-alpha.12` suite reports 117 passing and 22
+  failing checks in 13 scenarios against the `2026-07-28` mode (`server-stateless`,
+  `json-schema-2020-12`, `http-custom-header-server-validation`, ten `input-required-result-*`),
+  and 5 unexplained wire-schema divergences. Measured, not triaged; `draft-readiness` stays on
+  the active set (42 passing, 0 failing).
+- `check`'s probes draw two SHOULD-level findings, both rmcp's behaviour: an invalid log level
+  is refused with `-32601` rather than `-32602` (`LOG-003`), and a non-string cursor is served
+  (`PAGE-011`).
+- `auth/2025-03-26-oauth-metadata-backcompat` fails in the reference host: rmcp refuses the
+  fixture's issuer mismatch. Recorded in `conformance/expected-failures.yaml`.
+
+## Why not released yet
+
+The owner asked for the release when it is adversarially judged ready. It is not, yet:
+
+- About 9,000 lines landed in one day from seven agents. Mutation testing covers the transport
+  checks (100 of 100 caught), the OAuth code (72, all caught after a test fix) and a fifth of the
+  feature checks; the base and client-feature checks, the probes and the redesign have had none.
+- No CI run has been read whole on any commit after `2cfd290`. Windows and macOS have not built
+  today's code.
+- The redesign has not been compared on CI's Chromium, and no screen reader has been run on it.
+- One judgement in the new checks is worth a second opinion before it ships as a MUST-level
+  failure: `RES-019` fails a server that refuses a read under a scheme it names nowhere with a
+  code other than `-32602`.
+
+After those: the release commit of `RELEASING.md` step 1, then the owner's steps (merge, tag,
+the npm organisation and PyPI publisher, GHCR visibility, and for the Marketplace: accept the
+developer agreement and tick "Publish this Action to the GitHub Marketplace" on the release).
 
 ## Release pass
 
