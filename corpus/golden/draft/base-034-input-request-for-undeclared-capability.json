@@ -5,10 +5,10 @@
     "pass": 35,
     "fail": 4,
     "warn": 0,
-    "excluded": 320,
+    "excluded": 315,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 142
+    "not_observed": 147
   },
   "requirements": [
     {
@@ -92,6 +92,12 @@
     {
       "id": "BASE-060",
       "level": "SHOULD",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-061",
+      "level": "MUST NOT",
       "actor": "both",
       "outcome": "not-observed"
     },
@@ -765,10 +771,22 @@
       "outcome": "not-observed"
     },
     {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "PAGE-006",
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
@@ -921,6 +939,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "RES-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "RES-022",
       "level": "MUST NOT",
       "actor": "server",
@@ -965,6 +989,12 @@
     {
       "id": "PROM-018",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
     },

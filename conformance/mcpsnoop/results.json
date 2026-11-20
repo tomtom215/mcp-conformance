@@ -40,6 +40,22 @@
       }
     },
     {
+      "trace": "good/http-initialize-fallback-latest",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 9,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "good/http-origin-refused-without-id",
       "revision": "2025-11-25",
       "transport": "http",
@@ -110,6 +126,25 @@
         "other": {
           "deprecated": 4,
           "error": 1
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-error-handling",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 18,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 4
         }
       }
     },
@@ -217,6 +252,24 @@
         "findings": [],
         "other": {
           "pending": 2
+        }
+      }
+    },
+    {
+      "trace": "good/stdio-roots-change-notified",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 11,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 3
         }
       }
     },
@@ -670,6 +723,34 @@
       }
     },
     {
+      "trace": "violations/base-011-notification-answered",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 4,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/base-017-input-schema-invalid",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -826,6 +907,26 @@
       }
     },
     {
+      "trace": "violations/comp-003-unknown-prompt-wrong-code",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "COMP-003"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/elic-004-answered-without-capability",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -843,6 +944,26 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "violations/elic-005-declared-mode-method-not-found",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ELIC-005"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
       }
     },
     {
@@ -1214,6 +1335,24 @@
       }
     },
     {
+      "trace": "violations/life-012-fallback-not-latest",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "LIFE-012"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {}
+      }
+    },
+    {
       "trace": "violations/log-001-capability-undeclared",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -1224,6 +1363,27 @@
         "flagged": [
           "LIFE-009",
           "LOG-001"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/log-003-invalid-level-accepted",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "LOG-003",
+          "wire-schema"
         ]
       },
       "mcpsnoop": {
@@ -1528,6 +1688,26 @@
       }
     },
     {
+      "trace": "violations/prom-007-unknown-prompt-wrong-code",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "PROM-007"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/prom-008-required-argument-unvalidated",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -1536,6 +1716,7 @@
       "ours": {
         "verdict": "pass-with-warnings",
         "flagged": [
+          "PROM-007",
           "PROM-008"
         ]
       },
@@ -1602,6 +1783,26 @@
       }
     },
     {
+      "trace": "violations/res-008-missing-resource-wrong-code",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "RES-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/root-001-answered-without-capability",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -1621,6 +1822,26 @@
         "findings": [],
         "other": {
           "deprecated": 1
+        }
+      }
+    },
+    {
+      "trace": "violations/root-002-roots-changed-without-notification",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "ROOT-002"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 2
         }
       }
     },
@@ -2496,6 +2717,27 @@
       }
     },
     {
+      "trace": "violations/wire-schema-set-level-not-in-enum",
+      "revision": "2025-11-25",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "deprecated": 1,
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "violations/wire-schema-tool-image-data-not-base64",
       "revision": "2025-11-25",
       "transport": "stdio",
@@ -2883,6 +3125,42 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "draft/good/stdio-error-handling",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 17,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 4
+        }
+      }
+    },
+    {
+      "trace": "draft/good/stdio-notification-unanswered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 6,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "late-result": 1
+        }
       }
     },
     {
@@ -3788,6 +4066,7 @@
         "flagged": [
           "BASE-058",
           "BASE-083",
+          "RES-019",
           "wire-schema"
         ]
       },
@@ -3817,6 +4096,34 @@
         "findings": [],
         "other": {
           "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/base-061-notification-answered",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "BASE-061"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [
+          {
+            "signal": "warn",
+            "seq": 2,
+            "framed": true,
+            "message": "response id has no matching request"
+          }
+        ],
+        "other": {
+          "error": 1,
+          "late-result": 1
         }
       }
     },
@@ -4022,6 +4329,26 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/comp-008-unknown-prompt-wrong-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "COMP-008"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
       }
     },
     {
@@ -4592,6 +4919,27 @@
       }
     },
     {
+      "trace": "draft/violations/page-011-non-string-cursor-honoured",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 3,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "PAGE-011",
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 0,
+        "findings": [],
+        "other": {
+          "annotations": 1
+        }
+      }
+    },
+    {
       "trace": "draft/violations/prog-001-progress-token-not-integer",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -4718,6 +5066,26 @@
       }
     },
     {
+      "trace": "draft/violations/prom-019-missing-argument-wrong-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass-with-warnings",
+        "flagged": [
+          "PROM-019"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
       "trace": "draft/violations/res-012-resources-undeclared",
       "revision": "2026-07-28",
       "transport": "stdio",
@@ -4745,6 +5113,26 @@
         "verdict": "fail",
         "flagged": [
           "RES-013"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/res-019-missing-resource-wrong-code",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 7,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "RES-019"
         ]
       },
       "mcpsnoop": {
@@ -7881,6 +8269,26 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "draft/violations/wire-schema-cursor-not-a-string",
+      "revision": "2026-07-28",
+      "transport": "stdio",
+      "frames": 5,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "wire-schema"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 1
+        }
       }
     },
     {

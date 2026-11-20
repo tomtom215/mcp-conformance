@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 358 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 378 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -25,29 +25,29 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `b291a4e7795c9d12860b42d3
 
 | Corpus directory | Traces |
 |---|---:|
-| `corpus/good/` | 14 |
-| `corpus/violations/` | 106 |
-| `corpus/draft/good/` | 28 |
-| `corpus/draft/violations/` | 201 |
+| `corpus/good/` | 17 |
+| `corpus/violations/` | 115 |
+| `corpus/draft/good/` | 30 |
+| `corpus/draft/violations/` | 207 |
 | `corpus/draft/captured/` | 9 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 87 | 135 |
-| our verdict `pass` or `pass-with-warnings` | 2 | 134 |
+| our verdict `fail` | 89 | 142 |
+| our verdict `pass` or `pass-with-warnings` | 2 | 145 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 46 |
-| agree | 86 |
-| beyond mcpsnoop | 219 |
+| both clean | 51 |
+| agree | 88 |
+| beyond mcpsnoop | 232 |
 | **divergent** | 7 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 264 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 277 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -170,7 +170,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `request-id-type` | `request id has type * MCP requires a string or integer id` | BASE-001 | BASE-043 | body | 1 | A request id that is neither a string nor an integer. |
 | `request-id-null` | `request id is null; MCP requires a string or integer id` | BASE-001, BASE-002 | BASE-043, BASE-044 | body | 1 | A request id that is `null`. The message itself names both clauses: `null` is not a string or integer id, and MCP forbids it outright. |
 | `request-id-in-flight` | `request reuses an id already in flight` | *BASE-003* | BASE-045 | pairing | 1 | A request reusing the id of one of its sender's requests that has not been answered. At `2025-11-25` the clause is wider — no reuse within the session at all — and in-flight reuse is the part mcpsnoop checks. |
-| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 3 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. |
+| `response-unmatched` | `response id has no matching request` | BASE-004, BASE-009, *BASE-011* | BASE-046, BASE-052, *BASE-061* | pairing | 5 | A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. A response sent to a notification is one such, so the rule also catches part of the clause forbidding that (BASE-011, BASE-061), without saying a notification drew it. |
 | `response-duplicate` | `duplicate response for the same id` | BASE-004, BASE-009 | BASE-046, BASE-052 | pairing | 1 | A second response for an id already answered, which corresponds to no outstanding request. |
 | `error-without-request-id` | `error response does not carry the id of the request it answers` | BASE-009 | BASE-052 | http | 5 | An error with no `id` returned as the answer to a POST whose request id was readable. New in 0.28.0, which pairs such an error with the request of its own HTTP exchange where 0.26.1 reported it as matching no request. Seen only on `2026-07-28` traces; the `2025-11-25` mapping is the same sentence of that revision. |
 | `response-without-result-or-error` | `response has neither result nor error` | BASE-010 | BASE-047 | body | 1 | A response carrying neither `result` nor `error`. |
@@ -220,16 +220,19 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | Trace | Revision | Ours | We flag | mcpsnoop | Rules fired | Set aside | Relation |
 |---|---|---|---|---|---|---|---|
 | `good/http-authorization` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/http-initialize-fallback-latest` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-cancellation` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-client-features` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-error-handling` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-feature-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-full-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-minimal-init` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-progress` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-request-unanswered-at-close` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-requests-partly-unanswered` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/stdio-roots-change-notified` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-server-negotiates-2024-11-05` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-task-progress` | 2025-11-25 | pass | — | flags | `progress-after-completion` | — | **divergent** |
 | `good/stdio-tool-image-base64-padding` | 2025-11-25 | pass | — | silent | — | — | both clean |
@@ -249,6 +252,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/base-008-jsonrpc-version` | 2025-11-25 | fail | `BASE-008`, `wire-schema` | flags | `jsonrpc-version` | — | agree |
 | `violations/base-009-error-unknown-id` | 2025-11-25 | fail | `BASE-009` | flags | `response-unmatched` | — | agree |
 | `violations/base-010-response-without-result` | 2025-11-25 | fail | `BASE-008`, `BASE-010`, `TRAN-004`, `wire-schema` | flags | `response-without-result-or-error` | — | agree |
+| `violations/base-011-notification-answered` | 2025-11-25 | fail | `BASE-011` | flags | `response-unmatched` | — | agree |
 | `violations/base-017-input-schema-invalid` | 2025-11-25 | fail | `BASE-017` | silent | — | — | beyond mcpsnoop |
 | `violations/base-019-meta-key-bad-prefix` | 2025-11-25 | fail | `BASE-019`, `BASE-020` | silent | — | — | beyond mcpsnoop |
 | `violations/base-086-input-schema-draft-07` | 2025-11-25 | pass-with-warnings | `BASE-086` | silent | — | — | beyond mcpsnoop |
@@ -257,7 +261,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/canc-020-task-cancelled-by-notification` | 2025-11-25 | fail | `CANC-020` | silent | — | — | beyond mcpsnoop |
 | `violations/canc-021-response-after-cancellation-read` | 2025-11-25 | pass-with-warnings | `CANC-021` | silent | — | — | beyond mcpsnoop |
 | `violations/comp-001-capability-undeclared` | 2025-11-25 | fail | `COMP-001`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/comp-003-unknown-prompt-wrong-code` | 2025-11-25 | pass-with-warnings | `COMP-003` | silent | — | — | beyond mcpsnoop |
 | `violations/elic-004-answered-without-capability` | 2025-11-25 | fail | `ELIC-004`, `ELIC-006`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
+| `violations/elic-005-declared-mode-method-not-found` | 2025-11-25 | fail | `ELIC-005` | silent | — | — | beyond mcpsnoop |
 | `violations/elic-006-url-mode-undeclared` | 2025-11-25 | fail | `ELIC-006`, `LIFE-009` | silent | — | — | beyond mcpsnoop |
 | `violations/elic-007-request-without-message` | 2025-11-25 | fail | `ELIC-007`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/elic-009-form-without-schema` | 2025-11-25 | fail | `ELIC-009`, `wire-schema` | silent | — | — | beyond mcpsnoop |
@@ -277,7 +283,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/life-007-initialize-protocolversion-not-string` | 2025-11-25 | fail | `LIFE-002`, `LIFE-007`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/life-009-undeclared-capability-use` | 2025-11-25 | fail | `LIFE-009` | silent | — | — | beyond mcpsnoop |
 | `violations/life-010-initialize-result-missing-capabilities` | 2025-11-25 | fail | `LIFE-010`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/life-012-fallback-not-latest` | 2025-11-25 | pass-with-warnings | `LIFE-012` | silent | — | — | beyond mcpsnoop |
 | `violations/log-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `LOG-001` | silent | — | — | beyond mcpsnoop |
+| `violations/log-003-invalid-level-accepted` | 2025-11-25 | fail | `LOG-003`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/page-002-cursor-never-issued` | 2025-11-25 | fail | `PAGE-002`, `PAGE-003` | silent | — | — | beyond mcpsnoop |
 | `violations/page-002-fabricated-cursor-rejected` | 2025-11-25 | fail | `PAGE-002` | silent | — | — | beyond mcpsnoop |
 | `violations/ping-001-ping-answered-with-content` | 2025-11-25 | fail | `PING-001` | silent | — | — | beyond mcpsnoop |
@@ -292,11 +300,14 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/prom-003-image-data-invalid` | 2025-11-25 | fail | `PROM-003`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/prom-004-audio-data-invalid` | 2025-11-25 | fail | `PROM-004`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/prom-005-embedded-resource-malformed` | 2025-11-25 | fail | `PROM-005`, `wire-schema` | silent | — | — | beyond mcpsnoop |
-| `violations/prom-008-required-argument-unvalidated` | 2025-11-25 | pass-with-warnings | `PROM-008` | silent | — | — | beyond mcpsnoop |
+| `violations/prom-007-unknown-prompt-wrong-code` | 2025-11-25 | pass-with-warnings | `PROM-007` | silent | — | — | beyond mcpsnoop |
+| `violations/prom-008-required-argument-unvalidated` | 2025-11-25 | pass-with-warnings | `PROM-007`, `PROM-008` | silent | — | — | beyond mcpsnoop |
 | `violations/res-001-capability-undeclared` | 2025-11-25 | fail | `LIFE-009`, `RES-001` | silent | — | — | beyond mcpsnoop |
 | `violations/res-004-uri-bad-scheme` | 2025-11-25 | fail | `RES-004` | silent | — | — | beyond mcpsnoop |
 | `violations/res-006-blob-not-base64` | 2025-11-25 | fail | `RES-006`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/res-008-missing-resource-wrong-code` | 2025-11-25 | pass-with-warnings | `RES-008` | silent | — | — | beyond mcpsnoop |
 | `violations/root-001-answered-without-capability` | 2025-11-25 | fail | `LIFE-009`, `ROOT-001`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
+| `violations/root-002-roots-changed-without-notification` | 2025-11-25 | fail | `ROOT-002` | silent | — | — | beyond mcpsnoop |
 | `violations/root-003-root-not-file-uri` | 2025-11-25 | fail | `ROOT-003` | silent | — | — | beyond mcpsnoop |
 | `violations/root-004-unsupported-answered-internal-error` | 2025-11-25 | fail | `LIFE-009`, `ROOT-004`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
 | `violations/root-009-asked-without-capability` | 2025-11-25 | fail | `LIFE-009`, `ROOT-009` | silent | — | — | beyond mcpsnoop |
@@ -338,6 +349,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `violations/wire-schema-content-block-unknown-type` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-log-level-not-in-enum` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-resource-missing-uri` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `violations/wire-schema-set-level-not-in-enum` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `violations/wire-schema-tool-image-data-not-base64` | 2025-11-25 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/good/caching-ttl-written-as-float` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/client-features-mrtr` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -359,6 +371,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/stdio-cancellation-race` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-cancelled-id-reused` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-discover-preferred-version-unsupported` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/stdio-error-handling` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/stdio-notification-unanswered` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-progress` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/stdio-x-mcp-header-large-integer` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/streamable-http-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -396,8 +410,9 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/base-048-result-without-result-type` | 2026-07-28 | fail | `BASE-048`, `wire-schema` | flags | `result-type-missing` | — | agree |
 | `draft/violations/base-052-null-id-error-then-id-reused` | 2026-07-28 | fail | `BASE-052`, `wire-schema` | flags | `error-without-request-id` | — | agree |
 | `draft/violations/base-057-undefined-reserved-error-code` | 2026-07-28 | fail | `BASE-057` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/base-058-withdrawn-error-code` | 2026-07-28 | fail | `BASE-058`, `BASE-083`, `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/base-058-withdrawn-error-code` | 2026-07-28 | fail | `BASE-058`, `BASE-083`, `RES-019`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-060-app-code-in-reserved-range` | 2026-07-28 | pass-with-warnings | `BASE-060` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/base-061-notification-answered` | 2026-07-28 | fail | `BASE-061` | flags | `response-unmatched` | — | agree |
 | `draft/violations/base-073-input-schema-invalid` | 2026-07-28 | fail | `BASE-073` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-083-legacy-error-code` | 2026-07-28 | pass-with-warnings | `BASE-083` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-088-input-schema-draft-07` | 2026-07-28 | pass-with-warnings | `BASE-088` | silent | — | — | beyond mcpsnoop |
@@ -407,6 +422,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/cach-015-page-scope-changes` | 2026-07-28 | fail | `CACH-015`, `CACH-016` | flags | `cache-scope-across-pages` | — | agree |
 | `draft/violations/canc-003-server-cancels-tool-call` | 2026-07-28 | fail | `CANC-003`, `CANC-011` | flags | `server-cancellation` | — | agree |
 | `draft/violations/comp-007-completions-undeclared` | 2026-07-28 | fail | `COMP-007` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/comp-008-unknown-prompt-wrong-code` | 2026-07-28 | pass-with-warnings | `COMP-008` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-001-server-discover-method-not-found` | 2026-07-28 | fail | `DISC-001`, `VERS-003` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-002-dual-era-client-skips-probe` | 2026-07-28 | pass-with-warnings | `DISC-002`, `TRAN-128` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/disc-003-discover-result-without-server-info` | 2026-07-28 | pass-with-warnings | `BASE-037`, `DISC-003` | silent | — | — | beyond mcpsnoop |
@@ -433,14 +449,17 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/mrtr-019-retry-reuses-id` | 2026-07-28 | fail | `MRTR-019`, `TOOL-023` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/mrtr-020-request-state-on-another-method` | 2026-07-28 | fail | `MRTR-020` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/mrtr-024-shortfall-answered-with-error` | 2026-07-28 | fail | `MRTR-015`, `MRTR-024` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/page-011-non-string-cursor-honoured` | 2026-07-28 | fail | `PAGE-011`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-001-progress-token-not-integer` | 2026-07-28 | fail | `PROG-001`, `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-002-progress-token-reused-in-flight` | 2026-07-28 | fail | `PROG-002` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prog-003-progress-value-decreases` | 2026-07-28 | fail | `PROG-003` | flags | `progress-not-increasing` | — | agree |
 | `draft/violations/prog-008-progress-after-completion` | 2026-07-28 | fail | `PROG-005`, `PROG-008` | flags | `progress-after-completion` | — | agree |
 | `draft/violations/prom-012-prompts-undeclared` | 2026-07-28 | fail | `PROM-012` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/prom-013-declared-prompts-list-unimplemented` | 2026-07-28 | fail | `PROM-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/prom-019-missing-argument-wrong-code` | 2026-07-28 | pass-with-warnings | `PROM-019` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-012-resources-undeclared` | 2026-07-28 | fail | `RES-012` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-013-declared-resources-list-unimplemented` | 2026-07-28 | fail | `RES-013` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/res-019-missing-resource-wrong-code` | 2026-07-28 | fail | `RES-019` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-022-read-empty-contents` | 2026-07-28 | fail | `RES-022` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/root-013-answered-without-capability` | 2026-07-28 | fail | `ROOT-013` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/root-014-root-not-file-uri` | 2026-07-28 | fail | `ROOT-014` | silent | — | — | beyond mcpsnoop |
@@ -566,6 +585,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/vers-008-initialize-error-without-versions` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `VERS-008` | silent | — | — | **divergent** |
 | `draft/violations/wire-schema-cache-scope-not-in-enum` | 2026-07-28 | fail | `wire-schema` | flags | `cache-scope-value` | — | agree |
 | `draft/violations/wire-schema-content-block-unknown-type` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/wire-schema-cursor-not-a-string` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/wire-schema-resource-missing-uri` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/wire-schema-tool-image-data-not-base64` | 2026-07-28 | fail | `wire-schema` | silent | — | — | beyond mcpsnoop |
 | `draft/captured/official-suite-2026-07-28-scenarios` | 2026-07-28 | pass-with-warnings | `BASE-037` | silent | — | — | beyond mcpsnoop |

@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 102 judged from a recorded trace and 246 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 110 judged from a recorded trace and 238 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -116,7 +116,7 @@ Judged by `base.result-field`.
 
 [`basic#notifications`](https://modelcontextprotocol.io/specification/2025-11-25/basic#notifications)
 
-**Excluded.** A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.
+Judged by `base.notification-unanswered`.
 
 ### BASE-012
 
@@ -266,7 +266,7 @@ Judged by `base.meta-key-format`.
 
 [`basic#auth`](https://modelcontextprotocol.io/specification/2025-11-25/basic#auth)
 
-**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.
+**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page. AUTH-001 and AUTH-002 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of that page, which carry their own checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.
 
 ### BASE-086
 
@@ -408,7 +408,7 @@ Judged by `lifecycle.initialize-result-shape`.
 
 [`basic/lifecycle#version-negotiation`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 
-**Excluded.** The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available.
+Judged by `lifecycle.fallback-version-latest`.
 
 ### LIFE-013
 
@@ -418,7 +418,7 @@ Judged by `lifecycle.initialize-result-shape`.
 
 [`basic/lifecycle#version-negotiation`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 
-**Excluded.** Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).
+**Excluded.** Whether the client supports the answered version is client-internal, and a recording of an unscripted session cannot supply the premise: a client that carries on after any answered version may simply support it, released or not. Only a scripted server that answers `initialize` with a version no client can support knows the premise, and could judge that the client then sends nothing further and closes; the validator judges recordings and scripts no server. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).
 
 ### LIFE-014
 
@@ -1550,7 +1550,7 @@ Judged by `resources.blob-base64`.
 
 [`server/resources#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry.
+Judged by `resources.not-found-code`.
 
 ### RES-009
 
@@ -1642,7 +1642,7 @@ Judged by `prompts.embedded-resource-shape`.
 
 [`server/prompts#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry.
+Judged by `prompts.get-error-codes`.
 
 ### PROM-008
 
@@ -1704,7 +1704,7 @@ Judged by `logging.capability-declared`.
 
 [`server/utilities/logging#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry.
+Judged by `logging.set-level-invalid-rejected`.
 
 ### LOG-004
 
@@ -1756,7 +1756,7 @@ Judged by `completion.capability-declared`.
 
 [`server/utilities/completion#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion#error-handling)
 
-**Excluded.** Whether a failure case actually occurred is server-side ground truth a trace does not carry.
+Judged by `completion.error-codes`.
 
 ### COMP-004
 
@@ -1880,7 +1880,7 @@ Judged by `elicitation.client-declares-capability`.
 
 [`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#capabilities)
 
-**Excluded.** No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode "equivalent to declaring support for `form` mode only", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`.
+Judged by `elicitation.declared-mode-handled`.
 
 ### ELIC-006
 
@@ -2584,7 +2584,7 @@ Judged by `roots.client-declares-capability`.
 
 [`client/roots#root-list-changes`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#root-list-changes)
 
-**Excluded.** The antecedent — that the client's roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed.
+Judged by `roots.list-changed-notified`.
 
 ### ROOT-003
 

@@ -507,13 +507,13 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <section class="panel verdict v-warn" aria-label="Verdict">
 <p class="verdict-line"><span class="badge v-warn">Pass with warnings</span><span class="verdict-why">1 clause warned</span></p>
 <dl class="tally">
-<div class="t-pass"><dt>pass</dt><dd>19</dd></div>
+<div class="t-pass"><dt>pass</dt><dd>20</dd></div>
 <div class="t-fail zero"><dt>fail</dt><dd>0</dd></div>
 <div class="t-warn"><dt>warn</dt><dd>1</dd></div>
-<div class="t-excluded"><dt>excluded</dt><dd>246</dd></div>
+<div class="t-excluded"><dt>excluded</dt><dd>238</dd></div>
 <div class="t-unsupported zero"><dt>unsupported</dt><dd>0</dd></div>
-<div class="t-not-applicable"><dt>not applicable</dt><dd>6</dd></div>
-<div class="t-not-observed"><dt>not observed</dt><dd>76</dd></div>
+<div class="t-not-applicable"><dt>not applicable</dt><dd>10</dd></div>
+<div class="t-not-observed"><dt>not observed</dt><dd>79</dd></div>
 </dl>
 <p class="schema-line s-pass">Wire schema: pass (5 messages valid)</p>
 </section>
@@ -602,7 +602,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <section class="section" id="accounting" aria-labelledby="accounting-h">
 <h2 id="accounting-h">Accounting</h2>
 <p class="lede">Every clause of the revision is counted above. These are the ones with nothing to act on, and why.</p>
-<details class="group g-pass"><summary><span class="group-name">Passed</span><span class="count">19</span></summary>
+<details class="group g-pass"><summary><span class="group-name">Passed</span><span class="count">20</span></summary>
 <p class="meaning">Every covering check ran over traffic the clause binds to and found nothing wrong.</p>
 <ul class="rows">
 <li id="BASE-001"><code class="rid">BASE-001</code><span class="pill level">MUST</span></li>
@@ -612,6 +612,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="BASE-005"><code class="rid">BASE-005</code><span class="pill level">MUST NOT</span></li>
 <li id="BASE-008"><code class="rid">BASE-008</code><span class="pill level">MUST</span></li>
 <li id="BASE-010"><code class="rid">BASE-010</code><span class="pill level">MUST</span></li>
+<li id="BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span></li>
 <li id="LIFE-001"><code class="rid">LIFE-001</code><span class="pill level">MUST</span></li>
 <li id="LIFE-002"><code class="rid">LIFE-002</code><span class="pill level">MUST</span></li>
 <li id="LIFE-003"><code class="rid">LIFE-003</code><span class="pill level">MUST</span></li>
@@ -626,7 +627,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="TOOL-001"><code class="rid">TOOL-001</code><span class="pill level">MUST</span></li>
 </ul>
 </details>
-<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">76</span></summary>
+<details class="group g-not-observed"><summary><span class="group-name">Not observed</span><span class="count">79</span></summary>
 <p class="meaning">Every covering check ran and found nothing to judge: the session carried none of the traffic these clauses bind to. A session that exercises them may pass or fail them.</p>
 <ul class="rows">
 <li id="BASE-006"><code class="rid">BASE-006</code><span class="pill level">MUST</span></li>
@@ -636,6 +637,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="BASE-019"><code class="rid">BASE-019</code><span class="pill level">MUST</span></li>
 <li id="BASE-020"><code class="rid">BASE-020</code><span class="pill level">MUST</span></li>
 <li id="BASE-086"><code class="rid">BASE-086</code><span class="pill level">SHOULD</span></li>
+<li id="LIFE-012"><code class="rid">LIFE-012</code><span class="pill level">SHOULD</span></li>
 <li id="LIFE-018"><code class="rid">LIFE-018</code><span class="pill level">MUST</span></li>
 <li id="TRAN-011"><code class="rid">TRAN-011</code><span class="pill level">MUST</span></li>
 <li id="TRAN-013"><code class="rid">TRAN-013</code><span class="pill level">MUST</span></li>
@@ -676,6 +678,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="PAGE-002"><code class="rid">PAGE-002</code><span class="pill level">MUST</span></li>
 <li id="PAGE-003"><code class="rid">PAGE-003</code><span class="pill level">SHOULD</span></li>
 <li id="ELIC-004"><code class="rid">ELIC-004</code><span class="pill level">MUST</span></li>
+<li id="ELIC-005"><code class="rid">ELIC-005</code><span class="pill level">MUST</span></li>
 <li id="ELIC-006"><code class="rid">ELIC-006</code><span class="pill level">MUST NOT</span></li>
 <li id="ELIC-007"><code class="rid">ELIC-007</code><span class="pill level">MUST</span></li>
 <li id="ELIC-009"><code class="rid">ELIC-009</code><span class="pill level">MUST</span></li>
@@ -697,6 +700,7 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="SAMP-012"><code class="rid">SAMP-012</code><span class="pill level">SHOULD</span></li>
 <li id="SAMP-019"><code class="rid">SAMP-019</code><span class="pill level">MUST</span></li>
 <li id="ROOT-001"><code class="rid">ROOT-001</code><span class="pill level">MUST</span></li>
+<li id="ROOT-002"><code class="rid">ROOT-002</code><span class="pill level">MUST</span></li>
 <li id="ROOT-003"><code class="rid">ROOT-003</code><span class="pill level">MUST</span></li>
 <li id="ROOT-004"><code class="rid">ROOT-004</code><span class="pill level">SHOULD</span></li>
 <li id="ROOT-009"><code class="rid">ROOT-009</code><span class="pill level">SHOULD</span></li>
@@ -707,21 +711,24 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="AUTH-051"><code class="rid">AUTH-051</code><span class="pill level">SHOULD</span></li>
 </ul>
 </details>
-<details class="group g-not-applicable"><summary><span class="group-name">Not applicable</span><span class="count">6</span></summary>
+<details class="group g-not-applicable"><summary><span class="group-name">Not applicable</span><span class="count">10</span></summary>
 <p class="meaning">Gated on a capability this session never declared, so their checks did not run.</p>
 <ul class="rows">
 <li id="RES-004"><code class="rid">RES-004</code><span class="pill level">MUST</span><span class="reason">capability <code>server.resources</code> was not declared</span></li>
 <li id="RES-006"><code class="rid">RES-006</code><span class="pill level">MUST</span><span class="reason">capability <code>server.resources</code> was not declared</span></li>
+<li id="RES-008"><code class="rid">RES-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.resources</code> was not declared</span></li>
 <li id="PROM-003"><code class="rid">PROM-003</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 <li id="PROM-004"><code class="rid">PROM-004</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 <li id="PROM-005"><code class="rid">PROM-005</code><span class="pill level">MUST</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+<li id="PROM-007"><code class="rid">PROM-007</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
 <li id="PROM-008"><code class="rid">PROM-008</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.prompts</code> was not declared</span></li>
+<li id="LOG-003"><code class="rid">LOG-003</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.logging</code> was not declared</span></li>
+<li id="COMP-003"><code class="rid">COMP-003</code><span class="pill level">SHOULD</span><span class="reason">capability <code>server.completions</code> was not declared</span></li>
 </ul>
 </details>
-<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">246</span></summary>
+<details class="group g-excluded"><summary><span class="group-name">Excluded</span><span class="count">238</span></summary>
 <p class="meaning">The registry does not judge these from a recording; each row says why.</p>
 <ul class="rows">
-<li id="BASE-011"><code class="rid">BASE-011</code><span class="pill level">MUST NOT</span><span class="reason">A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.</span></li>
 <li id="BASE-012"><code class="rid">BASE-012</code><span class="pill level">MUST</span><span class="reason">The umbrella clause the BASE and LIFE areas mechanize requirement-by-requirement; it has no observable beyond its constituents.</span></li>
 <li id="BASE-013"><code class="rid">BASE-013</code><span class="pill level">MUST</span><span class="reason">Dialect support is validation behavior inside each implementation; a trace shows schemas exchanged, not how the receiver processed them.</span></li>
 <li id="BASE-014"><code class="rid">BASE-014</code><span class="pill level">MUST</span><span class="reason">Whether validation happened, and against which dialect, is implementation-internal; validation outcomes need ground truth about inputs that a trace does not carry.</span></li>
@@ -733,12 +740,11 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="BASE-023"><code class="rid">BASE-023</code><span class="pill level">MUST</span><span class="reason">The umbrella for consumer-side icon hygiene (fetch policy, size limits, origin checks) — all consumer-internal conduct after the recorded session ends.</span></li>
 <li id="BASE-024"><code class="rid">BASE-024</code><span class="pill level">MUST</span><span class="reason">Rejection is client-side handling after receipt; the trace records the icon metadata served, not what the client did with it.</span></li>
 <li id="BASE-082"><code class="rid">BASE-082</code><span class="pill level">MUST</span><span class="reason">Restates BASE-013&#39;s dialect floor and BASE-016&#39;s documentation SHOULD as the section&#39;s third numbered rule, unconditionally where BASE-013 scopes itself to schemas without an explicit `$schema` (the same restatement shape as TRAN-049 to TRAN-024). Excluded for BASE-013&#39;s reason: dialect support is validation behavior inside each implementation, and a trace shows the schemas exchanged, not how the receiver processed them.</span></li>
-<li id="BASE-085"><code class="rid">BASE-085</code><span class="pill level">SHOULD NOT</span><span class="reason">Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence&#39;s SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.</span></li>
+<li id="BASE-085"><code class="rid">BASE-085</code><span class="pill level">SHOULD NOT</span><span class="reason">Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page. AUTH-001 and AUTH-002 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation&#39;s authorization is the individual challenge clauses of that page, which carry their own checks. One entry for the sentence&#39;s SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.</span></li>
 <li id="BASE-087"><code class="rid">BASE-087</code><span class="pill level">SHOULD</span><span class="reason">Extends BASE-022&#39;s client-internal rendering-support premise: neither the support nor its absence reaches the wire, and the premise itself (that the client renders icons) is equally invisible.</span></li>
 <li id="LIFE-008"><code class="rid">LIFE-008</code><span class="pill level">MUST</span><span class="reason">After negotiation, neither stdio nor HTTP message payloads carry a per-message protocol version, so respect is not observable in message traffic. The one wire artifact — the HTTP `MCP-Protocol-Version` header — is judged under TRAN-017 and TRAN-018.</span></li>
 <li id="LIFE-011"><code class="rid">LIFE-011</code><span class="pill level">SHOULD</span><span class="reason">The client&#39;s supported-version set is internal state with no wire footprint; the trace shows the version sent, not the versions available.</span></li>
-<li id="LIFE-012"><code class="rid">LIFE-012</code><span class="pill level">SHOULD</span><span class="reason">The server&#39;s supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available.</span></li>
-<li id="LIFE-013"><code class="rid">LIFE-013</code><span class="pill level">SHOULD</span><span class="reason">Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).</span></li>
+<li id="LIFE-013"><code class="rid">LIFE-013</code><span class="pill level">SHOULD</span><span class="reason">Whether the client supports the answered version is client-internal, and a recording of an unscripted session cannot supply the premise: a client that carries on after any answered version may simply support it, released or not. Only a scripted server that answers `initialize` with a version no client can support knows the premise, and could judge that the client then sends nothing further and closes; the validator judges recordings and scripts no server. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).</span></li>
 <li id="LIFE-014"><code class="rid">LIFE-014</code><span class="pill level">SHOULD</span><span class="reason">Stdin closure, signals, and process exit are host-OS actions outside the trace event vocabulary (transport-open/close/abort record that a transport ended, not who ended it or how).</span></li>
 <li id="LIFE-015"><code class="rid">LIFE-015</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
 <li id="LIFE-016"><code class="rid">LIFE-016</code><span class="pill level">SHOULD</span><span class="reason">Checks may not consult time: trace timestamps are informational by design (determinism rule, 02-architecture.md), so timing conduct cannot be judged.</span></li>
@@ -810,20 +816,16 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="RES-003"><code class="rid">RES-003</code><span class="pill level">SHOULD</span><span class="reason">Whether the client can fetch a URI on its own is a property of the client&#39;s environment, not of the recorded session.</span></li>
 <li id="RES-005"><code class="rid">RES-005</code><span class="pill level">MUST</span><span class="reason">URI validation is server-internal enforcement; a trace shows the URIs exchanged, not whether the server vetted them. mcp-everything-server&#39;s read path is fail-closed — unknown or malformed URIs resolve to None — asserted by template_rejects_malformed_instantiations (src/resources.rs) and the unknown-URI protocol-error assertion in resources_surface_matches_the_scenarios (tests/roundtrip.rs).</span></li>
 <li id="RES-007"><code class="rid">RES-007</code><span class="pill level">SHOULD</span><span class="reason">The premise — whether the client could fetch the URI directly — is a property of the client&#39;s environment, not of the session (the RES-003 argument).</span></li>
-<li id="RES-008"><code class="rid">RES-008</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry.</span></li>
 <li id="RES-009"><code class="rid">RES-009</code><span class="pill level">SHOULD</span><span class="reason">Which resources are sensitive and what controls guard them is deployment policy with no per-session observable.</span></li>
 <li id="RES-010"><code class="rid">RES-010</code><span class="pill level">SHOULD</span><span class="reason">Permission checks are server-internal enforcement; a trace shows the operations served, not the checks that admitted them.</span></li>
 <li id="PROM-002"><code class="rid">PROM-002</code><span class="pill level">SHOULD</span><span class="reason">The trigger condition — the prompt list actually changing — is server-internal state a recorded trace cannot evidence.</span></li>
 <li id="PROM-006"><code class="rid">PROM-006</code><span class="pill level">MUST</span><span class="reason">Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it.</span></li>
-<li id="PROM-007"><code class="rid">PROM-007</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry.</span></li>
 <li id="PROM-009"><code class="rid">PROM-009</code><span class="pill level">SHOULD</span><span class="reason">Client-side pagination handling is internal; a session whose lists fit one page exercises nothing.</span></li>
 <li id="PROM-010"><code class="rid">PROM-010</code><span class="pill level">SHOULD</span><span class="reason">Mechanized at the protocol level by LIFE-009&#39;s negotiated-capabilities-only check; this restatement adds no separately observable conduct.</span></li>
 <li id="LOG-002"><code class="rid">LOG-002</code><span class="pill level">MUST NOT</span><span class="reason">Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce unsound, unfalsifiable verdicts — a fixed pattern list is deterministic but proves nothing about what it misses.</span></li>
-<li id="LOG-003"><code class="rid">LOG-003</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry.</span></li>
 <li id="LOG-004"><code class="rid">LOG-004</code><span class="pill level">SHOULD</span><span class="reason">Rate policy, context relevance, naming consistency, and redaction are semantic internals (the LOG-002 argument).</span></li>
 <li id="LOG-005"><code class="rid">LOG-005</code><span class="pill level">SHOULD</span><span class="reason">Rate limiting, validation, access control, and monitoring are implementation-internal enforcement without trace-level observables.</span></li>
 <li id="COMP-002"><code class="rid">COMP-002</code><span class="pill level">MUST</span><span class="reason">Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature.</span></li>
-<li id="COMP-003"><code class="rid">COMP-003</code><span class="pill level">SHOULD</span><span class="reason">Whether a failure case actually occurred is server-side ground truth a trace does not carry.</span></li>
 <li id="COMP-004"><code class="rid">COMP-004</code><span class="pill level">SHOULD</span><span class="reason">Relevance ordering, fuzziness, rate policy, and input vetting are semantic internals without trace-level observables.</span></li>
 <li id="COMP-005"><code class="rid">COMP-005</code><span class="pill level">SHOULD</span><span class="reason">Debouncing and caching are client-internal and timing-shaped; checks may not consult time (determinism rule).</span></li>
 <li id="PAGE-001"><code class="rid">PAGE-001</code><span class="pill level">MUST NOT</span><span class="reason">What a client assumes is internal state; the assumption has no wire footprint (MCP pagination requests carry no size parameter to inspect).</span></li>
@@ -832,7 +834,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="ELIC-001"><code class="rid">ELIC-001</code><span class="pill level">MUST NOT</span><span class="reason">Whether a requested field is &quot;sensitive information&quot; — the page&#39;s own definition is &quot;secrets and credentials that grant access or authorize transactions&quot; — is a judgement about meaning, not syntax: a schema property named `token` may be a display preference and one named `answer` may collect a password. A check would have to guess from field names, and a guess convicts conforming servers. The server&#39;s author decides it; nothing in the message settles it.</span></li>
 <li id="ELIC-002"><code class="rid">ELIC-002</code><span class="pill level">MUST</span><span class="reason">The counterpart of the form mode prohibition, and blocked by the same judgement: that an interaction &quot;involves such sensitive information&quot; is a fact about what the user will be asked for, which no message states, so a form mode request cannot be shown to have needed URL mode.</span></li>
 <li id="ELIC-003"><code class="rid">ELIC-003</code><span class="pill level">MUST</span><span class="reason">Binds the client&#39;s user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client&#39;s messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace.</span></li>
-<li id="ELIC-005"><code class="rid">ELIC-005</code><span class="pill level">MUST</span><span class="reason">No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode &quot;equivalent to declaring support for `form` mode only&quot;, so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`.</span></li>
 <li id="ELIC-008"><code class="rid">ELIC-008</code><span class="pill level">MUST</span><span class="reason">A reading, not an act, like MRTR-007: a client&#39;s answers to a form mode request and to one without `mode` are the same messages (`accept` with `content`, `decline`, `cancel`), and `content` is optional in the result, so no answer shows which reading the client took. The server half — that such a request is form mode — is what `elicitation.mode-supported` and `elicitation.form-schema-present` apply.</span></li>
 <li id="ELIC-010"><code class="rid">ELIC-010</code><span class="pill level">SHOULD</span><span class="reason">UI behaviour: pre-populating a form is what the user sees before submitting. The submitted `content` cannot show it — the user may change or clear every default — so no message carries the clause.</span></li>
 <li id="ELIC-013"><code class="rid">ELIC-013</code><span class="pill level">MUST</span><span class="reason">Which client initiated an elicitation is a fact across connections, and a recording holds one session. A completion sent to the wrong client appears in that client&#39;s recording as a notification for an id its session never established — the observation `elicitation.complete-notification-id` judges under the clause that names the id, because the one recording cannot say which of the two rules was broken.</span></li>
@@ -881,7 +882,6 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 1rem; }
 <li id="SAMP-017"><code class="rid">SAMP-017</code><span class="pill level">SHOULD</span><span class="reason">A request schedule: rate limiting is measured in elapsed time, which checks may not consult (LIFE-015, the time boundary in `02-architecture.md`), and its threshold is the client&#39;s own policy.</span></li>
 <li id="SAMP-018"><code class="rid">SAMP-018</code><span class="pill level">MUST</span><span class="reason">&quot;Appropriately&quot; names no observable criterion, and which data is sensitive is a semantic judgement about content (see the elicitation pages&#39; sensitive-information clauses): no message can be shown to have mishandled it.</span></li>
 <li id="SAMP-020"><code class="rid">SAMP-020</code><span class="pill level">SHOULD</span><span class="reason">A limit on a loop&#39;s length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded.</span></li>
-<li id="ROOT-002"><code class="rid">ROOT-002</code><span class="pill level">MUST</span><span class="reason">The antecedent — that the client&#39;s roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed.</span></li>
 <li id="ROOT-005"><code class="rid">ROOT-005</code><span class="pill level">SHOULD</span><span class="reason">Its antecedent — an internal error — is the client&#39;s own determination; another error code may be some other failure, so no answer is wrong on its face.</span></li>
 <li id="ROOT-006"><code class="rid">ROOT-006</code><span class="pill level">MUST</span><span class="reason">Client-internal policy: which directories the user permitted, how paths are validated and accessed, and whether they remain reachable are facts about the client&#39;s host system, not its messages. The one part a message carries — the URI&#39;s form — is judged by `roots.uri-file-scheme`; a `file://` URI with `..` segments is still well formed, and whether it escapes a permitted directory depends on the filesystem.</span></li>
 <li id="ROOT-007"><code class="rid">ROOT-007</code><span class="pill level">SHOULD</span><span class="reason">Server-internal: what the server does with roots — keeping within their boundaries, validating paths against them, coping when they vanish or change, caching them — happens in its own operations on its host, which the MCP session does not record.</span></li>

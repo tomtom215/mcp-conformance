@@ -4,7 +4,7 @@
 
 # Requirements — `2026-07-28`
 
-Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 181 judged from a recorded trace and 320 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
+Every normative clause of the `2026-07-28` specification that the validator's registry carries — 501 in all, 186 judged from a recorded trace and 315 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2026-07-28 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -226,7 +226,7 @@ Judged by `base.error-code-application-range`.
 
 [`basic/index#notifications`](https://modelcontextprotocol.io/specification/2026-07-28/basic#notifications)
 
-**Excluded.** A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by `base.result-id-matches` and `base.error-id-matches`. Same reasoning as BASE-011 at 2025-11-25.
+Judged by `base.notification-unanswered`.
 
 ### BASE-062
 
@@ -246,7 +246,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#statelessness`](https://modelcontextprotocol.io/specification/2026-07-28/basic#statelessness)
 
-**Excluded.** Reliance is internal reasoning. A server that answers correctly may or may not have consulted prior requests, and one that errors may have done so for any reason; the trace shows the answer, not the inference behind it. The adjacent observable is that every request carries its own context, judged by BASE-030.
+**Excluded.** Reliance is internal reasoning; its only wire form is a difference: a request refused on a connection that has carried no `server/discover` and the same request served after one. A recording cannot attribute that difference. A refusal before the probe may have any cause the request itself or the moment explains (an unsupported version, a capability the server lacks, a transient failure, a feature still loading), and a success after it shows that time passed, not that the earlier request was consulted; the order cannot be re-run to tell them apart. The half a single exchange does show is judged elsewhere: every request must carry its own context (BASE-030), and a request that omits it must be rejected rather than served from context an earlier request established (BASE-031).
 
 ### BASE-064
 
@@ -266,7 +266,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#statelessness`](https://modelcontextprotocol.io/specification/2026-07-28/basic#statelessness)
 
-**Excluded.** Falsifying this needs a server refusing an operation *because* it arrived on a different connection — two correlated connections in one recording, which the trace vocabulary does not span: each recorded session is one transport.
+**Excluded.** Falsifying this needs a server refusing an operation *because* it arrived on a different connection or process: the same cursor, `requestState` or other handle served on the connection that issued it and refused on another. A trace is one recorded transport, and its HTTP events carry no connection identity, so a recording never shows which connection a request used; over stdio a second process is a second recording. A refusal seen in one recording has no counterpart to be compared with.
 
 ### BASE-066
 
@@ -296,7 +296,7 @@ Judged by `base.notification-no-id`.
 
 [`basic/index#auth`](https://modelcontextprotocol.io/specification/2026-07-28/basic#auth)
 
-**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25.
+**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages. AUTH-086 and AUTH-087 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of those pages, which carry their own checks. Same decision as BASE-085 at 2025-11-25.
 
 ### BASE-069
 
@@ -1432,7 +1432,7 @@ Judged by `versioning.initialize-error-names-versions`.
 
 [`basic/versioning#compatibility-matrix`](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#compatibility-matrix)
 
-**Excluded.** The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras.
+**Excluded.** The compatibility matrix's modern-client, legacy-server row. Both antecedents are facts about the peer and the moment that a recording of an unscripted session does not hold: that the server is legacy — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics, so its answer does not reveal it — and, as for TRAN-142, that the first recorded request was the client's first. Only a scripted legacy stdio server that the client itself spawns knows both, and could judge that the client's first message is `server/discover`; the validator judges recordings and scripts no server. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras.
 
 ## TRAN
 
@@ -1786,7 +1786,7 @@ Judged by `meta.no-undeclared-capability-reliance`.
 
 [`basic/patterns/mrtr#server-requirements-basic-workflow`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow)
 
-**Excluded.** Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends.
+**Excluded.** Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client does not retry — it stops answering, or exits. A recording cannot tell that from its own end: requests left unanswered when a trace stops, and a transport that closes after an abandoned `input_required` result, are also what a conforming session cut short looks like, and a server may exit for any reason. A client that retries tells us nothing about the assumption.
 
 ### MRTR-015
 
@@ -1866,7 +1866,7 @@ Judged by `mrtr.request-state-scoped-to-retry`.
 
 [`basic/patterns/mrtr#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#error-handling)
 
-**Excluded.** The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. "Appropriate" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked.
+**Excluded.** A recording identifies a protocol error only where another clause already names its answer, and each of those is more exact than this SHOULD: a request missing a required `_meta` field must draw `-32602` (BASE-031, with HTTP `400` under BASE-032), an unrecognized log level should draw `-32602` (LOG-010), and a result returned in their place is reported under those clauses. Outside them nothing in an exchange says whether the server met malformed JSON, an invalid schema or an internal error — a line that is not JSON has no id for an answer to be paired with over stdio, and an internal error is the server's own knowledge — so an error response and a completed result are equally consistent with the clause. "Appropriate" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked.
 
 ### MRTR-023
 
@@ -2446,7 +2446,7 @@ Judged by `capabilities.completions-declared`.
 
 [`server/utilities/completion#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion#error-handling)
 
-**Excluded.** Each row's antecedent is a server-side determination — that this prompt name is invalid, that a required argument is missing — and a trace shows the answer without the reason for it. An exchange ending in `-32602` and one ending in a result are equally consistent with the clause, because nothing on the wire says which case the server was in.
+Judged by `completion.error-codes`.
 
 ### COMP-009
 
@@ -2538,7 +2538,7 @@ Judged by `meta.required-request-fields`.
 
 [`server/utilities/pagination#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination#error-handling)
 
-**Excluded.** Whether a cursor is invalid is the server's knowledge. At 2025-11-25 a cursor no result in the session issued witnesses it (cursors must not outlive a session, and 2025-11-25's PAGE-003 judges that); at this revision a cursor issued before the recording began is a valid one the client should re-present (server/utilities/caching), so a server accepting it may be conforming. The everything server still rejects cursors its own scheme did not issue; the probe capture exercises that.
+Judged by `pagination.malformed-cursor-rejected`.
 
 ## LOG
 
@@ -3024,7 +3024,7 @@ Judged by `resources.uri-scheme-rfc3986`.
 
 [`server/resources#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling)
 
-**Excluded.** The antecedent — that the requested resource does not exist — is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022.
+Judged by `resources.missing-resource-code`.
 
 ### RES-020
 
@@ -3156,7 +3156,7 @@ Judged by `prompts.embedded-resource-shape`.
 
 [`server/prompts#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/server/prompts#error-handling)
 
-**Excluded.** Each row's antecedent is a server-side determination — an invalid prompt name, a missing required argument — and the trace shows the answer without the reason. Same shape as COMP-008.
+Judged by `prompts.get-error-codes`.
 
 ### PROM-020
 
@@ -3328,7 +3328,7 @@ Judged by `elicitation.url-valid`.
 
 [`client/elicitation#error-handling`](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#error-handling)
 
-**Excluded.** "Handle" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it.
+**Excluded.** "Handle" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang after the client's retry — and a recording cannot attribute that: a transport that closes or aborts after a declined retry, with the retry unanswered, is also what a recording stopped early or a server ended by its host looks like, so no trace convicts the server of it.
 
 ### ELIC-069
 

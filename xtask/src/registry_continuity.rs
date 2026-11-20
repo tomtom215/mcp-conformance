@@ -51,12 +51,12 @@ use crate::spec_drift::quote::normalize;
 /// sentence about invalid cursors is judged at one revision and not the other,
 /// because what a recording can witness about a cursor changed.
 const JUSTIFIED: &[(&str, &str, &str)] = &[(
-    "PAGE-003",
-    "PAGE-011",
-    "2025-11-25 forbids persisting cursors across sessions, so a cursor no result in the \
-     session issued is invalid and a recording can witness it; 2026-07-28 tells clients to \
-     re-present cursors from expired cached pages, which may predate the recording, so the \
-     same observation no longer shows the cursor was invalid",
+    "ELIC-005",
+    "ELIC-058",
+    "2025-11-25 delivers an elicitation as a request the client answers, so a client that \
+     declared the capability and answers every one in a declared mode with -32601 is a \
+     witness; at 2026-07-28 it arrives inside an `input_required` result and is answered by \
+     retrying the original request, so there is no answer of the client's to carry that code",
 )];
 
 /// One clause as the registry states it, reduced to the facts both entries owe

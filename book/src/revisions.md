@@ -20,8 +20,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 348 | 501 |
-| Judged by a named check | 102 | 181 |
-| Carrying a documented exclusion | 246 | 320 |
+| Judged by a named check | 110 | 186 |
+| Carrying a documented exclusion | 238 | 315 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,9 +81,9 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 246 excluded, 0 unsupported, 14 not applicable, 71 not observed — verdict pass
+  2025-11-25: 18 pass, 0 fail, 0 warn, 238 excluded, 0 unsupported, 18 not applicable, 74 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
-  2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
+  2026-07-28: 16 pass, 8 fail, 0 warn, 315 excluded, 0 unsupported, 0 not applicable, 162 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
 overall verdict: fail
 ```
@@ -166,11 +166,11 @@ usually are.
 - The reference server serves the stateless surface with
   `--protocol-version 2026-07-28`, and the official suite's `2026-07-28`
   scenarios score **42 passing / 0 failing** against it.
-- Eight committed captures — a conforming session over each transport, a *probe*
+- Nine committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, the official runner's two, and
-  three of the official SDKs' own conformance servers
+  four of the official SDKs' own conformance servers
   ([the cross-SDK matrix](sdk-matrix.md)) — evidence
-  **148 of the 181 judgeable clauses** between them. What no capture
+  **149 of the 186 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a

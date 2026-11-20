@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 29,
-    "fail": 1,
+    "fail": 2,
     "warn": 1,
-    "excluded": 320,
+    "excluded": 315,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 150
+    "not_observed": 154
   },
   "requirements": [
     {
@@ -120,6 +120,12 @@
       "level": "SHOULD",
       "actor": "both",
       "outcome": "pass"
+    },
+    {
+      "id": "BASE-061",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-062",
@@ -752,10 +758,22 @@
       "outcome": "not-observed"
     },
     {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "PAGE-006",
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
@@ -908,6 +926,25 @@
       "outcome": "not-observed"
     },
     {
+      "id": "RES-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "resources.missing-resource-code",
+          "seq": 1,
+          "party": "server",
+          "detail": "`resources/read` of null was refused with error -32002, the code earlier revisions used for a resource that does not exist; a missing resource must draw -32602"
+        }
+      ],
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "If the requested resource does not exist, servers MUST return a JSON-RPC error with code `-32602` (Invalid Params).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
+      }
+    },
+    {
       "id": "RES-022",
       "level": "MUST NOT",
       "actor": "server",
@@ -952,6 +989,12 @@
     {
       "id": "PROM-018",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
     },

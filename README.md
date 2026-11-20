@@ -216,7 +216,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
   NOTE  1 request had no response when the trace ended (the recording simply stopped).
         JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.
         client "tools/call" id 1 at seq 2
-totals: 46 pass, 2 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 133 not observed
+totals: 46 pass, 2 fail, 0 warn, 315 excluded, 0 unsupported, 0 not applicable, 138 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
 ```
@@ -303,7 +303,7 @@ audience in [docs/design/trace-validation.md](docs/design/trace-validation.md).
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The judge**, as a library and a CLI: a pure function from trace events to a report, in human text, JSON (with a published JSON Schema), JUnit, SARIF or HTML. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus). |
 | [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder**: a stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write the trace. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The specification as data**: one registry entry per normative clause, with its verbatim quote, RFC 2119 level and either a check or the written reason no recording can judge it. A weekly job re-verifies every quote against the published text. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk): passes the pinned official suite's `2025-11-25` server surface (**40/40 checks**) and scores **42 passing / 0 failing** on the suite's pre-release `2026-07-28` scenarios; the eight committed captures at that revision evidence **148 of the 181 judgeable clauses** between them. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk): passes every server scenario the pinned official suite lists for `2025-11-25` (**47/47 checks** in 32 scenarios) and scores **42 passing / 0 failing** on the suite's pre-release `2026-07-28` scenarios; the nine committed captures at that revision evidence **149 of the 186 judgeable clauses** between them. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client**, on rmcp: passes the official suite's four `2025-11-25` client scenarios; scriptable sampling, elicitation and roots. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)
@@ -323,7 +323,7 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 60 | 31 | 29 | 0 |
+| BASE | 60 | 32 | 28 | 0 |
 | TRAN | 90 | 47 | 43 | 0 |
 | DISC | 4 | 3 | 1 | 0 |
 | VERS | 9 | 5 | 4 | 0 |
@@ -332,19 +332,19 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 | CANC | 17 | 3 | 14 | 0 |
 | PROG | 8 | 5 | 3 | 0 |
 | CACH | 19 | 4 | 15 | 0 |
-| COMP | 6 | 2 | 4 | 0 |
-| PAGE | 6 | 1 | 5 | 0 |
+| COMP | 6 | 3 | 3 | 0 |
+| PAGE | 6 | 2 | 4 | 0 |
 | LOG | 8 | 4 | 4 | 0 |
 | TOOL | 31 | 17 | 14 | 0 |
-| RES | 13 | 6 | 7 | 0 |
-| PROM | 11 | 7 | 4 | 0 |
+| RES | 13 | 7 | 6 | 0 |
+| PROM | 11 | 8 | 3 | 0 |
 | ELIC | 46 | 7 | 39 | 0 |
 | SAMP | 23 | 10 | 13 | 0 |
 | ROOT | 9 | 3 | 6 | 0 |
 | AUTH | 109 | 7 | 102 | 0 |
-| **Total** | **501** | **181** | **320** | **0** |
+| **Total** | **501** | **186** | **315** | **0** |
 
-501 requirements: 181 judged by 144 distinct trace checks, 320 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+501 requirements: 186 judged by 149 distinct trace checks, 315 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **Extensions attached to `2026-07-28` — reported beside the verdict, never scored ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md))**
 
@@ -360,25 +360,25 @@ Generated from the registries by `cargo xtask coverage` and verified in CI:
 
 | Area | Requirements | Checked | Excluded | Capability-gated |
 |------|-------------:|--------:|---------:|-----------------:|
-| BASE | 28 | 14 | 14 | 0 |
-| LIFE | 20 | 10 | 10 | 0 |
+| BASE | 28 | 15 | 13 | 0 |
+| LIFE | 20 | 11 | 9 | 0 |
 | TRAN | 52 | 14 | 38 | 0 |
 | PING | 7 | 1 | 6 | 0 |
 | PROG | 11 | 8 | 3 | 0 |
 | CANC | 9 | 4 | 5 | 0 |
 | TOOL | 18 | 9 | 9 | 13 |
-| RES | 10 | 3 | 7 | 6 |
-| PROM | 10 | 5 | 5 | 7 |
-| LOG | 5 | 1 | 4 | 4 |
-| COMP | 5 | 1 | 4 | 3 |
+| RES | 10 | 4 | 6 | 6 |
+| PROM | 10 | 6 | 4 | 7 |
+| LOG | 5 | 2 | 3 | 4 |
+| COMP | 5 | 2 | 3 | 3 |
 | PAGE | 5 | 2 | 3 | 0 |
-| ELIC | 53 | 11 | 42 | 0 |
+| ELIC | 53 | 12 | 41 | 0 |
 | SAMP | 20 | 10 | 10 | 0 |
-| ROOT | 10 | 4 | 6 | 0 |
+| ROOT | 10 | 5 | 5 | 0 |
 | AUTH | 85 | 5 | 80 | 0 |
-| **Total** | **348** | **102** | **246** | **33** |
+| **Total** | **348** | **110** | **238** | **33** |
 
-348 requirements: 102 judged by 96 distinct trace checks, 246 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+348 requirements: 110 judged by 104 distinct trace checks, 238 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -414,14 +414,14 @@ event:
         [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 17 pass, 1 fail, 0 warn, 246 excluded, 0 unsupported, 6 not applicable, 78 not observed
+totals: 18 pass, 1 fail, 0 warn, 238 excluded, 0 unsupported, 10 not applicable, 81 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```
 <!-- ANCHOR_END: trace-example -->
 
-The six not-applicable rows are the capability-gated requirements this session
-never negotiated (the resources and prompts clauses), and the
+The ten not-applicable rows are the capability-gated requirements this session
+never negotiated (the resources, prompts, logging and completion clauses), and the
 not-observed rows are the clauses whose subject matter never appeared —
 nothing was paginated, no binary content was sent, no error was returned.
 Neither is reported as a pass. [`corpus/`](corpus) holds complete annotated

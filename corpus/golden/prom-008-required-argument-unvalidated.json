@@ -2,13 +2,13 @@
   "revision": "2025-11-25",
   "verdict": "pass-with-warnings",
   "totals": {
-    "pass": 19,
+    "pass": 20,
     "fail": 0,
-    "warn": 1,
-    "excluded": 246,
+    "warn": 2,
+    "excluded": 238,
     "unsupported": 0,
-    "not_applicable": 10,
-    "not_observed": 72
+    "not_applicable": 13,
+    "not_observed": 75
   },
   "requirements": [
     {
@@ -68,6 +68,12 @@
     {
       "id": "BASE-010",
       "level": "MUST",
+      "actor": "both",
+      "outcome": "pass"
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
       "actor": "both",
       "outcome": "pass"
     },
@@ -148,6 +154,12 @@
       "level": "MUST",
       "actor": "server",
       "outcome": "pass"
+    },
+    {
+      "id": "LIFE-012",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LIFE-018",
@@ -400,6 +412,13 @@
       "capability": "server.resources"
     },
     {
+      "id": "RES-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
       "id": "PROM-001",
       "level": "MUST",
       "actor": "server",
@@ -422,6 +441,25 @@
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-007",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "prompts.get-error-codes",
+          "seq": 6,
+          "party": "server",
+          "detail": "`prompts/get` \"review\" omitted the required argument(s) [\"diff\"] the server declared in `prompts/list`, and drew a result rather than -32602"
+        }
+      ],
+      "source": {
+        "section": "server/prompts#error-handling",
+        "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases: Invalid prompt name: `-32602` (Invalid params); Missing required arguments: `-32602` (Invalid params); Internal errors: `-32603` (Internal error)",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#error-handling"
+      }
     },
     {
       "id": "PROM-008",
@@ -449,10 +487,24 @@
       "outcome": "not-observed"
     },
     {
+      "id": "LOG-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.logging"
+    },
+    {
       "id": "COMP-001",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.completions"
     },
     {
       "id": "PAGE-002",
@@ -468,6 +520,12 @@
     },
     {
       "id": "ELIC-004",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-005",
       "level": "MUST",
       "actor": "client",
       "outcome": "not-observed"
@@ -594,6 +652,12 @@
     },
     {
       "id": "ROOT-001",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-002",
       "level": "MUST",
       "actor": "client",
       "outcome": "not-observed"

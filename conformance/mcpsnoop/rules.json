@@ -42,11 +42,12 @@
       "id": "response-unmatched",
       "match": ["response id has no matching request"],
       "maps": {
-        "2025-11-25": ["BASE-004", "BASE-009"],
-        "2026-07-28": ["BASE-046", "BASE-052"]
+        "2025-11-25": ["BASE-004", "BASE-009", "BASE-011"],
+        "2026-07-28": ["BASE-046", "BASE-052", "BASE-061"]
       },
+      "partial": ["BASE-011", "BASE-061"],
       "context": "pairing",
-      "reading": "A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers."
+      "reading": "A response whose id names no outstanding request: the clauses requiring a response to carry the id of the request it answers. A response sent to a notification is one such, so the rule also catches part of the clause forbidding that (BASE-011, BASE-061), without saying a notification drew it."
     },
     {
       "id": "response-duplicate",

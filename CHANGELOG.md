@@ -39,6 +39,14 @@ in the sections below.
 - **Findings say whose they are.** `validate --party server` judges one end of a
   session; `mcp-conformance test` no longer blames a server for the official suite's
   own client.
+- **Thirteen more clauses judged**, each a clause the registry had excluded, found
+  judgeable by re-reading all 566 exclusions: a notification answered (`BASE-011`,
+  `BASE-061`), a fallback version that is not the latest (`LIFE-012`), roots changed
+  with no notification (`ROOT-002`), a declared elicitation mode answered
+  method-not-found (`ELIC-005`), and the error codes the feature pages name
+  (`LOG-003`, `PROM-007`/`PROM-019`, `RES-008`, `RES-019`, `COMP-003`/`COMP-008`,
+  `PAGE-011`). `2025-11-25` now judges 110 clauses (was 102) and `2026-07-28` 186
+  (was 181). **A session that passed can now fail or warn** on these.
 - **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
   registry gains the ping, progress and cancellation pages.
 - **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every

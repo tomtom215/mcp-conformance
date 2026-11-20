@@ -5,10 +5,10 @@
     "pass": 29,
     "fail": 0,
     "warn": 1,
-    "excluded": 246,
+    "excluded": 238,
     "unsupported": 0,
-    "not_applicable": 14,
-    "not_observed": 58
+    "not_applicable": 18,
+    "not_observed": 62
   },
   "requirements": [
     {
@@ -70,6 +70,12 @@
       "level": "MUST",
       "actor": "both",
       "outcome": "pass"
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-017",
@@ -148,6 +154,12 @@
       "level": "MUST",
       "actor": "server",
       "outcome": "pass"
+    },
+    {
+      "id": "LIFE-012",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LIFE-018",
@@ -400,6 +412,13 @@
       "capability": "server.resources"
     },
     {
+      "id": "RES-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
       "id": "PROM-001",
       "level": "MUST",
       "actor": "server",
@@ -427,6 +446,13 @@
       "capability": "server.prompts"
     },
     {
+      "id": "PROM-007",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
       "id": "PROM-008",
       "level": "SHOULD",
       "actor": "server",
@@ -440,10 +466,24 @@
       "outcome": "not-observed"
     },
     {
+      "id": "LOG-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.logging"
+    },
+    {
       "id": "COMP-001",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.completions"
     },
     {
       "id": "PAGE-002",
@@ -459,6 +499,12 @@
     },
     {
       "id": "ELIC-004",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-005",
       "level": "MUST",
       "actor": "client",
       "outcome": "not-observed"
@@ -585,6 +631,12 @@
     },
     {
       "id": "ROOT-001",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ROOT-002",
       "level": "MUST",
       "actor": "client",
       "outcome": "not-observed"
