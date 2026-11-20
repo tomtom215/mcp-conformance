@@ -36,7 +36,7 @@ const DISCOVER: &str = "server/discover";
 /// A declaration is present when the key resolves to something that is neither
 /// `false` nor `null` — the same reading ADR-0006 gives the `2025-11-25`
 /// capability objects.
-fn declares(context: &TraceContext<'_>, capability: &str) -> Option<bool> {
+pub(in crate::checks) fn declares(context: &TraceContext<'_>, capability: &str) -> Option<bool> {
     let capabilities = context
         .exchanges_for(DISCOVER)
         .find_map(|exchange| exchange.result)?

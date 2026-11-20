@@ -128,7 +128,9 @@
         "section": "server/prompts#error-handling",
         "quote": "Servers SHOULD return standard JSON-RPC errors for common failure cases:"
       },
-      "exclusion": "Each row's antecedent is a server-side determination \u2014 an invalid prompt name, a missing required argument \u2014 and the trace shows the answer without the reason. Same shape as COMP-008."
+      "checks": [
+        "prompts.get-error-codes"
+      ]
     },
     {
       "id": "PROM-020",

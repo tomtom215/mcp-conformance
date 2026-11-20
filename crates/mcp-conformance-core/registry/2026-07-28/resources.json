@@ -124,7 +124,9 @@
         "section": "server/resources#error-handling",
         "quote": "If the requested resource does not exist, servers MUST return a JSON-RPC error with code `-32602` (Invalid Params)."
       },
-      "exclusion": "The antecedent \u2014 that the requested resource does not exist \u2014 is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022."
+      "checks": [
+        "resources.missing-resource-code"
+      ]
     },
     {
       "id": "RES-020",
