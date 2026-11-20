@@ -54,7 +54,7 @@ cli = ["proc", "http", "dep:clap", "tokio/rt-multi-thread"]
 # cost `cargo install mcp-reference-host` should not pay for a flag only this
 # repository's gate passes. The wrapper sits on the same `StreamableHttpClient`
 # seam `resume` uses, whose signatures name `http::HeaderName`/`HeaderValue`.
-oauth = ["http", "rmcp/auth", "dep:http"]
+oauth = ["http", "rmcp/auth", "dep:http", "dep:thiserror-v1"]
 
 [[bin]]
 name = "mcp-reference-host"
@@ -85,6 +85,12 @@ sse-stream = { version = ">=0.2.4, <0.3", optional = true }
 # Feature `oauth`: the `StreamableHttpClient` trait's header-map types. Already
 # in the tree (reqwest's and rmcp's own); floor 1.1 is reqwest's `http ^1.1`.
 http = { version = ">=1.1, <2", optional = true }
+# Minimal-versions floor shim for feature `oauth`: oauth2 5.0.0 declares
+# thiserror "1.0" and does not compile against 1.0.0 (unresolved import and a
+# missing `as_display`; reproduced 2026-11-20 by pinning the lock to 1.0.0,
+# and it builds at 1.0.69). Its only job is the floor; remove it when oauth2
+# states one.
+thiserror-v1 = { package = "thiserror", version = ">=1.0.69, <2", optional = true }
 
 [dev-dependencies]
 mcp-everything-server = { workspace = true }
