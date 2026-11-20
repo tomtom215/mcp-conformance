@@ -225,6 +225,21 @@ fn the_fixture_note_names_a_few_of_each_kind_and_counts_the_rest() {
         "the report has every name"
     );
     assert_eq!(json["suite"]["fixtures"]["failed_scenarios"], 1);
+    // The count is of the scenarios that failed, whatever their number.
+    for (failing, expected) in [
+        (0, "note: 0 of the suite's 3"),
+        (3, "note: 3 of the suite's 3"),
+    ] {
+        run.scenarios = (0..3)
+            .map(|n| {
+                let status = if n < failing { "FAILURE" } else { "SUCCESS" };
+                scenario(&format!("s{n}"), &[(status, None)])
+            })
+            .collect();
+        assert!(human(&run, false).contains(expected), "{failing}");
+        let json: serde_json::Value = serde_json::from_str(&json_report(&run).unwrap()).unwrap();
+        assert_eq!(json["suite"]["fixtures"]["failed_scenarios"], failing);
+    }
     assert_eq!(note::some_names(&["a".to_owned(), "b".to_owned()]), "a, b");
     assert_eq!(note::some_names(&[]), "");
 }

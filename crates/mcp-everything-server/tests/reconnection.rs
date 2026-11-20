@@ -192,6 +192,86 @@ mod http {
         );
     }
 
+    /// The wrapper around rmcp's session manager passes on what a client
+    /// posts into a session, and not only the requests it opens streams for:
+    /// here the client's answer to the server's own request, without which
+    /// the tool call that asked never finishes.
+    #[tokio::test]
+    async fn a_message_the_client_posts_into_the_session_reaches_the_server() {
+        use std::time::Duration;
+
+        use tokio_stream::StreamExt as _;
+
+        let app = router(ServedRevision::default());
+        let initialize = INITIALIZE.replace(
+            r#""capabilities":{}"#,
+            r#""capabilities":{"elicitation":{}}"#,
+        );
+        let response = send(&app, post(None).body(Body::from(initialize)).unwrap()).await;
+        let session = response.headers()["mcp-session-id"]
+            .to_str()
+            .unwrap()
+            .to_owned();
+        body_until_closed(response).await;
+        send(
+            &app,
+            post(Some(&session)).body(Body::from(INITIALIZED)).unwrap(),
+        )
+        .await;
+
+        let call = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_elicitation","arguments":{"message":"who?"}}}"#;
+        let response = send(&app, post(Some(&session)).body(Body::from(call)).unwrap()).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let mut stream = response.into_body().into_data_stream();
+        let mut seen = String::new();
+        // Read until the server's own request arrives on the call's stream.
+        let asked = loop {
+            let chunk = tokio::time::timeout(PATIENCE, stream.next())
+                .await
+                .expect("the server asks in time")
+                .expect("the stream is still open")
+                .expect("a readable chunk");
+            seen.push_str(&String::from_utf8_lossy(&chunk));
+            if let Some(request) = messages(&seen)
+                .into_iter()
+                .find(|message| message["method"] == "elicitation/create")
+            {
+                break request;
+            }
+        };
+        let answer = serde_json::json!({"jsonrpc": "2.0", "id": asked["id"], "result": {
+            "action": "accept", "content": {"username": "ada", "email": "ada@example.com"}}});
+        let accepted = send(
+            &app,
+            post(Some(&session))
+                .body(Body::from(answer.to_string()))
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(accepted.status(), StatusCode::ACCEPTED);
+        // The answer reached the tool: its result arrives and the stream ends.
+        loop {
+            // Short: the answer is already in the server's hands, and a
+            // server that dropped it would otherwise hold this for PATIENCE.
+            let next = tokio::time::timeout(Duration::from_secs(5), stream.next())
+                .await
+                .expect("the tool finishes once it has its answer");
+            match next {
+                Some(chunk) => seen.push_str(&String::from_utf8_lossy(&chunk.expect("a chunk"))),
+                None => break,
+            }
+        }
+        let result = messages(&seen)
+            .into_iter()
+            .find(|message| message["id"] == 1)
+            .unwrap_or_else(|| panic!("no result for the call: {seen}"));
+        let text = result["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(
+            text.contains("action=accept") && text.contains("ada"),
+            "{text}"
+        );
+    }
+
     #[tokio::test]
     async fn the_session_less_revision_answers_on_the_post_itself() {
         let call = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}},"name":"test_reconnection","arguments":{}}}"#;

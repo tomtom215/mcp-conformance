@@ -201,6 +201,45 @@ mod tests {
     }
 
     #[test]
+    fn the_tally_sums_each_kind_of_finding_across_reports() {
+        let dir = std::env::temp_dir().join(format!(
+            "mcp-conformance-judging-tally-{}",
+            std::process::id()
+        ));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["001.jsonl", "002.jsonl", "003.jsonl"] {
+            std::fs::write(dir.join(name), failing()).unwrap();
+        }
+        let mut judging = judge_dir(&dir, Party::Server).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        // Each session's one finding is the client's. Viewed for the client
+        // all three count; for the server all three are set aside.
+        let (client, server) = (judging.tally(Party::Client), judging.tally(Party::Server));
+        assert_eq!(
+            (client.counted, client.set_aside, client.unattributed),
+            (3, 0, 0)
+        );
+        assert_eq!(
+            (server.counted, server.set_aside, server.unattributed),
+            (0, 3, 0)
+        );
+        // Held against nobody, a finding is counted apart, in either view.
+        for one in &mut judging.judged {
+            for row in one.reports.iter_mut().flat_map(|r| &mut r.requirements) {
+                for finding in &mut row.findings {
+                    finding.party = None;
+                }
+            }
+        }
+        let nobody = judging.tally(Party::Server);
+        assert_eq!(
+            (nobody.counted, nobody.set_aside, nobody.unattributed),
+            (0, 0, 3)
+        );
+    }
+
+    #[test]
     fn every_trace_is_judged_or_kept_with_its_reason() {
         let dir =
             std::env::temp_dir().join(format!("mcp-conformance-judging-{}", std::process::id()));

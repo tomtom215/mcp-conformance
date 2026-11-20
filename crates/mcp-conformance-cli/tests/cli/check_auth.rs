@@ -19,13 +19,13 @@ use serde_json::{Value, json};
 use super::*;
 
 /// The credential the stand-in server accepts.
-const GOOD: &str = "Bearer the-real-credential";
+pub(crate) const GOOD: &str = "Bearer the-real-credential";
 
 const CHALLENGE: &str =
     r#"Bearer resource_metadata="http://127.0.0.1/.well-known/oauth-protected-resource""#;
 
 /// One whole HTTP response.
-fn response(status: &str, challenge: Option<&str>, body: &str) -> String {
+pub(crate) fn response(status: &str, challenge: Option<&str>, body: &str) -> String {
     let challenge = challenge.map_or_else(String::new, |value| {
         format!("WWW-Authenticate: {value}\r\n")
     });
@@ -53,7 +53,7 @@ fn served(body: &str) -> String {
 }
 
 /// Reads one request: its head and its body.
-fn read_request(stream: &mut std::net::TcpStream) -> (String, String) {
+pub(crate) fn read_request(stream: &mut std::net::TcpStream) -> (String, String) {
     let mut request = Vec::new();
     let mut buffer = [0_u8; 4096];
     loop {
@@ -110,13 +110,16 @@ fn guarded(accepts_anything: bool) -> SocketAddr {
 }
 
 /// Runs `check` against `address` with `flags`; the output, the summary and
-/// the recording's text.
-fn check(address: SocketAddr, name: &str, flags: &[&str]) -> (Output, Value, String) {
+/// the recording's text. Five seconds an answer unless `flags` say otherwise.
+pub(crate) fn check(address: SocketAddr, name: &str, flags: &[&str]) -> (Output, Value, String) {
     let dir = scratch(name);
     let (trace, summary) = (dir.join("t.jsonl"), dir.join("s.json"));
-    let output = binary()
-        .args(["check", "--timeout", "5"])
-        .args(flags)
+    let mut command = binary();
+    command.arg("check").args(flags);
+    if !flags.contains(&"--timeout") {
+        command.args(["--timeout", "5"]);
+    }
+    let output = command
         .arg("--url")
         .arg(format!("http://{address}/mcp"))
         .arg("-o")
@@ -144,7 +147,7 @@ fn outcome(trace: &Path, ids: &[&str]) -> Option<String> {
         .map(|row| row["outcome"].as_str().unwrap().to_owned())
 }
 
-fn probes(summary: &Value) -> Vec<String> {
+pub(crate) fn probes(summary: &Value) -> Vec<String> {
     summary["probes"]
         .as_array()
         .unwrap()
@@ -178,6 +181,8 @@ fn a_server_that_wants_a_credential_is_knocked_on_and_how_it_refuses_is_judged()
     );
     assert!(!said.contains("no session was established:"), "{said}");
     assert_eq!(probes(&summary), KNOCKS, "{summary}");
+    // Each knock is a request sent, and is counted as one.
+    assert_eq!(summary["requests"], 4, "{summary}");
     // The probe credential is in the recording, whole, exactly once.
     assert_eq!(
         recorded.matches(PROBE_AUTHORIZATION).count(),
@@ -238,6 +243,12 @@ fn a_server_that_serves_a_token_nobody_issued_fails() {
             .contains(&"the same request with a token nobody issued — served".to_owned()),
         "{summary}"
     );
+    // The run says so in one plain sentence.
+    assert!(
+        said.contains("result: the server broke at least one rule")
+            && !said.contains("broke no rule"),
+        "{said}"
+    );
     let report = String::from_utf8_lossy(&output.stdout);
     assert!(
         report.contains("FAIL  AUTH-042") && report.contains("without validating the token"),
@@ -250,6 +261,24 @@ fn a_server_that_serves_a_token_nobody_issued_fails() {
         outcome(&trace, &["AUTH-044"]).as_deref(),
         Some("not-observed")
     );
+}
+
+#[test]
+fn without_probes_a_server_that_wants_a_credential_is_only_a_run_that_could_not_be_made() {
+    let address = guarded(false);
+    let (output, summary, recorded) = check(address, "check-auth-none-quiet", &["--no-probes"]);
+    let said = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{said}");
+    // Nothing was knocked on, so there is no refusal to report on: the plain
+    // failure, and no report.
+    assert_eq!(summary["probes"], json!([]));
+    assert!(
+        said.contains("no session was established: the server answered HTTP 401"),
+        "{said}"
+    );
+    assert!(!said.contains("requires authorization"), "{said}");
+    assert!(output.stdout.is_empty(), "no report: {:?}", output.stdout);
+    assert!(!recorded.contains("authorization"), "{recorded}");
 }
 
 #[test]
