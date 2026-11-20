@@ -34,6 +34,10 @@ const SHIPPED: &[Check] = &[
     check!("base.jsonrpc-version", base::jsonrpc_version),
     check!("base.error-id-matches", base::error_id_matches),
     check!(
+        "base.notification-unanswered",
+        base::notification_unanswered
+    ),
+    check!(
         "lifecycle.first-interaction-initialize",
         lifecycle::first_interaction_initialize
     ),
@@ -57,6 +61,10 @@ const SHIPPED: &[Check] = &[
     check!(
         "lifecycle.initialize-result-shape",
         lifecycle::initialize_result_shape
+    ),
+    check!(
+        "lifecycle.fallback-version-latest",
+        lifecycle::fallback_version_latest
     ),
     check!("base.meta-key-format", base::meta_key_format),
     check!("base.result-field", base::result_field),

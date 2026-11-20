@@ -356,5 +356,77 @@ pub(in crate::checks) fn undeclared_mode_rejected(
     }
 }
 
+/// `2025-11-25` "Clients declaring the `elicitation` capability MUST support at
+/// least one mode (`form` or `url`)."
+///
+/// No declaration can break this on its face — an `elicitation` object naming
+/// neither mode declares form mode — and a client that cannot serve a request
+/// may still decline it. What a client cannot do and still support a mode is
+/// answer `-32601` (Method not found): that says `elicitation/create` does not
+/// exist for it.
+///
+/// **Stimulus.** A direct `elicitation/create` request in a mode the client's
+/// `initialize` request declared (`form`, also declared by naming neither
+/// mode, or `url`), answered by the client. Each such answer is a subject; an
+/// `inputRequests` entry has no JSON-RPC response to carry an error and is
+/// not one.
+///
+/// **Conforming.** Any answer but the violation below: a result (`accept`,
+/// `decline` or `cancel` — the client handled the request), or an error with
+/// another code.
+///
+/// **Violation (fail).** *Every* mode the client declared was asked for and
+/// answered `-32601`, and no elicitation in a declared mode drew a result
+/// anywhere in the trace. A client that declared both modes and refuses only
+/// one still supports the other, and one that answered any elicitation with a
+/// result supports its mode, so neither is reported.
+pub(in crate::checks) fn declared_mode_handled(context: &TraceContext<'_>, sink: &mut FindingSink) {
+    const METHOD_NOT_FOUND: i64 = -32601;
+    let answers: Vec<(Answer<'_>, Mode)> = answers_for(context, ELICIT)
+        .into_iter()
+        .filter(|answer| !answer.ask.is_mrtr())
+        .map(|answer| (answer, Mode::of(&answer.ask)))
+        .filter(|(answer, mode)| mode_declared(answer.ask.declared, *mode) == Some(true))
+        .collect();
+    let Some(surface) = answers.first().map(|(answer, _)| answer.ask.declared) else {
+        return;
+    };
+    for _ in &answers {
+        sink.examined();
+    }
+    if answers.iter().any(|(answer, _)| answer.result.is_some()) {
+        return;
+    }
+    let mut refusals = Vec::new();
+    for mode in [Mode::Form, Mode::Url] {
+        if mode_declared(surface, mode) != Some(true) {
+            continue;
+        }
+        let refused = answers
+            .iter()
+            .find(|(answer, asked)| *asked == mode && answer.error_code == Some(METHOD_NOT_FOUND));
+        let Some((answer, _)) = refused else {
+            return;
+        };
+        refusals.push((mode.member(), answer.seq));
+    }
+    let Some(last) = refusals.iter().map(|(_, seq)| *seq).max() else {
+        return;
+    };
+    sink.push(
+        Some(last),
+        format!(
+            "the client declared `elicitation` and answered `-32601` (Method not found) to \
+             `elicitation/create` in every mode it declared ({}), and no elicitation with a \
+             result: it supports no mode",
+            refusals
+                .iter()
+                .map(|(mode, seq)| format!("{mode} at seq {seq}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    );
+}
+
 #[cfg(test)]
 mod tests;

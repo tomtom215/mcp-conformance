@@ -115,7 +115,7 @@
         "section": "basic/patterns/mrtr#error-handling",
         "quote": "Protocol errors (malformed JSON, invalid schema, internal server errors) SHOULD return a JSON-RPC error response with an appropriate error code and message."
       },
-      "exclusion": "The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
+      "exclusion": "A recording identifies a protocol error only where another clause already names its answer, and each of those is more exact than this SHOULD: a request missing a required `_meta` field must draw `-32602` (BASE-031, with HTTP `400` under BASE-032), an unrecognized log level should draw `-32602` (LOG-010), and a result returned in their place is reported under those clauses. Outside them nothing in an exchange says whether the server met malformed JSON, an invalid schema or an internal error — a line that is not JSON has no id for an answer to be paired with over stdio, and an internal error is the server's own knowledge — so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
     },
     {
       "id": "MRTR-023",

@@ -12,7 +12,7 @@
         "section": "basic/index#statelessness",
         "quote": "Servers MUST NOT rely on prior requests over the same connection to establish context (e.g., capabilities, protocol version, client identity)."
       },
-      "exclusion": "Reliance is internal reasoning. A server that answers correctly may or may not have consulted prior requests, and one that errors may have done so for any reason; the trace shows the answer, not the inference behind it. The adjacent observable is that every request carries its own context, judged by BASE-030."
+      "exclusion": "Reliance is internal reasoning; its only wire form is a difference: a request refused on a connection that has carried no `server/discover` and the same request served after one. A recording cannot attribute that difference. A refusal before the probe may have any cause the request itself or the moment explains (an unsupported version, a capability the server lacks, a transient failure, a feature still loading), and a success after it shows that time passed, not that the earlier request was consulted; the order cannot be re-run to tell them apart. The half a single exchange does show is judged elsewhere: every request must carry its own context (BASE-030), and a request that omits it must be rejected rather than served from context an earlier request established (BASE-031)."
     },
     {
       "id": "BASE-064",
@@ -38,7 +38,7 @@
         "section": "basic/index#statelessness",
         "quote": "Servers SHOULD NOT require that a client reuse the same connection or process to perform related operations."
       },
-      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection — two correlated connections in one recording, which the trace vocabulary does not span: each recorded session is one transport."
+      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection or process: the same cursor, `requestState` or other handle served on the connection that issued it and refused on another. A trace is one recorded transport, and its HTTP events carry no connection identity, so a recording never shows which connection a request used; over stdio a second process is a second recording. A refusal seen in one recording has no counterpart to be compared with."
     },
     {
       "id": "BASE-066",
@@ -77,7 +77,7 @@
         "section": "basic/index#auth",
         "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
       },
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages. AUTH-086 and AUTH-087 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of those pages, which carry their own checks. Same decision as BASE-085 at 2025-11-25."
     }
   ]
 }

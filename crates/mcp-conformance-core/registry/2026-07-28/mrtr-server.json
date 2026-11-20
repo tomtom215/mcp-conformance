@@ -197,7 +197,7 @@
         "section": "basic/patterns/mrtr#server-requirements-basic-workflow",
         "quote": "Servers MUST NOT assume that clients will fulfill the `inputRequests` or retry the original request."
       },
-      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends."
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client does not retry — it stops answering, or exits. A recording cannot tell that from its own end: requests left unanswered when a trace stops, and a transport that closes after an abandoned `input_required` result, are also what a conforming session cut short looks like, and a server may exit for any reason. A client that retries tells us nothing about the assumption."
     }
   ]
 }

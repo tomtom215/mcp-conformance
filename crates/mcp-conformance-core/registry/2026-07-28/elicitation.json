@@ -206,7 +206,7 @@
         "section": "client/elicitation#error-handling",
         "quote": "and MUST handle cases where the user declines or cancels the elicitation, or where the client fails to process the request."
       },
-      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it."
+      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang after the client's retry — and a recording cannot attribute that: a transport that closes or aborts after a declined retry, with the retry unanswered, is also what a recording stopped early or a server ended by its host looks like, so no trace convicts the server of it."
     }
   ]
 }
