@@ -39,6 +39,12 @@ in the sections below.
 - **Findings say whose they are.** `validate --party server` judges one end of a
   session; `mcp-conformance test` no longer blames a server for the official suite's
   own client.
+- **The HTML report and the workbench are redesigned** on one token system (light and
+  dark, a type and spacing scale, focus and motion). The report opens on the verdict, one
+  plain sentence and what to do next, with the counts drawn as bars and a results-by-area
+  table; each finding says what was seen before it quotes the rule. The workbench gains
+  an app shell, a theme switch, a filterable library table and labelled charts. Still
+  one self-contained file with no script, and nothing loaded from anywhere.
 - **Thirteen more clauses judged**, each a clause the registry had excluded, found
   judgeable by re-reading all 566 exclusions: a notification answered (`BASE-011`,
   `BASE-061`), a fallback version that is not the latest (`LIFE-012`), roots changed
