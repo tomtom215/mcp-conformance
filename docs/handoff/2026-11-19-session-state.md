@@ -16,10 +16,10 @@ short of the release commit, and did not bump the version, tag or publish.
 
 ## Do this first
 
-1. Read the CI run on the branch tip (`gh run list --branch claude/busy-cray-9rvb8c`). The
-   last run read in the session was 541, on `36d647b`: 4 of its jobs failed, `Visual` and three
-   Windows jobs, and the commit that carries this file addresses all four (below). Every earlier
-   push cancelled the run before it, so 536 and 541 are the only complete readings.
+1. Read the CI run on the branch tip (`gh run list --branch claude/busy-cray-9rvb8c`). Runs
+   542 (on `70c65d7`) and 543 (on `67bcf61`) completed with `success`; the commit that carries
+   this line changes only this file and its JSON copy. Before them, 536 failed twelve jobs and
+   541 four, each addressed in the table below; the pushes between were cancelled by the next.
 2. Decide the three questions under "Maintainer decisions", then open the pull request. Its
    `Mutants (PR diff)` run will be the first mutation run over the transport and driver code (see
    "Not done").
@@ -58,10 +58,10 @@ Each line is from a command run in this session.
 | Ecosystem register | An agent re-fetched 47 rows (15 date-only, 32 rewritten in place) and added 1.10 and 4.9; rows 1.5i and 3.16 rewritten here from the runner results above. `cargo xtask register-currency --check`: all 82 rows within 90 days |
 | README, book chapter "Checking a server", baselines and the party view in "Reading a report", `llms.txt`, descriptions | Book built with mdBook 0.5.4 and the new chapter looked at as a rendered page at 1280 px and 390 px (two over-wide code blocks fixed). Every `mcp-conformance` command the root README, the crate README and the chapter show is held to the parser by a test. The README's example output is a real run |
 | What CI found on the first push (run 536) | Windows `unused_mut`; the package check's `--version` comparison; a completions assertion at minimal dependency versions. All three fixed |
-| The container image carries `mcp-conformance` | **Not built here** (no Docker daemon); CI's `image` job asserts the binary, and was not among run 541's four failed jobs (its own log was not read) |
+| The container image carries `mcp-conformance` | **Not built here** (no Docker daemon); CI's `image` job asserts the binary; runs 542 and 543 succeeded as a whole, that job with them |
 | What run 541 found | Three Windows jobs: the new `mod check;` in `tests/cli.rs` had been inserted between `#[cfg(unix)]` and the `offline` module it guarded. Both modules are Unix-only now; `check`'s end-to-end tests have not been tried on Windows |
 | Visual baselines | The 12 changed screenshots are the runner's own `-actual.png` from run 541's `visual-diffs` artifact (its SHA-256 equals the digest GitHub lists, `4b28e541…99e4`). Looked at: the library (the `2026-07-28` Rust session now names its server), the dashboard (one row fewer in "Findings by server", the unnamed one), and the failing report (its only differing rows are the schema link's commit). One search expectation followed: `server:rust*` now finds both Rust sessions |
-| Mutation testing of `check` (`cargo mutants` 27.1.0, about 280 mutants in twelve files) | Started at 35 survivors and 6 timeouts; ended with none in the last run of each file. Last runs: `check.rs`, `arguments.rs`, `headers.rs`, `request.rs` in the final pass (126 caught, 0 missed, 0 timeouts; that pass was cut off by a worker restart 10 mutants into `session.rs`); `wire/stdio.rs` 10 caught, 0 missed, 0 timeouts; `session.rs` 0 missed before one line was added to it (below); `session/listing.rs`, `wire.rs`, `wire/http.rs` 0 missed; `sse.rs` and `summary.rs` 0 missed after their tests, the last survivor killed by hand. **Not re-run after the final edits:** `session.rs`, `sse.rs`, `summary.rs`, `wire/http.rs`, `wire.rs`, `session/listing.rs` |
+| Mutation testing of `check` (`cargo mutants` 27.1.0, twelve files) | Started at 35 survivors and 6 timeouts; ended with none. The last run of every file was on the committed tree: `check.rs`, `arguments.rs`, `headers.rs`, `request.rs` 126 caught, 0 missed, 0 timeouts (a pass cut off by a worker restart after those files); `session.rs`, `session/listing.rs`, `sse.rs`, `summary.rs`, `wire.rs`, `wire/http.rs` 117 caught, 0 missed, 0 timeouts, 15 unviable (exit 0); `wire/stdio.rs` 10 caught, 0 missed, 0 timeouts, 2 unviable (exit 0, run before the last test-only edits to other files) |
 | What the mutation work found beyond test gaps | **A defect:** a request the server sends during `initialize` was answered and not counted in the summary (fixed; a hand-written HTTP server in the tests shows it). **A behaviour:** an HTTP server whose stream ended without answering the `server/discover` probe ended the run; `check` now falls back to `initialize` on the same endpoint. **A structure:** the non-Unix variant of a two-function `cfg` pair is compiled on no machine that runs the mutation job, so it could never be killed; it is one function now. **Timeouts:** stand-in tests run with `--timeout 2`, so a mutant that makes the client deaf fails in seconds instead of hanging |
 
 **The final chain, on the tree this file is committed with** (2026-11-19, Rust 1.100.0):
@@ -105,9 +105,9 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 ## Not done
 
-- **Mutation testing of the code merged from `wip/C1` and `wip/V2`**, and a last pass over the
-  six `check` files named in the table above. The PR's sixteen shards run all of it; C1's and V2's
-  agents reported killing the mutants they tried, and nobody has run the whole diff.
+- **Mutation testing of the code merged from `wip/C1` and `wip/V2`.** The PR's sixteen shards
+  run the whole diff; C1's and V2's agents reported killing the mutants they tried, and nobody has
+  run it all. `check`'s own files are done (table above).
 - **`check`'s end-to-end tests on Windows.** Both test modules are `#[cfg(unix)]` (their
   stand-ins are `sh` scripts); the HTTP legs would run anywhere and have not been tried there.
 - **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each is the open or closed

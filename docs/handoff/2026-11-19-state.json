@@ -59,8 +59,8 @@
     },
     {
       "id": "container-image-carries-mcp-conformance",
-      "status": "changed_not_built_locally",
-      "verified": "not among the failed jobs of CI run 541; its log was not read"
+      "status": "done",
+      "verified": "CI runs 542 and 543 succeeded as a whole, the image job with them"
     },
     {
       "id": "visual-baselines",
@@ -73,7 +73,7 @@
       "needs": [
         "the PR's Mutants run; expect survivors in check/session.rs and check/wire/"
       ],
-      "note": "check: no survivor or timeout in the last run of each file; six files not re-run after the final edits; the merged C1/V2 code not run"
+      "note": "check: no survivor or timeout in the last run of each of its twelve files, on the committed tree; the merged C1/V2 code not run"
     },
     {
       "id": "everything-server-legacy-mode-names-2026-07-28",
@@ -119,5 +119,10 @@
   "run_first_next_session": [
     "read the CI run on the branch tip",
     "maintainer decisions, then open the pull request and read its Mutants run"
-  ]
+  ],
+  "ci": {
+    "run": 543,
+    "commit": "67bcf61",
+    "conclusion": "success"
+  }
 }
