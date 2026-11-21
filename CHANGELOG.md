@@ -96,7 +96,8 @@ in the sections below.
   other clause's judgement moves.
 - **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
   registry gains the ping, progress and cancellation pages.
-- **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every
+- **Current as of 2026-11-21**: Rust 1.100.0, rmcp 3.10.0 (3.9.0 fixed
+  RUSTSEC-2026-0462), jsonschema 0.61.2, every
   quote re-verified against the published specification, the vendored schema at
   upstream `main`.
 
@@ -1174,8 +1175,12 @@ not yet published to crates.io)
 
 ### Dependencies
 
-- Rust toolchain pin 1.99.1 → 1.100.0. rmcp 3.7.0 → 3.9.0 (RUSTSEC-2026-0462; the
-  floor is now 3.9.0), rustix 1.1.6 (RUSTSEC-2026-0486), jsonschema 0.60.2.
+- Rust toolchain pin 1.99.1 → 1.100.0. rmcp 3.7.0 → 3.10.0 (3.9.0 fixed
+  RUSTSEC-2026-0462; the floor is now 3.10.0, and `rmcp-macros` is held to the same
+  minor), rustix 1.1.6 (RUSTSEC-2026-0486), jsonschema 0.61.2 (the range admits 0.60.1
+  to 0.61.x). Every other lockfile entry moved to its newest release that had been
+  public for seven days on 2026-11-21; newer ones wait out the cooldown (rmcp 3.11.0,
+  jsonschema 0.62.0 and clap 4.6.9 among them).
   RUSTSEC-2026-0543 (chrono unmaintained, informational) is ignored by id with the
   reason in `deny.toml` and a dated row in the deferral ledger: chrono is here only
   through rmcp. The vendored `2026-07-28` schema is upstream `main` at `8a18b4b`.
