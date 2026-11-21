@@ -16,20 +16,21 @@ short of the release commit, and did not bump the version, tag or publish.
 
 ## Do this first
 
-State at the end of 2026-11-20. The owner accepted ADR-0024 and ADR-0025, asked for the release
+State at 01:30 UTC on 2026-11-21. The owner accepted ADR-0024 and ADR-0025, asked for the release
 once it is judged ready, and widened the ask the same day: coverage as near 100% as feasible,
 defaults that need no flags, a redesigned report and workbench, a GitHub Marketplace listing.
 
-1. CI on the code tip is green: run 557 (`249932d`) completed `success`, all 34 jobs, among
-   them `Visual` on the redesign's baselines, every test and clippy leg on Linux, macOS and
-   Windows at 1.100.0 and 1.88, `Conformance`, `Coverage`, `Semver`, the `GitHub Action` job, the
-   container image and the informational `Minimal versions` job. Run 556 before it failed two
-   jobs, both fixed in `249932d`. The commit that carries this line changes only this file.
+1. CI on the code tip is green: all 85 check runs on `45a2523` (the push and pull-request runs
+   together) completed `success`, among them `Visual`, every test and clippy leg on Linux, macOS
+   and Windows at 1.100.0 and 1.88, and all sixteen `Mutants (PR diff)` shards. The commit that
+   carries this line changes only this file.
 2. The visual baselines are taken (`19653fd`, from run 555's artifact); nothing is owed there
    unless the report or workbench changes again.
 3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
-4. Pull request 79 is open (asked for on 2026-11-20). Its `Mutants (PR diff)` shards are the
-   first full mutation run over this code: read them and close the survivors.
+4. Pull request 79 is open (asked for on 2026-11-20), mergeable, and green. Its
+   `Mutants (PR diff)` job was the first full mutation run over this code: 56 survivors on
+   `57305ae` (15 of 16 shards reported), 36 on `9ef8ddb` (all 16), none on `45a2523`. Merging is
+   the owner's step.
 5. **The protected-resource metadata probes wait on a decision** (see "Authorization probes").
 
 ## Landed on 2026-11-20
@@ -99,11 +100,8 @@ rows); a recorder that keeps stream identity and SSE fields (24 rows).
 
 The owner asked for the release when it is adversarially judged ready. It is not, yet:
 
-- About 9,000 lines landed in one day from seven agents. Mutation testing covers the transport
-  checks (100 of 100 caught), the OAuth code (72, all caught after a test fix) and a fifth of the
-  feature checks; the base and client-feature checks, the probes and the redesign have had none.
-- CI has run today's code on all three platforms (run 556), but the mutation job runs only on
-  a pull request, and none is open.
+- Two owner decisions are open: whether the recorder may keep a request path that starts with
+  `/.well-known/` (see "Authorization probes"), and the `RES-019` judgement below.
 - No screen reader has been run on the redesign.
 - One judgement in the new checks is worth a second opinion before it ships as a MUST-level
   failure: `RES-019` fails a server that refuses a read under a scheme it names nowhere with a
@@ -214,9 +212,6 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 ## Not done
 
-- **Mutation testing of the code merged from `wip/C1` and `wip/V2`.** The PR's sixteen shards
-  run the whole diff; C1's and V2's agents reported killing the mutants they tried, and nobody has
-  run it all. `check`'s own files are done (table above).
 - **`check`'s end-to-end tests on Windows.** Both test modules are `#[cfg(unix)]` (their
   stand-ins are `sh` scripts); the HTTP legs would run anywhere and have not been tried there.
 - **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each is the open or closed
