@@ -11,7 +11,7 @@
 
 use std::fmt::Write as _;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::baseline::{Baseline, BaselineError, Date, Entry, Notes, TraceReports, record};
 use crate::report::{BaselineTally, Party, Report, printable};
@@ -102,13 +102,19 @@ fn today() -> Result<Date, String> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .ok()
-        .and_then(|elapsed| i64::try_from(elapsed.as_secs() / 86_400).ok())
-        .and_then(Date::from_unix_days)
+        .and_then(day_at)
         .ok_or_else(|| {
             "cannot read today's date from the system clock, which an `expires` in the baseline \
              needs"
                 .to_owned()
         })
+}
+
+/// The UTC date `elapsed` after the Unix epoch; `None` past the year 9999.
+fn day_at(elapsed: Duration) -> Option<Date> {
+    i64::try_from(elapsed.as_secs() / 86_400)
+        .ok()
+        .and_then(Date::from_unix_days)
 }
 
 /// The traces as the library names them.
@@ -331,3 +337,6 @@ fn entries(text: &mut String, list: &[Entry], with_day: bool) {
         let _ = writeln!(text, "    reason: {}{day}", printable(&entry.reason));
     }
 }
+
+#[cfg(test)]
+mod tests;

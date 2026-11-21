@@ -678,6 +678,79 @@ fn a_party_view_and_a_baseline_each_take_findings_out_of_the_verdict() {
         "{}",
         stderr(&output)
     );
+    // With no entry there is no generated reason to replace, so the line ends
+    // at the file's name.
+    assert_eq!(
+        stderr(&output).lines().last().unwrap(),
+        format!("wrote 0 entries to {file}")
+    );
+}
+
+#[test]
+fn the_baseline_in_use_may_be_refreshed_under_another_spelling_of_its_path() {
+    let dir = scratch("spelling");
+    baseline_of_sdk(&dir);
+    // `./baseline.json` and `baseline.json` are one file, so the refresh keeps
+    // the reasons it has read; it is not refused as overwriting a stranger.
+    let refreshed = Command::new(env!("CARGO_BIN_EXE_mcp-trace-validator"))
+        .args(["validate", &corpus(SDK_TRACE)])
+        .args(["--baseline", "./baseline.json"])
+        .args(["--write-baseline", "baseline.json"])
+        .current_dir(&dir)
+        .output()
+        .expect("binary runs");
+    assert_eq!(code(&refreshed), 0, "{}", stderr(&refreshed));
+    assert!(
+        stderr(&refreshed).contains("wrote 8 entries to baseline.json (8 kept"),
+        "{}",
+        stderr(&refreshed)
+    );
+
+    // A baseline that is not there is no reading of the file being written:
+    // the target is still refused, for the reasons it holds.
+    let other = Command::new(env!("CARGO_BIN_EXE_mcp-trace-validator"))
+        .args(["validate", &corpus(SDK_TRACE)])
+        .args(["--baseline", "missing.json"])
+        .args(["--write-baseline", "baseline.json"])
+        .current_dir(&dir)
+        .output()
+        .expect("binary runs");
+    assert_eq!(code(&other), 2, "{}", stderr(&other));
+    assert!(
+        stderr(&other).contains("baseline.json exists, and --write-baseline will not overwrite"),
+        "{}",
+        stderr(&other)
+    );
+}
+
+#[test]
+fn each_trace_numbers_its_own_findings_so_two_alike_write_one_entry_apiece() {
+    let dir = scratch("alike");
+    let copy = sdk_variant(&dir, "copy.jsonl", |_| {});
+    let file = path(&dir, "baseline.json");
+    // The same eight findings in two traces are eight entries, not sixteen:
+    // an entry's number counts within the trace it was found in.
+    let written = run(&[
+        "validate",
+        &corpus(SDK_TRACE),
+        &copy,
+        "--write-baseline",
+        &file,
+    ]);
+    assert_eq!(code(&written), 0, "{}", stderr(&written));
+    assert!(
+        stderr(&written).contains("wrote 8 entries to"),
+        "{}",
+        stderr(&written)
+    );
+    let baseline = Baseline::parse(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(baseline.entries().len(), 8);
+    // And it is the baseline one of them alone would have written.
+    let alone = baseline_of_sdk(&scratch("alike-alone"));
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        std::fs::read_to_string(alone).unwrap()
+    );
 }
 
 #[test]

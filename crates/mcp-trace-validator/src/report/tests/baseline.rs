@@ -129,6 +129,58 @@ fn an_expiry_is_shown_with_the_reason_and_a_control_character_in_it_is_not_sent_
     assert!(!text.contains('\u{1b}'), "{text:?}");
 }
 
+/// Changes the first accepted finding's acceptance with `change`, and
+/// returns the report's text.
+fn with_the_first_acceptance(change: impl FnOnce(&mut Acceptance)) -> String {
+    let mut judgment = baselined_sdk_session("known");
+    let first = judgment.reports[0]
+        .requirements
+        .iter_mut()
+        .flat_map(|row| &mut row.findings)
+        .find_map(|finding| finding.baselined.as_mut());
+    // Were there none, the assertions on the text would say so.
+    if let Some(first) = first {
+        change(first);
+    }
+    text(&judgment.reports)
+}
+
+#[test]
+fn acceptances_are_grouped_only_when_both_the_reason_and_the_expiry_match() {
+    // One reason, two expiries: two lines.
+    let text = with_the_first_acceptance(|first| first.expires = Some("2027-03-31".to_owned()));
+    assert!(
+        text.contains(
+            "accepted by baseline (1): known (accepted through 2027-03-31)
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "accepted by baseline (1): known
+"
+        ),
+        "{text}"
+    );
+    // Two reasons, one expiry (none): two lines.
+    let text = with_the_first_acceptance(|first| "other".clone_into(&mut first.reason));
+    assert!(
+        text.contains(
+            "accepted by baseline (1): other
+"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(
+            "accepted by baseline (1): known
+"
+        ),
+        "{text}"
+    );
+}
+
 #[test]
 fn a_party_view_and_a_baseline_label_the_verdict_with_both() {
     let mut judgment = baselined_sdk_session("known");

@@ -430,6 +430,11 @@ fn a_report_serializes_its_baseline_counts_only_when_one_was_applied() {
     // And reads back as a baselined report.
     let back: Report = serde_json::from_value(json).unwrap();
     assert!(back.baseline_applied);
+    // From text too, where the member's value has to be read past for the
+    // members after it to parse.
+    let reread: Report = serde_json::from_str(&text).unwrap();
+    assert!(reread.baseline_applied);
+    assert_eq!(reread, back);
     assert!(
         back.requirements
             .iter()

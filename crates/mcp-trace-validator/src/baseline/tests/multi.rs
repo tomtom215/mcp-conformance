@@ -97,8 +97,11 @@ fn the_aligned_report_says_so_in_the_terminal_and_in_json() {
     assert_eq!(json["baseline"]["unaccepted"], 0);
     assert_eq!(json["verdict"], "pass");
     // And it reads back as a baselined report.
+    let text = json.to_string();
     let back: MultiReport = serde_json::from_value(json).unwrap();
     assert!(back.baseline_applied);
+    let reread: MultiReport = serde_json::from_str(&text).unwrap();
+    assert!(reread.baseline_applied);
 }
 
 #[test]

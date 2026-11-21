@@ -415,7 +415,7 @@ fn render_one(one: &Judged, output: Output<'_>, run: &baseline::Run) -> Option<u
 
 /// A verdict's exit code, raised to `1` when the baseline alone fails the run.
 const fn run_code(code: u8, run: &baseline::Run) -> u8 {
-    if run.fails() && code < EXIT_FINDINGS {
+    if run.fails() && code == EXIT_OK {
         EXIT_FINDINGS
     } else {
         code

@@ -134,7 +134,9 @@ fn session_end(context: &TraceContext<'_>) -> Option<u64> {
     context
         .events()
         .iter()
-        .filter(|event| event.seq > initialize)
+        // From the request on (events are in `seq` order); the request itself
+        // is a message, so the first lifecycle event found comes after it.
+        .skip_while(|event| event.seq != initialize)
         .find_map(|event| match event.body {
             EventBody::Lifecycle { event: moment } => Some((event, moment)),
             _ => None,
@@ -188,11 +190,10 @@ pub(in crate::checks) fn list_changed_notified(context: &TraceContext<'_>, sink:
         })
         .filter_map(|answer| Some((answer.seq, root_uris(answer.result?)?)))
         .collect();
-    for pair in listings.windows(2) {
+    // Only a pair whose second result the session's end follows: a result is
+    // never the event that ends the session, so `<=` is "before".
+    for pair in listings.windows(2).filter(|pair| pair[1].0 <= end) {
         let ((first_seq, first), (second_seq, second)) = (&pair[0], &pair[1]);
-        if end < *second_seq {
-            continue;
-        }
         sink.examined();
         if first != second && !notified {
             sink.push(

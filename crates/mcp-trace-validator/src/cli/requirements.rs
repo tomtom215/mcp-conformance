@@ -71,11 +71,13 @@ pub(crate) fn run(args: &Args) -> u8 {
     // An ID names its revision: the two built-in registries share none, so
     // with no `--revision` an ID is looked up where it lives rather than
     // refused for not being in the newest one.
-    let home = (args.registry.is_none() && args.revision.is_none())
-        .then(|| args.ids.first())
-        .flatten()
-        .and_then(|id| builtin_revision_with(&id.to_ascii_uppercase()))
-        .map(|revision| revision.to_string());
+    let home = match (&args.registry, &args.revision) {
+        (None, None) => args.ids.first(),
+        // A registry or a revision was named: that is where to look.
+        _ => None,
+    }
+    .and_then(|id| builtin_revision_with(&id.to_ascii_uppercase()))
+    .map(|revision| revision.to_string());
     let revision = args.revision.as_deref().or(home.as_deref());
     let registry = match requirements_registry(args.registry.as_deref(), revision) {
         Ok(registry) => registry,

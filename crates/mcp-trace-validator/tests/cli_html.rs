@@ -124,6 +124,57 @@ fn stdin_is_named_standard_input() {
     assert!(page(&output).contains("<h1 class=\"trace-name\">standard input</h1>"));
 }
 
+/// A scratch directory of this test's own.
+fn scratch(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("mcp-tv-html-{tag}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn html_report_writes_the_page_beside_what_the_format_prints() {
+    let dir = scratch("beside");
+    let file = dir.join("page.html");
+    let trace = "corpus/violations/base-001-request-id-boolean.jsonl";
+    let output = run(&["validate", trace, "--html-report", file.to_str().unwrap()]);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        text.contains("verdict: fail") && !text.contains("<!DOCTYPE html>"),
+        "stdout still carries the human report: {text}"
+    );
+    let written = std::fs::read_to_string(&file).unwrap();
+    assert!(written.starts_with("<!DOCTYPE html>"), "{written}");
+    // The page is the one `--format html` prints for the same run.
+    let printed = run(&["validate", trace, "--format", "html"]);
+    assert_eq!(written, String::from_utf8(printed.stdout).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn an_html_report_that_cannot_be_written_exits_2_and_says_why() {
+    let dir = scratch("unwritable");
+    let file = dir.join("no-such-directory").join("page.html");
+    let output = run(&[
+        "validate",
+        "corpus/good/http-session.jsonl",
+        "--html-report",
+        file.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains(&format!(
+            "error: cannot write the HTML report to {}: ",
+            file.display()
+        )),
+        "{stderr}"
+    );
+    assert!(!file.exists());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn the_help_lists_the_format() {
     let output = run(&["validate", "--help"]);

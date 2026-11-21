@@ -73,6 +73,37 @@ fn unix_days_convert_to_the_calendar_both_ways_across_the_range() {
     }
 }
 
+/// Every day of the range, against a calendar counted forward one day at a
+/// time: the conversion's arithmetic shares nothing with it.
+#[test]
+fn every_day_from_year_1_to_9999_is_the_day_after_the_one_before() {
+    let (mut year, mut month, mut day) = (1_u16, 1_u8, 1_u8);
+    for days in -719_162_i64..=2_932_896 {
+        let expected = Date::new(year, month, day);
+        assert!(expected.is_some(), "{year}-{month}-{day} exists");
+        assert_eq!(
+            Date::from_unix_days(days),
+            expected,
+            "day {days} is {year}-{month}-{day}"
+        );
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let length = match month {
+            2 if leap => 29,
+            2 => 28,
+            4 | 6 | 9 | 11 => 30,
+            _ => 31,
+        };
+        if day < length {
+            day += 1;
+        } else if month < 12 {
+            (month, day) = (month + 1, 1);
+        } else {
+            (year, month, day) = (year + 1, 1, 1);
+        }
+    }
+    assert_eq!((year, month, day), (10_000, 1, 1));
+}
+
 fn file(findings: &Value) -> String {
     json!({
         "version": 1,
@@ -263,6 +294,17 @@ fn long_fingerprints_are_cut_in_an_error_and_short_ones_are_not() {
     ])));
     let text = error.to_string();
     assert!(text.contains('…') && text.len() < 200, "{text}");
+    // Cut at 72 characters, counted as characters; one of exactly 72 is whole.
+    for (length, cut) in [(71, false), (72, false), (73, true)] {
+        let fingerprint = "é".repeat(length);
+        let text =
+            rejected(&file(&json!([{"fingerprint": fingerprint, "reason": ""}]))).to_string();
+        assert_eq!(text.contains('…'), cut, "{length}: {text}");
+        assert!(
+            text.contains(&"é".repeat(length.min(72))) && !text.contains(&"é".repeat(73)),
+            "{length}: {text}"
+        );
+    }
     let short = rejected(&file(&json!([{"fingerprint": "A:1", "reason": ""}])));
     assert!(short.to_string().contains("\"A:1\"") && !short.to_string().contains('…'));
 }

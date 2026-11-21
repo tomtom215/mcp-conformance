@@ -362,3 +362,6 @@ fn parse_revisions(revisions: &[String]) -> Result<Vec<ProtocolRevision>, String
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests;

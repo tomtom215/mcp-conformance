@@ -172,6 +172,21 @@ fn an_accepted_wire_schema_failure_is_skipped_and_a_counted_one_fails() {
     );
     assert!(!schema_case.contains("<failure"), "{schema_case}");
     assert!(count(&xml, "testsuites", "failures") < count(&failing, "testsuites", "failures"));
+    // It moves from the failures to the skipped cases, one for one, in the
+    // suite's attributes and the document's.
+    for tag in ["testsuites", "testsuite"] {
+        assert_eq!(
+            count(&xml, tag, "skipped"),
+            count(&failing, tag, "skipped") + 1,
+            "{tag}"
+        );
+        assert_eq!(
+            count(&xml, tag, "failures") + 1,
+            count(&failing, tag, "failures"),
+            "{tag}"
+        );
+        assert_eq!(count(&xml, tag, "tests"), count(&failing, tag, "tests"));
+    }
 }
 
 #[test]
