@@ -64,6 +64,7 @@ pub(crate) fn covers(patterns: &[String], path: &str) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -77,7 +78,7 @@ mod tests {
             patterns(text),
             ["**.json", "a/*.png", "b", "one/file", "x", "y"]
         );
-        assert!(patterns("pathological = [\"no\"]\n").is_empty());
+        assert_eq!(patterns("pathological = [\"no\"]\n"), Vec::<String>::new());
     }
 
     #[test]
