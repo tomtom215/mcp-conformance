@@ -31,17 +31,14 @@ The exit code is the verdict, so the same command is a CI gate.
 | want a conformance gate in CI | [Use it in CI](#use-it-in-ci) |
 | want to know what is judged, and what is not | [Requirement coverage](#requirement-coverage) |
 
-**Status: `0.6.0`, on [crates.io](https://crates.io/crates/mcp-trace-validator).**
+**Status: `0.7.0`.** The libraries, the recorder and the validator are on
+[crates.io](https://crates.io/crates/mcp-trace-validator). The `mcp-conformance`
+binary ships as [release archives](https://github.com/tomtom215/mcp-conformance/releases),
+npm and PyPI packages and a container image ([Install](#install)).
 Pre-1.0: the API and the verdicts may change between minor releases, and the
-[changelog](CHANGELOG.md) says so when they do.
-
-> **This README describes `main`, which is ahead of `0.6.0`.** `mcp-conformance`
-> (`check`, `test`, `watch`, `serve`), baselines, the party view, the wire schema,
-> the HTML report, the container image and the npm and PyPI packages ship with the
-> next release; until then, build from this repository
-> (`cargo install --locked --path crates/mcp-conformance-cli`). The
-> [changelog's `Unreleased` section](CHANGELOG.md#unreleased) lists everything, and
-> the book for `main` is at <https://mcp-conformance.com/dev/>.
+[changelog](CHANGELOG.md) says so when they do; `0.7.0` does, and its
+[breaking-changes table](CHANGELOG.md#070---2026-11-21) lists each one with its
+migration.
 
 ## Contents
 
@@ -57,19 +54,18 @@ Pre-1.0: the API and the verdicts may change between minor releases, and the
 
 ## Quickstart
 
-**1. Install `mcp-conformance`.** Today that is a build from this repository, with
-[rustup](https://rustup.rs) installed ([Install](#install) lists every other way and
-when it arrives):
+**1. Install `mcp-conformance`**, whichever way suits you ([Install](#install) lists
+them all):
 
 ```text
-git clone https://github.com/tomtom215/mcp-conformance
-cd mcp-conformance
-cargo install --locked --path crates/mcp-conformance-cli
+npm install -g mcp-conformance        # or run it without installing: npx mcp-conformance …
+pip install mcp-conformance
+cargo install --locked --git https://github.com/tomtom215/mcp-conformance --tag v0.7.0 mcp-conformance-cli
 ```
 
 **2. Point it at a server**, with the server's own start command after `--`, or its
 endpoint with `--url`. This run checks the repository's reference server
-(`cargo install --locked --path crates/mcp-everything-server`); yours goes in its
+(`cargo install --locked mcp-everything-server`); yours goes in its
 place:
 
 ```text
@@ -77,7 +73,7 @@ $ mcp-conformance check -- mcp-everything-server
 mcp-trace-capture: recording to /tmp/mcp-conformance-check-9903-907254515/session.jsonl
 mcp-conformance check: mcp-everything-server (stdio)
   revision   2025-11-25 — `server/discover` was not answered as a 2026-07-28 server answers it, so the session fell back to `initialize`
-  server     mcp-everything-server 0.6.0
+  server     mcp-everything-server 0.7.0
   tools      21 listed, 1 called
   resources  3 listed, 3 read
   prompts    5 listed, 3 fetched
@@ -171,23 +167,21 @@ sent, the probes, the bounds, servers that want a credential.
 
 ## Install
 
-| What | Available | How |
-| ------ | ----------- | ----- |
-| `mcp-conformance`, from this repository | Now | `cargo install --locked --path crates/mcp-conformance-cli` |
-| The recorder and the validator, from crates.io | Now (`0.6.0`) | `cargo install mcp-trace-capture mcp-trace-validator` |
-| The same two, prebuilt | Now (`0.6.0`) | `cargo binstall mcp-trace-capture mcp-trace-validator` |
-| Release archives of the same two; of `mcp-conformance` too from the next release | Now (`0.6.0`) | [GitHub releases](https://github.com/tomtom215/mcp-conformance/releases) |
-| The GitHub Action, with nothing to install | Now | [Use it in CI](#use-it-in-ci) |
-| All three binaries, from npm | **Not yet** | `npx mcp-conformance` |
-| All three binaries, from PyPI | **Not yet** | `pip install mcp-conformance` |
-| All three binaries, as a container image (linux/amd64) | **Not yet** | `ghcr.io/tomtom215/mcp-conformance:<version>` |
+| What | How |
+| ------ | ----- |
+| All three binaries, from npm | `npm install -g mcp-conformance`, or `npx mcp-conformance …` to run without installing |
+| All three binaries, from PyPI | `pip install mcp-conformance` |
+| All three binaries, as release archives | [GitHub releases](https://github.com/tomtom215/mcp-conformance/releases) |
+| All three binaries, as a container image (linux/amd64) | `docker run --rm ghcr.io/tomtom215/mcp-conformance:0.7.0 mcp-conformance --help` |
+| `mcp-conformance`, built from source | `cargo install --locked --git https://github.com/tomtom215/mcp-conformance --tag v0.7.0 mcp-conformance-cli` |
+| The recorder and the validator alone, from crates.io | `cargo install --locked mcp-trace-capture mcp-trace-validator` (or `cargo binstall` for the prebuilt binaries) |
+| The GitHub Action, with nothing to install | [Use it in CI](#use-it-in-ci) |
 
-- **What `0.6.0` has.** `mcp-trace-capture` and `mcp-trace-validator`: record a
-  session and judge it ([Judge traffic you already have](#judge-traffic-you-already-have)).
-  `mcp-conformance` and everything the note under [the status line](#mcp-conformance)
-  names are on `main` only.
-- **npm, PyPI and the container image arrive with the next release.** Nothing is
-  published under those names yet, so until then those commands fail or find nothing.
+- **The three binaries** are `mcp-conformance` (every command in this README),
+  `mcp-trace-capture` (the recorder alone) and `mcp-trace-validator` (the judge
+  alone). `mcp-conformance` is not on crates.io: it is a binary, distributed as one.
+- **npm, PyPI and the container image are new in `0.7.0`.** No earlier version exists
+  under those names.
 - **Release archives** are built for Linux (static, x86_64 and aarch64), macOS (arm64
   and x86_64) and Windows (x86_64), with SLSA build-provenance attestations
   (`gh attestation verify <archive> --repo tomtom215/mcp-conformance`) and a
@@ -570,7 +564,7 @@ runs the official suite and this reading together.
 
 | Crate | What it is |
 |-------|-----------|
-| [`mcp-conformance-cli`](crates/mcp-conformance-cli) | **The front door** (binary `mcp-conformance`; on `main`, not yet released): [the commands above](#the-commands). |
+| [`mcp-conformance-cli`](crates/mcp-conformance-cli) | **The front door** (binary `mcp-conformance`; not on crates.io, see [Install](#install)): [the commands above](#the-commands). |
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The judge**, as a library and a CLI: a pure function from trace events to a report. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus). |
 | [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder**: a stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write the trace. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The specification as data**: one registry entry per normative clause, with its verbatim quote, RFC 2119 level and either a check or the written reason no recording can judge it. Serde only. |

@@ -113,9 +113,16 @@ mcp-conformance check: python my_server.py (stdio)
   prompts    not declared by the server, so not asked for
   not called:
     create_entities, delete_entities — not annotated read-only (`readOnlyHint: true`); name it with --call, or use --call-all
-  requests   10 sent
+  probes     2 sent: requests made wrong on purpose, to see how the server refuses them (--no-probes leaves them out)
+    resources/read for a resource the server does not have — refused with an error
+    logging/setLevel with a level that is not one — refused with an error
+  requests   12 sent
   trace      /tmp/mcp-conformance-check-31192-984222902/session.jsonl
+mcp-conformance check: result: the server broke no rule this run could judge (warnings, if any are listed, are the specification's recommendations)
+mcp-conformance check: the report as a page to open in a browser: /tmp/mcp-conformance-check-31192-984222902/report.html
 ```
+
+The server and its numbers here are made up; the lines are the ones a run prints.
 
 Read it before the report. A verdict of `pass` over a session that called no tool
 says nothing about the server's tools: those clauses are reported *not observed*, and

@@ -11,6 +11,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-21
+
+**A minor release with breaking changes**, which pre-1.0 SemVer permits and
+[STABILITY.md](STABILITY.md) defines: verdicts, report formats, the trace format, the
+recorder and the Rust API all change, and the table under the highlights lists every
+one with its migration. It is also the first release of the `mcp-conformance` binary,
+of the npm and PyPI packages and of the container image.
+
 ### Highlights
 
 The short version of this release; every item is stated again, with its reasoning,
@@ -1096,6 +1104,14 @@ not yet published to crates.io)
   had hidden a failing test (see Fixed).
 
 ### Changed
+
+- **Every file states its licence** ([REUSE 3.3](https://reuse.software/spec-3.3/)).
+  The files that can carry a comment already carried the two-line SPDX header; the
+  1,027 that cannot (JSON, recorded traces, images, lock files, fuzz seeds, golden
+  pages) are named in `REUSE.toml`, which also records the vendored specification
+  schemas as the specification's work under its own licence. `LICENSES/` holds the
+  licence texts, `cargo xtask spdx` fails for a tracked file with neither a header nor
+  an entry, and `reuse lint` 6.3.0 reports the tree compliant.
 
 - **Tests leave nothing behind in the temporary directory.** The workbench's
   fixture libraries are removed when their test ends (a guard that deletes on
@@ -4174,7 +4190,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0

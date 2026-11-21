@@ -8,25 +8,6 @@ trace against the requirement registry and get requirement-level findings — th
 verbatim with its link, the offending event `seq`, actionable detail — as human text,
 JSON, JUnit XML, SARIF, or one self-contained HTML page.
 
-> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
-> whose own README is the one on crates.io. Documentation for the release is at
-> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
->
-> **Not yet released** (on `main` since `0.6.0`):
->
-> - `requirements <ID>…` (one requirement in full) and the `--area`, `--level`,
->   `--checked` and `--excluded` filters;
-> - the `completions` subcommand;
-> - `--version`'s second line, naming the revisions the build judges;
-> - the cap of 20 findings per clause in the human report;
-> - the `incomplete` verdict, and unjudged traces listed in every format;
-> - `judge::judge_with`;
-> - the wire schema: every message validated against its revision's JSON Schema
->   (the report's `wire_schema`), and five clauses that needed a schema engine
->   to judge — `BASE-017`/`BASE-073`, `TOOL-045`/`TRAN-137`/`TRAN-082` — plus
->   `TOOL-011`/`TOOL-040` judging conformance to the `outputSchema`, not presence;
-> - `--format html` (`html::render`): one self-contained page per run.
-
 `cargo install mcp-trace-validator` (or `cargo binstall mcp-trace-validator` for a
 prebuilt binary), then:
 

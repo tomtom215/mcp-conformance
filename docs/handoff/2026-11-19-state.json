@@ -1,15 +1,16 @@
 {
   "branch": "claude/busy-cray-9rvb8c",
-  "base": "main at 8435f7e",
-  "date": "2026-11-19",
-  "pull_request": null,
-  "version": "0.6.0 (not bumped; the release commit is the maintainer's)",
+  "base": "main at 9842607 (the merge of pull request 79); branch restarted from it on 2026-11-21",
+  "date": "2026-11-19, last rewritten 2026-11-21",
+  "pull_request": "79 merged 2026-11-21; the release pull request is opened from this branch",
+  "version": "0.7.0 (release commit made 2026-11-21; not tagged, which is the owner's step)",
   "local_tests": {
-    "command": "cargo test --workspace --all-features --no-fail-fast",
-    "passed": 2220,
-    "failed": 1,
-    "ignored": 3,
-    "note": "the one failure (xtask draft_coverage document list) was fixed afterwards and xtask re-run: 268 passed; a full re-run after that fix was not made"
+    "command": "cargo xtask ci",
+    "date": "2026-11-21",
+    "exit": 0,
+    "passed_all_features": 2504,
+    "failed": 0,
+    "note": "run on the release commit's tree; RELEASING.md §v0.7.0 pre-flight has every leg"
   },
   "items": [
     {
@@ -114,15 +115,20 @@
     {
       "id": "prober",
       "status": "blocked_on_maintainer_decision"
+    },
+    {
+      "id": "release-0.7.0-prepared",
+      "status": "done",
+      "verified": "RELEASING.md §v0.7.0 pre-flight (cargo xtask ci exit 0; package; semver breaks held against the changelog table; conformance at rmcp 3.10.0; reuse lint 6.3.0)",
+      "not_done": "tag, publish, screen-reader pass, complete local mutation run"
     }
   ],
   "run_first_next_session": [
-    "read the CI run on the branch tip",
-    "maintainer decisions, then open the pull request and read its Mutants run"
+    "read the release pull request's CI and its Mutants (PR diff) job",
+    "owner: npm and PyPI one-time setup, rehearsal, tag v0.7.0",
+    "re-verify register rows 2.13, 3.6, 3.11 with access to the other repositories' issues"
   ],
   "ci": {
-    "run": 543,
-    "commit": "67bcf61",
-    "conclusion": "success"
+    "note": "the last green CI recorded here was on 8f27249 (pull request 79, all 85 check runs); the release branch's CI is read from its pull request"
   }
 }

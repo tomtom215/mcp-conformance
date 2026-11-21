@@ -10,9 +10,10 @@ as `mcp-trace-capture` does and judges it as it runs: every new finding is print
 exchange that shows it completes, a one-line tally keeps count, and the validator's full
 report follows when the session ends.
 
-> `mcp-conformance` is on `main`, not yet released
-> ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)).
-> Build it from a checkout with `cargo install --path crates/mcp-conformance-cli`.
+> `mcp-conformance` is released from `0.7.0`
+> ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)):
+> `npm install -g mcp-conformance`, `pip install mcp-conformance`, a release archive,
+> or [the other ways to install it](getting-started.md).
 
 ## Starting it
 

@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-# Validate recorded MCP sessions in GitHub Actions. Point this action at
-# traces recorded in an earlier step, or have it record them: with `capture`,
-# it runs your client against your server through mcp-trace-capture first. It
-# writes a SARIF log and a JUnit report, prints the findings to the job log and
-# summary, and fails the step when a clause fails (or warns, with `strict`).
+# Check an MCP server, or validate recorded MCP sessions, in GitHub Actions.
+# Give it the command that starts your server (`check`) or its URL
+# (`check-url`) and it exercises the server as a conforming client would; or
+# point it at traces recorded in an earlier step; or have it record them: with
+# `capture`, it runs your client against your server through mcp-trace-capture
+# first. It writes a SARIF log, a JUnit report and the report as an HTML page,
+# prints the findings to the job log and summary, and fails the step when a
+# clause fails (or warns, with `strict`).
+#
+#   - uses: tomtom215/mcp-conformance@<tag or commit>
+#     with:
+#       check: python my_server.py
 #
 #   - uses: tomtom215/mcp-conformance@<tag or commit>
 #     with:
@@ -115,7 +122,7 @@ inputs:
     default: mcp-conformance-capture
   version:
     description: >-
-      A release (e.g. `0.6.0`) whose prebuilt binaries to download, verified
+      A release (e.g. `0.7.0`) whose prebuilt binaries to download, verified
       against the release's SHA256SUMS-binaries. Empty (the default) builds the
       CLI from this action's own source, which always matches the action ref.
     required: false

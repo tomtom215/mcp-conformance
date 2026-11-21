@@ -12,50 +12,6 @@ clause against the specification.
 cargo install mcp-trace-capture mcp-trace-validator
 ```
 
-> **This README is `main`'s.** `cargo install` gets the latest release, `0.6.0`,
-> whose own README is the one on crates.io. Documentation for the release is at
-> <https://mcp-conformance.com>, and for `main` at <https://mcp-conformance.com/dev/>.
->
-> **Not yet released** (on `main` since `0.6.0`):
->
-> - a stop giving the stdio server 1 second before its process group is killed (`0.6.0`:
->   3 seconds);
-> - `{session}` numbers continuing after the highest present (`0.6.0`: the lowest free
->   one);
-> - the proxy's `/` being the `--upstream` URL itself, and redirects into the upstream
->   pointed back at the proxy (`0.6.0` appended `/` to the upstream path);
-> - the client URL printed at start, the non-2xx and 404 summary at exit, hints for
->   near-miss arguments, and the exit codes in `--help`;
-> - a forced HTTP stop ending the trace with `transport-abort`; SSE events of a type
->   other than `message` left out; unfaithful JSON recorded as its raw line (stdio) or
->   left out (HTTP);
-> - on Windows, the server's whole exit code;
-> - `SIGQUIT` relayed as a stop; a last stdio line without its newline recorded as a
->   string;
-> - over HTTP: one buffer budget for all exchanges, a 30-second request-head timeout,
->   a 60-second bound between the bytes of a request body (`408` past it), a
->   10-second upstream connect timeout, `Content-Length` kept, dot-segment paths
->   refused however they are spelled (`;parameters` and overlong encodings
->   included), `CONNECT` refused, redirects pointed at the proxy's own address, and
->   unseen session ids sharing one trace until the server accepts one;
-> - the client's `Host` passed through to an upstream on this machine by default
->   (`--no-preserve-host` to send the server's own name instead), with the startup
->   lines saying which;
-> - every trace file created readable by its owner alone (`0600` on Unix), a
->   symbolic link at `-o` refused even with `--force`, and a `{session}` file
->   written through the handle that created it rather than by its path.
-> - in the library, `stdio::relay` (the stdio wrapper with the client on streams the
->   caller supplies) and `Signals::requested` (stops a program asks for, not the
->   operating system) — what `mcp-conformance test` runs a stdio server with;
-> - in the library, the whole run behind both modes (`run::stdio`, `run::http`, with
->   `output` and the `--upstream`/`--listen` parsing in `run::values`), and an
->   `Observer` that is shown each event's line as it is written — what
->   `mcp-conformance watch` records and judges a session with. An observer is called
->   in `seq` order, with the trace's lock held, before the bytes the event completes are
->   forwarded, so it must return at once: `watch`'s copies the line onto a channel.
->   `http::client` connects to an endpoint of the caller's own exactly as the proxy
->   connects upstream (`watch --otlp`'s collector).
-
 ## stdio servers
 
 Configure your MCP client to launch the wrapper instead of the server:

@@ -138,8 +138,8 @@ const FALSIFIERS: &[Falsifier] = &[
         gate: "version-sync",
         runner: Runner::Xtask,
         file: "README.md",
-        edit: Edit::Replace("**Status: `0.6.0`", "**Status: `0.5.9`"),
-        expect: "0.5.9",
+        edit: Edit::Replace("**Status: `0.7.0`", "**Status: `0.6.9`"),
+        expect: "0.6.9",
     },
     Falsifier {
         gate: "changelog-links",

@@ -3,8 +3,11 @@
 
 # Releasing
 
-> **Status:** the latest release is v0.6.0 (tag at `9b6ef0f`; on crates.io
-> 2026-10-06). Changes since accumulate under `[Unreleased]` in `CHANGELOG.md`.
+> **Status:** v0.7.0 is prepared: its release commit is written (2026-11-21, §v0.7.0
+> pre-flight) and the tag is the owner's next step (checklist steps 2 and 3, and the
+> one-time npm and PyPI setup below, which v0.7.0 is the first release to need). The
+> latest published release is v0.6.0 (tag at `9b6ef0f`; on crates.io 2026-10-06).
+> Rewrite this paragraph once v0.7.0 is published.
 > Every crate version since v0.2.0 has published through OIDC trusted publishing
 > except one: `mcp-trace-capture` 0.6.0, the crate's first version, published by
 > the owner's one-time bootstrap token (crates.io records
@@ -309,6 +312,36 @@ The full `--all-features` mutation sweep and the `workflow_dispatch`
 rehearsal run in CI from the `release/v0.6.0` branch; their outcomes belong in
 the release PR, not in this file.
 
+## v0.7.0 pre-flight (2026-11-21, release commit)
+
+Measured on the release commit's tree, not asserted. 0.7.0 is the first release
+of `mcp-conformance` (the binary), of the npm and PyPI packages and of the
+container image, so the one-time owner setup in §npm and PyPI comes before the tag.
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask ci` (1.100.0) | green, exit 0 — format, clippy and tests in three feature modes, MSRV clippy (1.88.0), `cargo deny` (0.20.2), the four sync gates; none skipped. 2,504 tests in the all-features run |
+| `cargo package --workspace --exclude xtask --locked` | green — six crates packaged with verification builds (the five published ones and `mcp-conformance-cli`, which is `publish = false`) |
+| `cargo xtask semver` (cargo-semver-checks 0.51.0) | green — "no semver update required" for the five published crates at `0.6.0 -> 0.7.0` |
+| the same check as if the bump were a patch (`--release-type patch`), to list the breaks a minor bump licenses | `mcp-conformance-core`: `EventBody::Http` gains `path` and `document`. `mcp-trace-capture`: `Route`, `Options`, `Traces` and `Recorder` no longer `UnwindSafe`/`RefUnwindSafe`; `framing::Line` now `#[non_exhaustive]`; `Traces::respond` takes a third parameter. `mcp-trace-validator`: `context::draft` removed. `mcp-everything-server` and `mcp-reference-host`: none. Each is a row of `[0.7.0]`'s breaking-changes table |
+| `cargo xtask conformance` (suite `0.1.16`, rmcp 3.10.0) | green, exit 0 — 32 server sessions and 4 client sessions with zero unexplained divergence, the capture and product legs green. Run on the dependency commit before the version lines moved |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | green |
+| `reuse lint` (6.3.0) | compliant — 1,846 of 1,846 files with copyright and licence information |
+| `version-sync`, `changelog-links` (in `ci`) | green — README and `CITATION.cff` state `0.7.0`; eight version headings, `[Unreleased]` compares against `v0.7.0` |
+| `Cargo.lock` diff of the release commit | seven version lines: the five published crates, `mcp-conformance-cli` and `xtask` |
+| diff-scoped mutants, locally (`mutants.yml`'s command over the branch diff, 121 mutants) | **incomplete**: stopped at 93 tested when the disk filled. The 9 it had missed are closed, each kill proven by applying the mutant; the other 28 were not tested here. The release pull request's `Mutants (PR diff)` job is the complete run |
+
+Not done, and not claimed:
+
+- **No screen reader has been run** on the redesigned HTML report or the workbench.
+- **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each rests on
+  issues in other repositories, which the session that prepared this release could
+  not read (HTTP 403 from its sandbox), so they are not re-verified.
+- **The release rehearsal** (`workflow_dispatch` of `release.yml`), the tag, the
+  publish and its verification (checklist steps 2 to 5) are the owner's.
+- **Dependencies inside the seven-day cooldown** on 2026-11-21 were left: rmcp 3.11.0,
+  jsonschema 0.62.0 and 22 lockfile entries (`clap` 4.6.9 among them).
+
 ## Release checklist
 
 1. **Prepare** on a `release/vX.Y.Z` branch:
@@ -327,8 +360,12 @@ the release PR, not in this file.
      `CITATION.cff`'s `date-released`. Then `cargo update --workspace --offline`
      to move the workspace packages in `Cargo.lock` without dragging in
      dependency updates the release never measured — the diff should be exactly
-     one version line per workspace package: six from 0.6.0 (the five published
-     crates and `xtask`).
+     one version line per workspace package: seven from 0.7.0 (the five published
+     crates, `mcp-conformance-cli` and `xtask`). **Read the diff**: at 0.7.0 the
+     command also moved `mcp-conformance-cli`'s `base64` edge from 0.23.1 to 0.22.1
+     (the crate accepts both, and offline resolution preferred the other one), and
+     the release commit instead edited the seven version lines by hand and checked
+     them with `cargo metadata --locked`.
    - Move `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD` in `CHANGELOG.md`, dropping
      any "prepared, not yet published" intro paragraph; add a fresh
      `[Unreleased]` section. Update the link-reference definitions at the foot of
@@ -337,7 +374,14 @@ the release PR, not in this file.
      the step v0.3.0 forgot, leaving `[0.3.0]` rendering as literal text and
      `[Unreleased]` still comparing against `v0.2.0`).
    - `cargo xtask ci` green; `cargo deny check` green; `cargo package --workspace --exclude xtask --locked`
-     green.
+     green; `reuse lint` green (`pip install reuse`; CONTRIBUTING §Licence headers).
+   - Sweep the release-state wording that lives outside the README and the crate
+     READMEs, which this list did not name until 0.7.0 and which that release found
+     stale in nine places: `STABILITY.md`'s scope sentence, `SECURITY.md`'s scope,
+     `action.yml`'s header comment and `version` example, `packaging/README.md` (the
+     npm and PyPI page), and in the book `introduction.md`, `getting-started.md`,
+     `ci.md`, `testing.md`, `watching.md`, `upgrading.md` and `llms.txt`.
+     `grep -rn "not yet released\|<previous version>"` over those finds them.
    - **Run `cargo xtask semver` and read its output, before tagging.** It needs
      `cargo install cargo-semver-checks --locked`; without it the task reports
      SKIPPED, which in a green log is indistinguishable from a pass. That is how
@@ -361,9 +405,11 @@ the release PR, not in this file.
    - Update the supported-versions table in `SECURITY.md`.
    - Undo the unpublished-state wording, in this same commit: set
      `CITATION.cff`'s `date-released`; return `README.md`'s **Status:** line to
-     "on crates.io" wording and its Quickstart to
-     `cargo install mcp-trace-capture mcp-trace-validator` (from the `--git`
-     install used while unpublished). Remove the **Not yet released** callouts
+     released wording and its Quickstart and Install table to the released ways to
+     install (`mcp-conformance` is `publish = false`, so that is npm, PyPI, the
+     release archives, the container image, or `cargo install --git … --tag vX.Y.Z
+     mcp-conformance-cli`; `cargo install` from crates.io gets only the recorder and
+     the validator). Remove the **Not yet released** callouts
      from `README.md` and each crate's README: they list what `main` has beyond
      the previous release, and a crate's README is published as its crates.io
      page, where the release ships those items.
