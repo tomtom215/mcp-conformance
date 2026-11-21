@@ -182,7 +182,7 @@ fn whole_answer(
             },
             None,
         ),
-        (http, _) if fetched => (http, None),
+        // Anything else was not JSON, so there is no message either way.
         (http, message) => (http, message),
     }
 }

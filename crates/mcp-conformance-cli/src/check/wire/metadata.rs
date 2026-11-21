@@ -61,11 +61,11 @@ pub(crate) fn named(header: &str) -> Option<&str> {
 pub(crate) fn plan(challenge: Option<&str>, upstream: &Uri, endpoint: &str) -> Plan {
     let Some(url) = challenge.and_then(named) else {
         let path = endpoint.split('?').next().unwrap_or_default();
-        let mut paths = Vec::new();
-        if path.len() > 1 {
-            paths.push(format!("{WELL_KNOWN}{}", path.trim_end_matches('/')));
-        }
-        paths.push(WELL_KNOWN.to_owned());
+        // For an endpoint at the root the two locations are one.
+        let mut paths = vec![
+            format!("{WELL_KNOWN}{}", path.trim_end_matches('/')),
+            WELL_KNOWN.to_owned(),
+        ];
         paths.dedup();
         return Plan::WellKnown(paths);
     };
@@ -109,6 +109,12 @@ mod tests {
                 Some("yes"),
             ),
             (r#"Bearer x_resource_metadata="no""#, None),
+            // The name may follow a comma or a tab with no space between.
+            (
+                r#"Bearer scope="a",resource_metadata="comma""#,
+                Some("comma"),
+            ),
+            ("Bearer\tresource_metadata=\"tab\"", Some("tab")),
             (r#"Bearer resource_metadata_uri="no""#, None),
             ("Bearer resource_metadata", None),
             ("Bearer", None),

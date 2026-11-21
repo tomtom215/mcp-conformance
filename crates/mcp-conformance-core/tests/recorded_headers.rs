@@ -55,3 +55,32 @@ fn authorization_is_kept_only_as_the_whole_probe_value() {
         "Bearer mcp-conformance-probe-invalid-token"
     );
 }
+
+#[test]
+fn a_path_is_kept_only_when_it_names_something_under_well_known() {
+    use mcp_conformance_core::trace::{RECORDED_PATH_PREFIX, records_path};
+
+    assert_eq!(RECORDED_PATH_PREFIX, "/.well-known/");
+    for kept in [
+        "/.well-known/oauth-protected-resource",
+        "/.well-known/oauth-protected-resource/mcp",
+        "/.well-known/x",
+    ] {
+        assert!(records_path(kept), "{kept}");
+    }
+    for dropped in [
+        // The prefix alone names nothing.
+        "/.well-known/",
+        "/.well-known",
+        "",
+        "/",
+        // The MCP endpoint, and anything that merely contains the prefix.
+        "/mcp",
+        "/mcp/.well-known/oauth-protected-resource",
+        ".well-known/x",
+        "/.well-knownx/y-long-enough-to-pass-a-length-check",
+        "/a-path-longer-than-the-prefix-is",
+    ] {
+        assert!(!records_path(dropped), "{dropped:?}");
+    }
+}
