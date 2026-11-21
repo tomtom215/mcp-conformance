@@ -700,7 +700,9 @@ fn checks_count_their_subjects() {
         for trace_path in trace_files(subdir) {
             let text = fs::read_to_string(&trace_path).unwrap();
             let events = reader::parse_trace(&text, &reader::Limits::default()).unwrap();
-            let context = mcp_trace_validator::context::TraceContext::new(&events);
+            let (session, fetched) = mcp_trace_validator::fetches::split(&events);
+            let context =
+                mcp_trace_validator::context::TraceContext::new(&session).with_fetches(fetched);
             for check in mcp_trace_validator::checks::ALL {
                 if check.run(&context).subjects > 0 {
                     examined_somewhere.insert(check.id.to_owned());

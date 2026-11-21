@@ -53,6 +53,7 @@ every commit is calibrated, not merely asserted to be correct.
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | The deterministic judgment engine and its CLI (human / JSON / JUnit / SARIF reports, documented exit codes). |
 | [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | A reference server on the official `rmcp` SDK that passes the suite's server scenarios, with a session tap that records traces for the agreement check. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | A reference host (client) that passes the suite's client scenarios and captures host-side traces. |
+| [`mcp-conformance-cli`](https://github.com/tomtom215/mcp-conformance/tree/main/crates/mcp-conformance-cli) | The front door, binary `mcp-conformance`: `check`, `test`, `watch`, `validate` and the workbench. Distributed as a binary (npm, PyPI, release archives, container image), not on crates.io. |
 
 ## How this book is organized
 
@@ -66,10 +67,18 @@ To use the tools:
 
 - **[Getting started](getting-started.md)** — install, record a session, judge it,
   and read the report.
+- **[Checking a server](checking.md)** — one command from a server to its report:
+  what `check` sends, its probes and its bounds.
 - **[Capturing from your client](clients.md)** — the configuration for Claude
   Desktop, VS Code and Cursor, and driving a server with no client at all.
+- **[Recording an SDK's server](sdk-servers.md)** — a server built on one of the
+  official SDKs, recorded and judged.
+- **[Testing a server or client](testing.md)** — the official suite through the
+  recorder, with both verdicts and whether they agree.
+- **[Watching a session live](watching.md)** — each finding as it happens.
 - **[Reading a report](reading-a-report.md)** — what to do about each outcome,
   triaging a finding, raising coverage, and disputing a verdict.
+- **[The workbench](workbench.md)** — a local page over a library of recordings.
 - **[Using it in CI](ci.md)** — exit codes, JUnit and SARIF, the GitHub Action, and the container image.
 - **[Upgrading](upgrading.md)** — what a release may change, and how to compare
   verdicts across versions before you move a gate.

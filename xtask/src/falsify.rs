@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
+// REUSE-IgnoreStart (string literals below hold the headers this file writes
+// into other files; they are not statements about this one)
 
 //! `cargo xtask falsify-gates`: every gate shown able to go red.
 //!
@@ -136,8 +138,8 @@ const FALSIFIERS: &[Falsifier] = &[
         gate: "version-sync",
         runner: Runner::Xtask,
         file: "README.md",
-        edit: Edit::Replace("**Status: `0.6.0`", "**Status: `0.5.9`"),
-        expect: "0.5.9",
+        edit: Edit::Replace("**Status: `0.7.0`", "**Status: `0.6.9`"),
+        expect: "0.6.9",
     },
     Falsifier {
         gate: "changelog-links",
@@ -460,3 +462,5 @@ mod tests {
         }
     }
 }
+
+// REUSE-IgnoreEnd

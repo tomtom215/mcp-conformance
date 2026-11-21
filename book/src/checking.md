@@ -61,7 +61,20 @@ few requests made wrong on purpose:
    report on how the server refuses, says which flag to pass, and exits 2. The token
    is the public constant `mcp-conformance-probe-invalid-token`; it is the one
    `Authorization` value a recording ever keeps, and your own credential is never
-   written anywhere. Two of them are requests the revision's schema
+   written anywhere.
+
+   Between the two, `check` fetches the server's Protected Resource Metadata (RFC
+   9728), the document that tells a client where the authorization servers are: from
+   the URL the `401`'s challenge names as `resource_metadata`, or, when it names none,
+   from the well-known locations for the endpoint and then for the host, until one
+   serves it. The request carries nothing of yours, not your credential and not your
+   other `--header`s. A URL the challenge names is expected to serve a JSON document,
+   and a document that comes back is expected to name at least one authorization
+   server; a server that falls short of either fails. Only a URL on the origin you
+   gave and under `/.well-known/` is fetched; the summary says so when the challenge
+   names one that is not.
+
+   Two of the probes are requests the revision's schema
    rejects, so the report holds them against the client (`[client]`), which is this
    tool; they do not count toward the server's verdict.
 
@@ -100,9 +113,16 @@ mcp-conformance check: python my_server.py (stdio)
   prompts    not declared by the server, so not asked for
   not called:
     create_entities, delete_entities — not annotated read-only (`readOnlyHint: true`); name it with --call, or use --call-all
-  requests   10 sent
+  probes     2 sent: requests made wrong on purpose, to see how the server refuses them (--no-probes leaves them out)
+    resources/read for a resource the server does not have — refused with an error
+    logging/setLevel with a level that is not one — refused with an error
+  requests   12 sent
   trace      /tmp/mcp-conformance-check-31192-984222902/session.jsonl
+mcp-conformance check: result: the server broke no rule this run could judge (warnings, if any are listed, are the specification's recommendations)
+mcp-conformance check: the report as a page to open in a browser: /tmp/mcp-conformance-check-31192-984222902/report.html
 ```
+
+The server and its numbers here are made up; the lines are the ones a run prints.
 
 Read it before the report. A verdict of `pass` over a session that called no tool
 says nothing about the server's tools: those clauses are reported *not observed*, and

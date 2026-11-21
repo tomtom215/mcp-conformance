@@ -30,6 +30,7 @@ use serde_json::{Map, Value, json};
 use super::{Ended, Reply, Session};
 use crate::check::request::{Credential, Era};
 use crate::check::summary::Probe;
+use crate::check::wire::metadata::Plan;
 use crate::check::wire::{Failure, Wire};
 
 /// A prompt name no server is expected to list.
@@ -209,11 +210,64 @@ impl Session<'_> {
             .knock("a request with no credential", Credential::Withheld)
             .await?;
         if refused == Some(401) {
+            self.probe_metadata().await?;
             self.knock(
                 "the same request with a token nobody issued",
                 Credential::Probe,
             )
             .await?;
+        }
+        Ok(())
+    }
+
+    /// Fetches the Protected Resource Metadata of a server that answered
+    /// `401`, from where its challenge says it is or, when it names no URL,
+    /// from the well-known locations until one serves it.
+    async fn probe_metadata(&mut self) -> Result<(), Ended> {
+        let Wire::Http(http) = &*self.wire else {
+            return Ok(());
+        };
+        let (paths, named) = match http.metadata_plan() {
+            Plan::Named(path) => (vec![path], true),
+            Plan::WellKnown(paths) => (paths, false),
+            Plan::Elsewhere(why) => {
+                self.summary.probes.push(Probe {
+                    what: "the Protected Resource Metadata the challenge names".to_owned(),
+                    answer: format!("not fetched: {why}"),
+                });
+                return Ok(());
+            }
+        };
+        for path in paths {
+            if self.summary.requests >= self.plan.max_requests {
+                return Err(self.bound("the request budget (--max-requests)"));
+            }
+            let Wire::Http(http) = &*self.wire else {
+                return Ok(());
+            };
+            self.summary.requests += 1;
+            let fetched = http.fetch(&path, self.plan.limits.max_response).await;
+            let status = match fetched {
+                Ok(status) => status,
+                Err(failure @ (Failure::Closed | Failure::Transport(_))) => {
+                    return Err(Ended::Lost(failure));
+                }
+                Err(_) => 0,
+            };
+            let answer = match status {
+                200 => "served".to_owned(),
+                0 => "not read: the answer was too large".to_owned(),
+                status => format!("answered HTTP {status}"),
+            };
+            let what = if named {
+                format!("the Protected Resource Metadata the challenge names ({path})")
+            } else {
+                format!("the well-known Protected Resource Metadata ({path})")
+            };
+            self.summary.probes.push(Probe { what, answer });
+            if status == 200 {
+                break;
+            }
         }
         Ok(())
     }

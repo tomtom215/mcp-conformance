@@ -56,6 +56,13 @@
             "description": "Recorded headers. Names are read case-insensitively; credential-bearing headers should not be recorded.",
             "type": "object",
             "additionalProperties": { "type": "string" }
+          },
+          "path": {
+            "description": "The request path, on a request to a well-known URI and on the response to it. A recorder writes only paths under /.well-known/ and never a query; an event carrying one is a fetch of a document beside the MCP endpoint, not MCP traffic.",
+            "type": ["string", "null"]
+          },
+          "document": {
+            "description": "The JSON document a well-known URI answered with, on the response event."
           }
         }
       }

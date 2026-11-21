@@ -167,6 +167,25 @@ docs(plan): record the 2026-07-28 RC reconciliation outcome
 ci(mutants): scope the PR gate to the diff
 ```
 
+## Licence headers
+
+Every file states its licence (the project follows the
+[REUSE specification](https://reuse.software/spec-3.3/), version 3.3). A file that can
+carry a comment starts with these two lines, in its own comment syntax:
+
+```rust
+// SPDX-License-Identifier: MIT
+// Copyright 2026 Tom F. (https://github.com/tomtom215)
+```
+
+A file that cannot (JSON, a recorded trace, an image, a lock file, a fuzz seed) is named
+in [`REUSE.toml`](REUSE.toml) instead, which also records the one set of files that is
+not this project's work: the specification's JSON Schemas under
+`crates/mcp-conformance-core/spec-schema/`. The licence texts are in
+[`LICENSES/`](LICENSES/). `cargo xtask spdx` (inside `cargo xtask ci`) fails for a tracked
+file with neither a header nor an entry; `reuse lint` is the fuller check and is run
+before a release.
+
 ## Pull requests
 
 The PR template checklist is the contract; the short version: SPDX header on every new

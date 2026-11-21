@@ -132,11 +132,15 @@ fn event_view(event: &TraceEvent, pairs: &Pairs, marks: &[&Finding]) -> Value {
             method,
             status,
             headers,
+            path,
+            document,
         } => {
             view["kind"] = json!("http");
             view["http_method"] = json!(method);
             view["status"] = json!(status);
             view["headers"] = json!(headers);
+            view["path"] = json!(path);
+            view["document"] = json!(document);
         }
         EventBody::Lifecycle { event } => {
             view["kind"] = json!("lifecycle");

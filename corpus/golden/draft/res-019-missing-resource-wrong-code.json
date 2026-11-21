@@ -2,13 +2,13 @@
   "revision": "2026-07-28",
   "verdict": "fail",
   "totals": {
-    "pass": 38,
-    "fail": 1,
-    "warn": 0,
-    "excluded": 303,
+    "pass": 37,
+    "fail": 2,
+    "warn": 1,
+    "excluded": 300,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 159
+    "not_observed": 161
   },
   "requirements": [
     {
@@ -75,7 +75,20 @@
       "id": "BASE-083",
       "level": "SHOULD NOT",
       "actor": "both",
-      "outcome": "pass"
+      "outcome": "warn",
+      "findings": [
+        {
+          "check": "base.error-code-legacy-subrange",
+          "seq": 5,
+          "party": "server",
+          "detail": "error code -32002 is in the legacy sub-range (-32000..-32019), which new 2026-07-28 implementations should not use"
+        }
+      ],
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "new implementations SHOULD NOT use codes from this sub-range at all.",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
+      }
     },
     {
       "id": "BASE-057",
@@ -87,7 +100,20 @@
       "id": "BASE-058",
       "level": "MUST NOT",
       "actor": "both",
-      "outcome": "pass"
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "base.error-code-withdrawn",
+          "seq": 5,
+          "party": "server",
+          "detail": "error code -32002 — resource not found (2025-11-25 and earlier; replaced by -32602) — must not be emitted at 2026-07-28"
+        }
+      ],
+      "source": {
+        "section": "basic/index#error-codes",
+        "quote": "Implementations of this protocol version MUST NOT emit these codes:",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic#error-codes"
+      }
     },
     {
       "id": "BASE-060",
@@ -945,7 +971,7 @@
           "check": "resources.missing-resource-code",
           "seq": 5,
           "party": "server",
-          "detail": "`resources/read` of \"nonesuch://project/readme.md\" was refused with error -32601, though the session's complete listings name nothing under that scheme; a missing resource must draw -32602"
+          "detail": "`resources/read` of \"nonesuch://project/readme.md\" was refused with error -32002, the code earlier revisions used for a resource that does not exist; a missing resource must draw -32602"
         }
       ],
       "source": {
@@ -958,7 +984,7 @@
       "id": "RES-022",
       "level": "MUST NOT",
       "actor": "server",
-      "outcome": "not-observed"
+      "outcome": "pass"
     },
     {
       "id": "RES-023",
@@ -1135,6 +1161,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-097",
       "level": "SHOULD",
       "actor": "server",
@@ -1197,6 +1229,18 @@
     {
       "id": "AUTH-133",
       "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-141",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-142",
+      "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
     },

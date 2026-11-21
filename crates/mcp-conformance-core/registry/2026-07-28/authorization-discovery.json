@@ -12,7 +12,9 @@
         "section": "basic/authorization/authorization-server-discovery#authorization-server-location",
         "quote": "MCP servers MUST implement the OAuth 2.0 Protected Resource Metadata (RFC9728) specification to indicate the locations of authorization servers."
       },
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "checks": [
+        "auth.resource-metadata-served"
+      ]
     },
     {
       "id": "AUTH-142",
@@ -25,7 +27,9 @@
         "section": "basic/authorization/authorization-server-discovery#authorization-server-location",
         "quote": "The Protected Resource Metadata document returned by the MCP server MUST include the `authorization_servers` field containing at least one authorization server."
       },
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "checks": [
+        "auth.resource-metadata-names-servers"
+      ]
     },
     {
       "id": "AUTH-143",
@@ -51,7 +55,7 @@
         "section": "basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements",
         "quote": "MCP servers MUST implement one of the following discovery mechanisms to provide authorization server location information to MCP clients:"
       },
-      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead. Where that document would be is built from the MCP endpoint's own path, which a recording never holds, so a recorded `404` at one well-known path does not show that the document is at none."
     },
     {
       "id": "AUTH-145",
@@ -64,7 +68,7 @@
         "section": "basic/authorization/authorization-server-discovery#protected-resource-metadata-discovery-requirements",
         "quote": "MCP clients MUST support both discovery mechanisms and use the resource metadata URL from the parsed `WWW-Authenticate` headers when present; otherwise, they MUST fall back to constructing and requesting the well-known URIs in the order listed above."
       },
-      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A recorder keeps the path of a fetch that does pass through when it is under `/.well-known/`, but saying which well-known URI comes first needs the endpoint's own path, which is never recorded."
     },
     {
       "id": "AUTH-146",

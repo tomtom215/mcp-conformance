@@ -62,6 +62,8 @@ pub struct TraceContext<'a> {
     framing: framing::Framing<'a>,
     /// What the HTTP layer refused before the protocol read it.
     refusals: refusal::Refusals,
+    /// The fetches of well-known documents the engine set apart.
+    fetches: Vec<crate::fetches::Fetch<'a>>,
 }
 
 impl<'a> TraceContext<'a> {
@@ -75,6 +77,10 @@ impl<'a> TraceContext<'a> {
     /// the premise that no two events share one — a hand-built slice that
     /// breaks the premise would otherwise be judged silently wrong, not
     /// loudly invalid.
+    ///
+    /// `events` are read as one MCP session. A trace that may hold fetches
+    /// of well-known documents goes through
+    /// [`fetches::split`](crate::fetches::split) first, as the engine does.
     ///
     /// [`reader::parse_trace`]: crate::reader::parse_trace
     #[must_use]
@@ -120,7 +126,22 @@ impl<'a> TraceContext<'a> {
             final_phase: tracker.phase,
             framing,
             refusals,
+            fetches: Vec::new(),
         }
+    }
+
+    /// This context, with the fetches of well-known documents that
+    /// [`fetches::split`](crate::fetches::split) took out of the events it
+    /// was built from.
+    #[must_use]
+    pub fn with_fetches(mut self, fetches: crate::fetches::Fetches<'a>) -> Self {
+        self.fetches = fetches.0;
+        self
+    }
+
+    /// The fetches of well-known documents recorded beside the session.
+    pub(crate) fn fetches(&self) -> &[crate::fetches::Fetch<'a>] {
+        &self.fetches
     }
 
     /// The underlying events.

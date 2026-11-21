@@ -13,7 +13,13 @@ capture-assigned `seq` (the only ordering authority — never inferred later), a
 - **`http`** events record the conformance-relevant headers, a response's
   status, and a client request's `method` — Streamable HTTP binds different
   obligations to `POST`, `GET`, and `DELETE`, so a clause addressed to one of
-  them is judged only where the recording says which it was; and
+  them is judged only where the recording says which it was. One kind of
+  request is recorded with its `path`: one to a well-known URI
+  (`/.well-known/…`, where RFC 8615 puts public metadata), whose answer carries
+  the same `path` and, when it was JSON, the `document` it returned. An event
+  with a `path` is a fetch of a document beside the MCP endpoint, not MCP
+  traffic, and is judged only as that. No other path is ever recorded, and no
+  query; and
 - **`lifecycle`** events mark the transport's moments: `transport-open` (it became
   usable), `transport-close` (it closed in an orderly way) and `transport-abort` (it
   failed or was torn down abnormally — an unreachable upstream, a response cut off, a

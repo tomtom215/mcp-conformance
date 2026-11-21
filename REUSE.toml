@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Tom F. (https://github.com/tomtom215)
+#
+# Licensing for the files that cannot say it themselves (REUSE 3.3,
+# https://reuse.software/spec-3.3/). Every file that can carry a comment
+# carries the two-line header instead, and `cargo xtask gates` (spdx) fails
+# for a tracked file that has neither a header nor a line here.
+
+version = 1
+
+# Data this project wrote or generated: the requirement registries, the trace
+# corpus and its golden reports (JSON has no comment syntax, and a golden page
+# is byte for byte what the validator writes), recorded conformance results,
+# screenshots, fuzz seeds whose bytes are the point, and lock files that their
+# tools rewrite from the first line.
+[[annotations]]
+path = [
+    "**.json",
+    "**.jsonl",
+    "**.png",
+    "**/Cargo.lock",
+    "Cargo.lock",
+    "interop/go/go.sum",
+    "interop/requirements.txt",
+    "fuzz/corpus/**",
+    "corpus/golden/html/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 Tom F. (https://github.com/tomtom215)"
+SPDX-License-Identifier = "MIT"
+
+# The Model Context Protocol's own JSON Schemas, vendored byte for byte from
+# https://github.com/modelcontextprotocol/modelcontextprotocol and distributed
+# under that project's licence, reproduced beside them. They are the
+# specification's work, not this project's.
+[[annotations]]
+path = ["crates/mcp-conformance-core/spec-schema/*.schema.json"]
+precedence = "override"
+SPDX-FileCopyrightText = "Model Context Protocol contributors"
+SPDX-License-Identifier = "Apache-2.0 AND MIT"

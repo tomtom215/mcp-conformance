@@ -201,6 +201,10 @@ mod check_auth;
 mod check_answers;
 
 #[cfg(unix)]
+#[path = "cli/check_metadata.rs"]
+mod check_metadata;
+
+#[cfg(unix)]
 #[path = "cli/check_edges.rs"]
 mod check_edges;
 

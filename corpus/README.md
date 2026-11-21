@@ -53,9 +53,9 @@ corpus's lines.
 
 |  | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
-| Goldens | 149 | 257 |
-| Excluded rows the ledger holds | 228 | 303 |
-| Distinct not-observed sets across them | 110 | 169 |
+| Goldens | 152 | 260 |
+| Excluded rows the ledger holds | 225 | 300 |
+| Distinct not-observed sets across them | 112 | 171 |
 
 Every cell is verified against the corpus by `cargo xtask ci`
 (`xtask::coverage::corpus`). It is checked rather than trusted because it had
@@ -145,6 +145,7 @@ below: the implementations on both ends, the tool that recorded them, and when.
 | `http-origin-alone-refused-403.jsonl` | Hand-written, added 2026-11-20. An `initialize` carrying `Origin: http://evil.example.com` refused `403`, then the same request — same `Host`, same message — from `http://localhost:3000` served. Only the `Origin` differs, so the refusal is the origin's doing and TRAN-007 (`transport.invalid-origin-403`) is judged and passes; `http-origin-refused-without-id.jsonl` changes `Host` too and leaves the clause *not observed* |
 | `http-notification-refused-400.jsonl` | Hand-written, added 2026-11-20. After the handshake, a notification the server does not recognise, refused `400` with the id-less JSON-RPC error the page permits: the conforming half of TRAN-028 (`transport.unaccepted-input-error-status`) |
 | `http-invalid-token-refused-401.jsonl` | Hand-written, added 2026-11-20. `initialize` without a credential is refused `401` with a Bearer challenge; the same request carrying the public probe credential (`Authorization: Bearer mcp-conformance-probe-invalid-token`, the one `Authorization` value a recorder keeps) is refused `401` with `error="invalid_token"`; then it is served. The pass witness of `auth.invalid-token-not-accepted` and `auth.invalid-token-challenged` (AUTH-042, AUTH-044, AUTH-047, AUTH-048, AUTH-081, AUTH-082) |
+| `http-resource-metadata-served.jsonl` | Hand-written, added 2026-11-21, from `http-invalid-token-refused-401.jsonl`. After the first `401`, the client fetches the URL the challenge names as `resource_metadata`: a `GET` recorded with its path, `/.well-known/oauth-protected-resource` (the one kind of path a recorder keeps), answered `200` with a document that names an authorization server, recorded on the answer's own `http` event. The pass witness of `auth.resource-metadata-served` and `auth.resource-metadata-names-servers` (AUTH-006, AUTH-010, AUTH-011) |
 
 ### `violations/`
 
@@ -263,6 +264,8 @@ example).
 | `auth-045-invalid-token-answered-403.jsonl` | AUTH-045: a challenge declaring `error="invalid_token"` sent with `403`. AUTH-049 fails too: the error-handling table gives the same error the same status |
 | `auth-042-invalid-token-accepted.jsonl` | Hand-written, added 2026-11-20. AUTH-042: `initialize` is refused `401` without a credential and served `200` with the public probe credential, a token no authorization server issued. AUTH-047, AUTH-048, AUTH-081 and AUTH-082 fail on the same answer |
 | `auth-044-invalid-token-refused-without-challenge.jsonl` | Hand-written, added 2026-11-20. AUTH-044: the probe credential is refused with `400` and no `WWW-Authenticate` challenge, where a token that fails validation is answered `401` with one |
+| `auth-006-resource-metadata-not-served.jsonl` | Hand-written, added 2026-11-21. AUTH-006: the URL the challenge names as its Protected Resource Metadata answers `404`, so a client cannot find the authorization servers. AUTH-010 fails on the same answer |
+| `auth-011-resource-metadata-names-no-server.jsonl` | Hand-written, added 2026-11-21. AUTH-011: the Protected Resource Metadata document the server returns has no `authorization_servers` member |
 | `auth-049-insufficient-scope-answered-401.jsonl` | AUTH-049: `error="insufficient_scope"` sent with `401` rather than the table's `403`. AUTH-050 warns too: its list begins with the `403` |
 | `auth-050-insufficient-scope-without-resource-metadata.jsonl` | AUTH-050, a warning: a `403` `insufficient_scope` challenge naming its scopes but no `resource_metadata` |
 | `auth-051-insufficient-scope-names-no-scope.jsonl` | AUTH-051, a warning: a `403` `insufficient_scope` challenge with no `scope`. AUTH-050 warns too: `scope` is one of the parameters its list requires |
@@ -293,7 +296,7 @@ two reports is attributable to that one change.
 | Server | `mcp-everything-server` on rmcp 3.5.1, serving **`2025-11-25`** — held to a revision it does not implement, so genuine non-conformance is the expected content | `mcp-everything-server --protocol-version 2026-07-28`, its stateless mode, same build |
 | Recorded by | `mcp-everything-server`'s tap, during `cargo xtask draft-readiness`, 2026-10-13 | same run, second leg |
 | Contents | 99 events / 24 POST exchanges | 99 events / 24 POST exchanges |
-| Our verdict | 70 pass, 0 fail, **1 warn**, 127 not observed, 303 excluded | **71 pass, 0 fail, 0 warn**, 127 not observed, 303 excluded |
+| Our verdict | 70 pass, 0 fail, **1 warn**, 130 not observed, 300 excluded | **71 pass, 0 fail, 0 warn**, 130 not observed, 300 excluded |
 | The official runner's verdict, that run | `42 passing / 0 failing` | `42 passing / 0 failing` |
 
 Both carry `server/discover`, `tools/list`, `tools/call`, `completion/complete`,
@@ -388,7 +391,7 @@ and this section's history above is the evidence for what each instrument caught
 and when. With the hints filled in, the runner again scores both servers alike,
 and only the registry's BASE-037 warning tells them apart.
 
-The 127 not-observed rows are the honest denominator: of the 198 clauses this
+The 130 not-observed rows are the honest denominator: of the 201 clauses this
 revision's registry can judge, these sessions carried subject matter for 71.
 They open no subscription, present no cursor, draw no JSON-RPC error, and send
 no malformed `_meta`, so those clauses are neither passed nor failed here — they
@@ -407,7 +410,7 @@ golden diff, not something to do casually.
 | Server | `mcp-everything-server --transport stdio --protocol-version 2026-07-28` |
 | Recorded by | The host's own `--trace-dir` capture, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | `server/discover`, a full `subscriptions/listen` lifecycle, an 18-tool sweep with four MRTR rounds (three elicitations and one sampling), and a discovery-driven sweep of everything that is not a tool: `resources/{list,templates/list,read}`, `prompts/{list,get}` for all five prompts, `completion/complete`, and one read of a URI the catalog does not contain. Every listing is followed to its last page: the server serves each in two, the suite's catalogue first and the rest — icons, annotations, a `resource_link` result, an audio prompt, `x-mcp-header` designations — behind a `nextCursor`. Every call carries a W3C `traceparent` in its `_meta` (BASE-040), and the session closes with a `notifications/cancelled` naming a request the server had already answered, then one more call the server *may* answer — the only shape a recording can take for a MUST NOT (TRAN-123/TRAN-124) |
-| Our verdict | **110 pass, 0 fail, 0 warn**, 88 not observed, 303 excluded |
+| Our verdict | **110 pass, 0 fail, 0 warn**, 91 not observed, 300 excluded |
 
 **It is the only capture that exercises `subscriptions/listen`.** The official
 suite drives no subscription, so the four judged `SUBS` clauses — and BASE-039,
@@ -487,7 +490,7 @@ the transport keeps it unobserved here.
 | Server | `mcp-everything-server --transport http --protocol-version 2026-07-28` |
 | Recorded by | **The server's tap**, during `cargo xtask draft-capture`, 2026-10-13 |
 | Contents | 195 events — the session's 103 messages plus 92 `http` events carrying status and headers, the `Mcp-Param-Region`/`Mcp-Param-Limit` pair rmcp mirrors for the designated tool among them |
-| Our verdict | **125 pass, 0 fail, 0 warn**, 73 not observed, 303 excluded |
+| Our verdict | **125 pass, 0 fail, 0 warn**, 76 not observed, 300 excluded |
 
 **Recorded by the server, not the host, and that is the whole point.** The
 host's recorder sits at rmcp's `Transport` seam, which carries protocol
@@ -500,7 +503,7 @@ in the corpus that can bear on them at all. Same session, both ends, one file
 each: the difference between the two reports is attributable to the transport
 and to nothing else.
 
-At 125 of the 198 judgeable clauses it is the best-covered capture here, and
+At 125 of the 201 judgeable clauses it is the best-covered capture here, and
 the fourteen it gained on 2026-10-13 are the server's own doing: the second
 pages carry the pagination clauses (`CACH-015`/`CACH-016`), the audio prompt
 (`PROM-017`), and a tool designating three arguments for `Mcp-Param-*`
@@ -616,20 +619,20 @@ read as a specimen instead.
 <!-- draft-coverage:begin (generated by `cargo xtask draft-coverage`; do not edit by hand) -->
 | Capture | Judged | pass | fail | warn | Not observed |
 |---------|-------:|-----:|-----:|-----:|-------------:|
-| `official-suite-2026-07-28-scenarios` | 71 | 70 | 0 | 1 | 127 |
-| `official-suite-2026-07-28-stateless` | 71 | 71 | 0 | 0 | 127 |
-| `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 113 |
-| `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 73 |
-| `reference-host-2026-07-28-stdio` | 110 | 110 | 0 | 0 | 88 |
-| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 115 |
-| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 133 |
-| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 124 |
-| `sdk-typescript-v2-2026-07-28` | 73 | 73 | 0 | 0 | 125 |
-| **Union** | **149** | | | | **49** |
+| `official-suite-2026-07-28-scenarios` | 71 | 70 | 0 | 1 | 130 |
+| `official-suite-2026-07-28-stateless` | 71 | 71 | 0 | 0 | 130 |
+| `probe-2026-07-28-http` | 85 | 73 | 11 | 1 | 116 |
+| `reference-host-2026-07-28-http` | 125 | 125 | 0 | 0 | 76 |
+| `reference-host-2026-07-28-stdio` | 110 | 110 | 0 | 0 | 91 |
+| `sdk-go-2026-07-28` | 83 | 78 | 4 | 1 | 118 |
+| `sdk-python-2026-07-28` | 65 | 65 | 0 | 0 | 136 |
+| `sdk-rust-2026-07-28` | 74 | 73 | 0 | 1 | 127 |
+| `sdk-typescript-v2-2026-07-28` | 73 | 73 | 0 | 0 | 128 |
+| **Union** | **149** | | | | **52** |
 
-Across all 9 captures, **149 of the 198 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
+Across all 9 captures, **149 of the 201 judgeable clauses** are evidenced by at least one recording. Each capture's own judged count is what *that* recording carried subject matter for; everything else it reports *not observed* rather than counting it as a pass.
 
-The 49 clauses no capture reaches: `AUTH-097`, `AUTH-121`, `AUTH-123`, `AUTH-124`, `AUTH-126`, `AUTH-127`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `AUTH-190`, `AUTH-191`, `CANC-003`, `CANC-011`, `COMP-008`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `PAGE-011`, `PROM-019`, `RES-019`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-052`, `TRAN-061`, `TRAN-062`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-090`, `TRAN-091`, `TRAN-096`, `TRAN-101`, `TRAN-103`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
+The 52 clauses no capture reaches: `AUTH-091`, `AUTH-097`, `AUTH-121`, `AUTH-123`, `AUTH-124`, `AUTH-126`, `AUTH-127`, `AUTH-129`, `AUTH-130`, `AUTH-131`, `AUTH-132`, `AUTH-133`, `AUTH-141`, `AUTH-142`, `AUTH-190`, `AUTH-191`, `CANC-003`, `CANC-011`, `COMP-008`, `DISC-002`, `ELIC-064`, `ELIC-065`, `MRTR-024`, `PAGE-011`, `PROM-019`, `RES-019`, `ROOT-013`, `ROOT-014`, `ROOT-018`, `SAMP-026`, `SAMP-029`, `SAMP-030`, `SAMP-031`, `SAMP-032`, `SAMP-033`, `SAMP-042`, `TOOL-035`, `TOOL-046`, `TRAN-052`, `TRAN-061`, `TRAN-062`, `TRAN-070`, `TRAN-083`, `TRAN-084`, `TRAN-090`, `TRAN-091`, `TRAN-096`, `TRAN-101`, `TRAN-103`, `TRAN-128`, `TRAN-132`, `TRAN-133`.
 <!-- draft-coverage:end -->
 
 The probe session closed the largest group — the rejection rules — and the
@@ -879,6 +882,7 @@ outcome moved.
 | `http-origin-alone-refused-403.jsonl` | Hand-written, added 2026-11-20. The `2026-07-28` counterpart of `good/http-origin-alone-refused-403.jsonl`: a `tools/list` carrying a hostile `Origin` refused `403`, then served from another origin with `Host` unchanged — TRAN-052 judged and passing |
 | `http-notification-refused-400.jsonl` | Hand-written, added 2026-11-20. A notification the server does not recognise, refused `400` with an id-less JSON-RPC error: the conforming half of TRAN-062 |
 | `http-invalid-token-refused-401.jsonl` | Hand-written, added 2026-11-20. `server/discover` without a credential is refused `401` with a Bearer challenge; the same request carrying the public probe credential (`Authorization: Bearer mcp-conformance-probe-invalid-token`, the one `Authorization` value a recorder keeps) is refused `401` with `error="invalid_token"`; then it is served. The pass witness of `auth.invalid-token-not-accepted` and `auth.invalid-token-challenged` (AUTH-121, AUTH-123, AUTH-126, AUTH-127, AUTH-190, AUTH-191) |
+| `http-resource-metadata-served.jsonl` | Hand-written, added 2026-11-21, from `http-invalid-token-refused-401.jsonl`. After the first `401`, the client fetches the URL the challenge names as `resource_metadata`: a `GET` recorded with its path, `/.well-known/oauth-protected-resource` (the one kind of path a recorder keeps), answered `200` with a document that names an authorization server, recorded on the answer's own `http` event. The pass witness of `auth.resource-metadata-served` and `auth.resource-metadata-names-servers` (AUTH-091, AUTH-141, AUTH-142) |
 | `http-encoded-name-resource-not-found.jsonl` | Hand-written, added 2026-11-20. A `resources/read` of a URI that does not exist and contains a non-ASCII character, its `Mcp-Name` in the Base64 sentinel, answered `-32602` rather than `HeaderMismatch`: the probe shape of TRAN-090/TRAN-091/TRAN-103 (`transport.encoded-header-decoded`) and its conforming answer |
 | `http-integer-header-respelled-served.jsonl` | Hand-written, added 2026-11-20. A `tools/call` whose integer parameter `limit: 100` rides `Mcp-Param-Limit: 100.0`, served: the server compared numerically, as TRAN-101 (`transport.integer-header-compared-numerically`) asks |
 | `tran-058-request-metadata-headers-missing.jsonl` | POST carries neither `Mcp-Method` nor `Mcp-Name` (TRAN-058) |
@@ -987,7 +991,7 @@ outcome moved.
 | `wire-schema-cursor-not-a-string.jsonl` | Wire schema: a `tools/list` whose `cursor` is the number `7` — and PAGE-011's pass path, because the server refuses it `-32602`. A cursor that is no string is the one cursor a `2026-07-28` trace can show to be invalid, and it is schema-invalid by construction (hand-authored 2026-11-20) |
 | `page-011-non-string-cursor-honoured.jsonl` | PAGE-011, a warning: the same `tools/list` with `cursor: 7`, answered with a page of tools. The request also fails the wire schema, the client's half of the same event |
 | `prom-019-missing-argument-wrong-code.jsonl` | PROM-019, a warning: `prompts/list` declares `review` with a required `diff`; a `prompts/get` omitting it is refused with `-32601` rather than `-32602` |
-| `res-019-missing-resource-wrong-code.jsonl` | RES-019: after complete `resources/list` and `resources/templates/list` naming only `file` URIs, a read of `nonesuch://project/readme.md` refused with `-32601` rather than `-32602` |
+| `res-019-missing-resource-wrong-code.jsonl` | RES-019: a read of `nonesuch://project/readme.md` refused with `-32002`, the code earlier revisions used for a resource that does not exist, rather than `-32602`. Until 2026-11-21 the refusal carried `-32601` and failed on the listings naming nothing under the scheme; the clause is now failed only on the server's own word, so the trace carries that. `-32002` is withdrawn at this revision, so BASE-058 fails and BASE-083 warns on the same answer |
 | `comp-008-unknown-prompt-wrong-code.jsonl` | COMP-008, a warning: discovery declares `completions`, `prompts/list` is complete, and a `completion/complete` whose `ref/prompt` names the unlisted `nonesuch` is refused with `-32601` rather than `-32602` |
 | `vers-008-initialize-error-without-versions.jsonl` | A modern-only server refuses a legacy `initialize` with a bare `Method not found`, naming none of the versions it does speak (VERS-008). Necessarily also falsifies BASE-030: a legacy handshake carries no `_meta` envelope — that is what makes it legacy — so the antecedent of this clause is a client that cannot satisfy BASE-030. BASE-031 is *not* also reported, and this trace is why the check was narrowed: `basic/versioning`'s compatibility matrix makes the rejection code implementation-defined for exactly this exchange. |
 | `elic-057-answered-without-capability.jsonl` | ELIC-057: the call declares `elicitation`, but its retry — the request carrying the accepted form — declares only `sampling`; the page asks for the declaration "on each request" |
@@ -1013,6 +1017,8 @@ outcome moved.
 | `auth-124-invalid-token-answered-403.jsonl` | AUTH-124: `error="invalid_token"` sent with `403`; AUTH-130 fails too, as for `auth-045` at `2025-11-25` |
 | `auth-121-invalid-token-accepted.jsonl` | Hand-written, added 2026-11-20. AUTH-121: `server/discover` is refused `401` without a credential and served `200` with the public probe credential, a token no authorization server issued. AUTH-126, AUTH-127, AUTH-190 and AUTH-191 fail on the same answer |
 | `auth-123-invalid-token-refused-without-challenge.jsonl` | Hand-written, added 2026-11-20. AUTH-123: the probe credential is refused with `400` and no `WWW-Authenticate` challenge, where a token that fails validation is answered `401` with one |
+| `auth-091-resource-metadata-not-served.jsonl` | Hand-written, added 2026-11-21. AUTH-091: the URL the challenge names as its Protected Resource Metadata answers `404`, so a client cannot find the authorization servers. AUTH-141 fails on the same answer |
+| `auth-142-resource-metadata-names-no-server.jsonl` | Hand-written, added 2026-11-21. AUTH-142: the Protected Resource Metadata document the server returns has no `authorization_servers` member |
 | `auth-129-offline-access-challenged.jsonl` | AUTH-129, a warning: the `401` challenge asks for `files:read offline_access`. The clause's other half, Protected Resource Metadata's `scopes_supported`, is not in a recording |
 | `auth-130-insufficient-scope-answered-401.jsonl` | AUTH-130: `error="insufficient_scope"` sent with `401`; AUTH-131 warns too |
 | `auth-131-insufficient-scope-without-resource-metadata.jsonl` | AUTH-131, a warning: an `insufficient_scope` challenge without `resource_metadata` |

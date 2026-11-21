@@ -135,6 +135,24 @@
       }
     },
     {
+      "trace": "good/http-resource-metadata-served",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
       "trace": "good/http-session",
       "revision": "2025-11-25",
       "transport": "http",
@@ -411,6 +429,47 @@
         "exit": 0,
         "findings": [],
         "other": {}
+      }
+    },
+    {
+      "trace": "violations/auth-006-resource-metadata-not-served",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-006",
+          "AUTH-010"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
+      "trace": "violations/auth-011-resource-metadata-names-no-server",
+      "revision": "2025-11-25",
+      "transport": "http",
+      "frames": 10,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-011"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
       }
     },
     {
@@ -3250,6 +3309,24 @@
       }
     },
     {
+      "trace": "draft/good/http-resource-metadata-served",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "pass",
+        "flagged": []
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
+        }
+      }
+    },
+    {
       "trace": "draft/good/http-stream-closed-by-client",
       "revision": "2026-07-28",
       "transport": "http",
@@ -3645,6 +3722,27 @@
       }
     },
     {
+      "trace": "draft/violations/auth-091-resource-metadata-not-served",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-091",
+          "AUTH-141"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 3
+        }
+      }
+    },
+    {
       "trace": "draft/violations/auth-097-challenge-without-scope",
       "revision": "2026-07-28",
       "transport": "http",
@@ -3828,6 +3926,26 @@
         "findings": [],
         "other": {
           "error": 3
+        }
+      }
+    },
+    {
+      "trace": "draft/violations/auth-142-resource-metadata-names-no-server",
+      "revision": "2026-07-28",
+      "transport": "http",
+      "frames": 8,
+      "unframed": 0,
+      "ours": {
+        "verdict": "fail",
+        "flagged": [
+          "AUTH-142"
+        ]
+      },
+      "mcpsnoop": {
+        "exit": 1,
+        "findings": [],
+        "other": {
+          "error": 2
         }
       }
     },
@@ -5522,6 +5640,8 @@
       "ours": {
         "verdict": "fail",
         "flagged": [
+          "BASE-058",
+          "BASE-083",
           "RES-019"
         ]
       },
@@ -5529,6 +5649,7 @@
         "exit": 1,
         "findings": [],
         "other": {
+          "deprecated": 1,
           "error": 1
         }
       }

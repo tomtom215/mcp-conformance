@@ -367,6 +367,8 @@ fn request_events(
     let mut request_events = vec![(
         Direction::ClientToServer,
         EventBody::Http {
+            path: None,
+            document: None,
             // Which request form this was. Streamable HTTP binds different
             // obligations to POST, GET, and DELETE, so a recording that drops
             // the method leaves the clauses addressed to one of them unjudgeable
@@ -397,9 +399,10 @@ async fn record_response(
     let status_event = (
         Direction::ServerToClient,
         EventBody::Http {
-            // A response is not a request: the method belongs to the client
-            // event recorded above, and repeating it here would invite a check
-            // to judge a response against a request-side clause.
+            path: None,
+            document: None,
+            // The method belongs to the client event above: repeating it here
+            // would invite a check to judge a response as a request.
             method: None,
             status: Some(status.as_u16()),
             headers: recorded_headers(response.headers()),

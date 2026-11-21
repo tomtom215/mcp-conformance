@@ -172,6 +172,7 @@ mod semver;
 #[cfg(test)]
 mod notification;
 mod registry_continuity;
+mod reuse;
 mod spec_drift;
 mod suite_currency;
 mod toolchain;

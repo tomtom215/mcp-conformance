@@ -29,8 +29,8 @@ Facts an assistant should get right:
   the authority on what "conformant" means; this project adds the offline,
   clause-level reading. `mcp-conformance test` runs that suite through the tap.
 - `mcp-conformance` (the `check`, `watch`, `test` and `serve` commands), baselines, the
-  npm and PyPI packages and the container image ship in the release after 0.6.0; the
-  site root documents the newest release and /dev/ documents the main branch.
+  npm and PyPI packages and the container image ship from 0.7.0; the site root
+  documents the newest release and /dev/ documents the main branch.
 
 ## Chapters
 

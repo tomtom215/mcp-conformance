@@ -16,6 +16,7 @@ use serde_json::Value;
 use super::request::{Outgoing, Requests};
 
 pub(crate) mod http;
+pub(crate) mod metadata;
 pub(crate) mod stdio;
 
 /// The bounds one exchange runs under.
