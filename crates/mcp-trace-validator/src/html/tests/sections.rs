@@ -210,6 +210,7 @@ fn a_party_view_changes_the_badge_and_says_why() {
             seq: None,
             party: None,
             detail: "nobody's".to_owned(),
+            baselined: None,
         });
     reports[0].requirements[0].outcome = crate::report::Outcome::Fail;
     let page = render(
@@ -223,4 +224,67 @@ fn a_party_view_changes_the_badge_and_says_why() {
         page.contains("<span class=\"pill party none\">unattributed</span>nobody&#39;s"),
         "{page}"
     );
+}
+
+#[test]
+fn the_summary_says_it_in_plain_words_before_the_validators() {
+    let page = page(SESSION);
+    // The verdict, what it means, what to do next, then the clause wording.
+    let badge = page
+        .find("<span class=\"badge v-fail\">Fail</span>")
+        .unwrap();
+    let headline = page
+        .find("<p class=\"headline\">This session broke 1 MUST-level rule.</p>")
+        .unwrap();
+    let next = page
+        .find("<strong>What to do next</strong> Start with <a href=\"#BASE-003\">BASE-003</a>")
+        .unwrap();
+    let terms = page.find("In the validator's terms: ").unwrap();
+    assert!(
+        badge < headline && headline < next && next < terms,
+        "{page}"
+    );
+    // A passing session is told what a pass does not cover.
+    let passing = page_of(&SESSION.lines().take(3).collect::<Vec<_>>().join("\n"));
+    assert!(passing.contains("<p class=\"headline\">No rule was broken: all "));
+    assert!(passing.contains("Nothing to fix. A pass covers only what this session did"));
+}
+
+#[test]
+fn the_counts_are_drawn_and_every_bar_has_its_numbers_as_text() {
+    let page = page(SESSION);
+    let (reports, _) = judged(SESSION);
+    let totals = reports[0].totals;
+    assert!(page.contains(&format!(
+        "<strong>{} rules</strong> checked against this session",
+        totals.pass + totals.fail + totals.warn
+    )));
+    // One failing clause among many still has a segment to see.
+    assert!(page.contains("<rect class=\"s-fail\" x=\"0\" y=\"0\" width=\""));
+    // The bars are decoration for a reader of the tally and the table.
+    assert_eq!(
+        page.matches("<svg class=\"segbar\"").count(),
+        page.matches("<svg class=\"segbar\" viewBox=\"0 0 1000 10\" preserveAspectRatio=\"none\" aria-hidden=\"true\"").count()
+    );
+    assert!(page.contains("<h2 id=\"areas-h\">Results by area</h2>"));
+    assert!(page.contains(
+        "<th scope=\"row\"><span class=\"area-name\">Base protocol</span> <code class=\"area-id\">BASE</code></th>"
+    ));
+    assert!(page.contains("<a href=\"#areas\">Results by area</a>"));
+}
+
+#[test]
+fn a_card_leads_with_what_was_seen_and_then_quotes_the_rule() {
+    let page = page(SESSION);
+    let card = &page[page
+        .find("<article class=\"clause o-fail\" id=\"BASE-003\">")
+        .unwrap()..];
+    let card = &card[..card.find("</article>").unwrap()];
+    let lead = card
+        .find("<p class=\"clause-lead\">A required rule was broken, once.</p>")
+        .unwrap();
+    let seen = card.find("<p class=\"part\">What was seen</p>").unwrap();
+    let rule = card.find("<p class=\"part\">The rule</p>").unwrap();
+    let link = card.find("class=\"spec-link\"").unwrap();
+    assert!(lead < seen && seen < rule && rule < link, "{card}");
 }

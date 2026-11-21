@@ -15,6 +15,8 @@
 //! | an extension's clauses ([`Report::extensions`]) | a suite of their own per extension, named `… (revision, extension ID, not scored)`, whose `fail` and `warn` rows are passing test cases with the findings in `<system-out>` — an extension never fails a run (ADR-0023), so no `<failure>` is written for one, `--strict` or not |
 //! | a trace that could not be judged ([`render_run`]) | a suite of one test case with an `<error>` giving the reason |
 //! | the requests the trace ended without answering ([`Report::unanswered_requests`]) | a suite `<property>` named `unanswered-requests`, failing nothing |
+//! | a finding a baseline accepts ([`Finding::baselined`](crate::report::Finding::baselined)) | never a `<failure>` and never a pass: a row all of whose findings are accepted is `<skipped>` (counted in `skipped`, not in `failures`) with the findings and their reasons in `<system-out>`; in a row that also has a counted finding, the accepted ones are in `<system-out>` and the rest are `<failure>`s |
+//! | a baseline entry that matches no finding, or whose day has passed ([`render_run_with_baseline`]) | a suite `baseline`: a stale entry is a failing test case (skipped when stale entries are allowed), a lapsed one a skipped case |
 //! | who broke it | a `fail` or `warn` case carries `<properties>`: `actor`, the party the clause binds, and `party`, the parties its findings are held against; each finding's location names its party (`[check] at seq 3 (client)`) |
 //! | a party view ([`Report::party_view`]) | a `fail` or `warn` row whose every finding is the other party's is a passing case with the findings in `<system-out>`, headed `set aside`, and is not counted in `failures` — so the document agrees with the exit status the view gives |
 //!
@@ -23,15 +25,20 @@
 
 use core::fmt::Write as _;
 
-use crate::report::{Outcome, Report, Unjudged, WireSchemaReport};
+use crate::baseline::Notes;
+use crate::report::{Report, Unjudged};
 
+mod baseline;
 mod extension;
+mod rows;
 mod text;
 
+use baseline::{note_counts, render_notes};
 use extension::{extension_counts, render_extension};
-use text::{
-    actor_token, clause_lines, counted, escape, location, properties, set_aside_line, skip_reason,
-};
+use rows::{counts, render_row, render_wire_schema};
+use text::escape;
+#[cfg(test)]
+use text::location;
 
 /// Renders the report as a single-suite `JUnit` XML document.
 ///
@@ -164,6 +171,35 @@ pub fn render_traces(traces: &[(Options, &[Report])]) -> String {
 /// ```
 #[must_use]
 pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> String {
+    render_run_with_baseline(traces, unjudged, &Notes::default())
+}
+
+/// Renders a run as [`render_run`] does, with what its baseline said about it
+/// ([`crate::baseline`]).
+///
+/// The reports carry the findings a baseline accepts; `notes` carries what no
+/// report can, the entries that match no finding of the run or whose day has
+/// passed. They are a `<testsuite name="baseline">` of their own, after the
+/// traces' — a stale entry a failing test case, as it fails the run, unless
+/// the notes allow it, and a lapsed one a skipped case — and are counted in
+/// the root. No notes, no suite: the document is [`render_run`]'s.
+///
+/// ```
+/// use mcp_trace_validator::baseline::{Entry, Notes};
+/// use mcp_trace_validator::junit;
+///
+/// let mut notes = Notes::default();
+/// notes.stale.push(Entry::new("BASE-086:check:gone:1", "was fixed"));
+/// let xml = junit::render_run_with_baseline(&[], &[], &notes);
+/// assert!(xml.contains(r#"<testsuites tests="1" failures="1" skipped="0">"#));
+/// assert!(xml.contains("stale baseline entry: BASE-086:check:gone:1"));
+/// ```
+#[must_use]
+pub fn render_run_with_baseline(
+    traces: &[(Options, &[Report])],
+    unjudged: &[Unjudged],
+    notes: &Notes,
+) -> String {
     let suites: Vec<(&Options, &Report, (u32, u32, u32))> = traces
         .iter()
         .flat_map(|(options, reports)| {
@@ -179,6 +215,7 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
         .iter()
         .map(|(_, _, count)| *count)
         .chain(extension_counts)
+        .chain((!notes.is_empty()).then(|| note_counts(notes)))
         .fold((0, 0, 0), |sum, count| {
             (sum.0 + count.0, sum.1 + count.1, sum.2 + count.2)
         });
@@ -200,6 +237,7 @@ pub fn render_run(traces: &[(Options, &[Report])], unjudged: &[Unjudged]) -> Str
     for (options, report, counts) in suites {
         render_suite(&mut out, options, report, counts);
     }
+    render_notes(&mut out, notes);
     for trace in unjudged {
         let name = escape(&trace.trace);
         let _ = writeln!(
@@ -245,191 +283,6 @@ fn render_suite(out: &mut String, options: &Options, report: &Report, counts: (u
     out.push_str("  </testsuite>\n");
     for extension in &report.extensions {
         render_extension(out, suite, report, extension, options);
-    }
-}
-
-/// `(tests, failures, skipped)` for one report; warnings count as failures when
-/// `strict` renders them as such.
-///
-/// The wire-schema case, when the report has one, counts like a row: a test,
-/// failed when a message was invalid and skipped when there were none. Under a
-/// party view a row (or the schema) fails only through a finding the view
-/// counts, which is exactly when [`render_row`] writes a `<failure>`.
-fn counts(report: &Report, strict: bool) -> (u32, u32, u32) {
-    let totals = report.totals;
-    let mut skipped =
-        totals.excluded + totals.unsupported + totals.not_applicable + totals.not_observed;
-    // The rows a view sets aside: failing (or, under strict, warning) rows
-    // none of whose findings count. None without a view, so the count is then
-    // the totals' own.
-    let set_aside = report
-        .requirements
-        .iter()
-        .filter(|row| {
-            matches!(row.outcome, Outcome::Fail) || (strict && matches!(row.outcome, Outcome::Warn))
-        })
-        .filter(|row| !counted(&row.findings, report.party_view))
-        .count();
-    let mut failures = if strict {
-        totals.fail + totals.warn
-    } else {
-        totals.fail
-    }
-    .saturating_sub(u32::try_from(set_aside).unwrap_or(u32::MAX));
-    let mut tests = totals.pass + totals.fail + totals.warn + skipped;
-    if let Some(wire_schema) = &report.wire_schema {
-        tests += 1;
-        match wire_schema.outcome {
-            Outcome::Fail if counted(&wire_schema.findings, report.party_view) => failures += 1,
-            Outcome::NotObserved => skipped += 1,
-            _ => {}
-        }
-    }
-    (tests, failures, skipped)
-}
-
-/// A test case's identifying attributes: its class, and the trace as a `file`
-/// attribute when one is named.
-fn case_attributes(report: &Report, options: &Options) -> String {
-    options.trace.as_deref().map_or_else(
-        || {
-            format!(
-                r#"classname="{}""#,
-                escape(&format!("mcp.{}", report.revision))
-            )
-        },
-        |trace| {
-            format!(
-                r#"classname="{}" file="{}""#,
-                escape(&format!("{trace}.mcp.{}", report.revision)),
-                escape(trace)
-            )
-        },
-    )
-}
-
-fn render_row(
-    out: &mut String,
-    report: &Report,
-    row: &crate::report::RequirementReport,
-    options: &Options,
-) {
-    let name = escape(&format!("{} ({})", row.id, row.level));
-    let attrs = case_attributes(report, options);
-    // A `fail` or `warn` row none of whose findings the view counts is a
-    // passing case that still shows them: the exit status set them aside, and
-    // so does the document.
-    let set_aside = matches!(row.outcome, Outcome::Fail | Outcome::Warn)
-        && !counted(&row.findings, report.party_view);
-    let outcome = match row.outcome {
-        Outcome::Warn if options.strict && !set_aside => Outcome::Fail,
-        Outcome::Fail if set_aside => Outcome::Warn,
-        other => other,
-    };
-    match outcome {
-        Outcome::Pass => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
-        }
-        Outcome::Fail => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
-            properties(out, actor_token(row), &row.findings);
-            for finding in &row.findings {
-                let _ = writeln!(
-                    out,
-                    r#"      <failure message="{}">{}{}</failure>"#,
-                    escape(&finding.detail),
-                    escape(&location(finding)),
-                    escape(&clause_lines(row)),
-                );
-            }
-            out.push_str("    </testcase>\n");
-        }
-        Outcome::Warn => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
-            properties(out, actor_token(row), &row.findings);
-            out.push_str("      <system-out>");
-            if let Some(party) = report.party_view.filter(|_| set_aside) {
-                out.push_str(&escape(&set_aside_line(party)));
-            }
-            for finding in &row.findings {
-                let _ = writeln!(
-                    out,
-                    "{}: {}",
-                    escape(&location(finding)),
-                    escape(&finding.detail)
-                );
-            }
-            out.push_str(escape(clause_lines(row).trim_start()).as_str());
-            out.push_str("</system-out>\n    </testcase>\n");
-        }
-        Outcome::Excluded
-        | Outcome::Unsupported
-        | Outcome::NotApplicable
-        | Outcome::NotObserved => {
-            let _ = writeln!(
-                out,
-                r#"    <testcase {attrs} name="{name}"><skipped message="{}"/></testcase>"#,
-                escape(&skip_reason(row))
-            );
-        }
-    }
-}
-
-/// The wire-schema test case: one `<failure>` per invalid message — or, when
-/// a party view counts none of them, a passing case showing them, like a row.
-fn render_wire_schema(
-    out: &mut String,
-    report: &Report,
-    wire_schema: &WireSchemaReport,
-    options: &Options,
-) {
-    let attrs = case_attributes(report, options);
-    let name = "wire schema";
-    match wire_schema.outcome {
-        Outcome::Fail if counted(&wire_schema.findings, report.party_view) => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
-            properties(out, None, &wire_schema.findings);
-            let clause = format!(
-                "\nspec: \"{}\"\nsee: {}\nschema: {}",
-                wire_schema.source.quote, wire_schema.source.url, wire_schema.schema
-            );
-            for finding in &wire_schema.findings {
-                let _ = writeln!(
-                    out,
-                    r#"      <failure message="{}">{}{}</failure>"#,
-                    escape(&finding.detail),
-                    escape(&location(finding)),
-                    escape(&clause),
-                );
-            }
-            out.push_str("    </testcase>\n");
-        }
-        Outcome::Fail => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}">"#);
-            properties(out, None, &wire_schema.findings);
-            out.push_str("      <system-out>");
-            if let Some(party) = report.party_view {
-                out.push_str(&escape(&set_aside_line(party)));
-            }
-            for finding in &wire_schema.findings {
-                let _ = writeln!(
-                    out,
-                    "{}: {}",
-                    escape(&location(finding)),
-                    escape(&finding.detail)
-                );
-            }
-            out.push_str("</system-out>\n    </testcase>\n");
-        }
-        Outcome::NotObserved => {
-            let _ = writeln!(
-                out,
-                r#"    <testcase {attrs} name="{name}"><skipped message="the trace holds no message"/></testcase>"#
-            );
-        }
-        _ => {
-            let _ = writeln!(out, r#"    <testcase {attrs} name="{name}"/>"#);
-        }
     }
 }
 

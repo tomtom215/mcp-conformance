@@ -115,7 +115,7 @@ fn legs(root: &Path) -> Result<(), String> {
         ],
     )?;
     compare::check(Leg::Stdio, &gate_server, &stdio, &wire)?;
-    compare::pending_is_what_the_default_run_leaves_out(&gate_server, &stdio)?;
+    compare::every_listed_scenario_is_run(&gate_server, &stdio)?;
     let client = test(
         root,
         &dir,

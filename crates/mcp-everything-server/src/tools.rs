@@ -301,6 +301,7 @@ pub(crate) fn all_tools(revision: ServedRevision) -> ToolRouter<EverythingServer
     let routed = EverythingServer::tool_router_basic()
         + EverythingServer::tool_router_notifying()
         + EverythingServer::tool_router_interactive()
+        + EverythingServer::tool_router_reconnection()
         + EverythingServer::tool_router_second_page();
     let mut routed = routed.with_route(json_schema_2020_12_route());
     for tool in RETIRED_AT_2026_07_28 {

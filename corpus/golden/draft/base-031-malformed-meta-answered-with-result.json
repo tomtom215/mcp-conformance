@@ -5,10 +5,10 @@
     "pass": 16,
     "fail": 9,
     "warn": 0,
-    "excluded": 320,
+    "excluded": 303,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 156
+    "not_observed": 173
   },
   "requirements": [
     {
@@ -92,6 +92,12 @@
     {
       "id": "BASE-060",
       "level": "SHOULD",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "BASE-061",
+      "level": "MUST NOT",
       "actor": "both",
       "outcome": "not-observed"
     },
@@ -230,6 +236,12 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-052",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-056",
       "level": "MUST",
       "actor": "client",
@@ -261,6 +273,12 @@
     },
     {
       "id": "TRAN-061",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-062",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
@@ -380,6 +398,18 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-090",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-092",
       "level": "MUST",
       "actor": "client",
@@ -464,7 +494,19 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-101",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-102",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-103",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
@@ -815,6 +857,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "PAGE-006",
       "level": "MUST",
       "actor": "client",
@@ -838,6 +886,12 @@
         "quote": "Every request MUST include the required `meta` fields; see `meta`.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination"
       }
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
@@ -1028,6 +1082,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "RES-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "RES-022",
       "level": "MUST NOT",
       "actor": "server",
@@ -1091,6 +1151,12 @@
     {
       "id": "PROM-018",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -1227,8 +1293,32 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-121",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-123",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-124",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-126",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-127",
+      "level": "MUST NOT",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -1261,6 +1351,18 @@
       "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-190",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-191",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     }
   ],
   "wire_schema": {
@@ -1280,7 +1382,7 @@
         "detail": "the server's message is not a valid ListToolsResult under the 2026-07-28 schema: /result: \"cacheScope\" is a required property; /result: \"ttlMs\" is a required property"
       }
     ],
-    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9/schema/2026-07-28/schema.json",
     "source": {
       "section": "basic/index#schema",
       "quote": "This is the source of truth for all protocol messages and structures.",

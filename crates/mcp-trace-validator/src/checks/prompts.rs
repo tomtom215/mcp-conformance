@@ -108,9 +108,8 @@ fn declared_required_arguments<'a>(
 ///   an unlisted prompt, or a session with no `prompts/list`, is not judged.
 /// - It fires only when the server returned a **result**. An error response means the
 ///   server did reject the call, which satisfies this clause; whether that error
-///   carries exactly `-32602` is `PROM-007`'s enumeration, and that requirement stays
-///   excluded because its other two cases (invalid name, internal error) remain
-///   server-side ground truth.
+///   carries exactly `-32602` is `PROM-007`'s enumeration, judged by
+///   `prompts.get-error-codes` (`checks::rejections::prompts`).
 /// - At `2026-07-28` a `prompts/get` may be answered `resultType: "input_required"`
 ///   (`GetPromptResult | InputRequiredResult` in the schema): the server asking for
 ///   what it lacks, which is validation rather than processing. Neither that answer

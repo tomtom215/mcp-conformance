@@ -19,9 +19,12 @@ fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_mcp-conformance"))
 }
 
+fn scratch_path(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("mcp-conformance-cli-{name}-{}", std::process::id()))
+}
+
 fn scratch(name: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("mcp-conformance-cli-{name}-{}", std::process::id()));
+    let dir = scratch_path(name);
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -112,10 +115,15 @@ fn watch_help_names_the_recorders_modes_and_flags() {
 
 #[test]
 fn version_is_the_crate_version() {
+    // `-V` is the one line scripts read; `--version` adds the revisions this
+    // build judges, as `mcp-trace-validator --version` does.
+    let line = format!("mcp-conformance {}", env!("CARGO_PKG_VERSION"));
+    let output = binary().arg("-V").output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), line);
     let output = binary().arg("--version").output().unwrap();
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        format!("mcp-conformance {}", env!("CARGO_PKG_VERSION"))
+        format!("{line}\njudges protocol revisions: 2025-11-25, 2026-07-28")
     );
 }
 
@@ -177,6 +185,25 @@ fn the_relay_refuses_to_run_outside_test() {
     );
 }
 
+// Unix only, like the module after it: its stand-in servers are `sh` scripts.
+// (The everything-server legs would run anywhere; they have not been tried on
+// Windows, and a first trial belongs in a change of its own.)
+#[cfg(unix)]
+#[path = "cli/check.rs"]
+mod check;
+
+#[cfg(unix)]
+#[path = "cli/check_auth.rs"]
+mod check_auth;
+
+#[cfg(unix)]
+#[path = "cli/check_answers.rs"]
+mod check_answers;
+
+#[cfg(unix)]
+#[path = "cli/check_edges.rs"]
+mod check_edges;
+
 #[cfg(unix)]
 #[path = "cli/offline.rs"]
 mod offline;
@@ -231,6 +258,9 @@ pub(crate) fn documented_commands(text: &str) -> Vec<String> {
         if in_block
             && line.starts_with("mcp-conformance ")
             && !line.starts_with("mcp-conformance watch")
+            // `check`'s own summary opens with its name and a colon: output
+            // shown in an example, not a command.
+            && !line.starts_with("mcp-conformance check:")
         {
             commands.push(line.to_owned());
         }
@@ -251,6 +281,8 @@ fn every_documented_command_parses() {
     let mut seen = 0;
     for document in [
         "README.md",
+        "../../README.md",
+        "../../book/src/checking.md",
         "../../book/src/testing.md",
         "../../book/src/workbench.md",
     ] {
@@ -259,8 +291,19 @@ fn every_documented_command_parses() {
         assert!(!commands.is_empty(), "{document} shows no command");
         for command in commands {
             let mut words = words(&command);
+            // A trailing `# comment` is the page's, not the command's.
+            if let Some(comment) = words.iter().position(|word| word == "#") {
+                words.truncate(comment);
+            }
             if words.get(1).is_some_and(|sub| sub != "test") {
-                words.push("--help".to_owned());
+                // Before a `--`: what follows one is the server's command
+                // (`check -- python my_server.py`), which `--help` must not
+                // join, or the test would start a server.
+                let end = words
+                    .iter()
+                    .position(|word| word == "--")
+                    .unwrap_or(words.len());
+                words.insert(end, "--help".to_owned());
             }
             let output = binary()
                 .args(&words[1..])

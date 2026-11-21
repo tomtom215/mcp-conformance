@@ -1,0 +1,128 @@
+{
+  "branch": "claude/busy-cray-9rvb8c",
+  "base": "main at 8435f7e",
+  "date": "2026-11-19",
+  "pull_request": null,
+  "version": "0.6.0 (not bumped; the release commit is the maintainer's)",
+  "local_tests": {
+    "command": "cargo test --workspace --all-features --no-fail-fast",
+    "passed": 2220,
+    "failed": 1,
+    "ignored": 3,
+    "note": "the one failure (xtask draft_coverage document list) was fixed afterwards and xtask re-run: 268 passed; a full re-run after that fix was not made"
+  },
+  "items": [
+    {
+      "id": "check-ADR-0024",
+      "status": "done",
+      "verified": "37 unit and 14 end-to-end tests; cargo xtask exerciser (4 sessions); three third-party servers by hand"
+    },
+    {
+      "id": "one-binary-validate-requirements-completions",
+      "status": "done"
+    },
+    {
+      "id": "C1-party-aware-test",
+      "status": "merged"
+    },
+    {
+      "id": "V2-baseline-filters",
+      "status": "merged_with_docs"
+    },
+    {
+      "id": "rust-1.100.0",
+      "status": "done"
+    },
+    {
+      "id": "rmcp-3.9.0-and-advisories",
+      "status": "done",
+      "note": "RUSTSEC-2026-0543 ignored by id, deferral row chrono-unmaintained, review by 2027-02-15"
+    },
+    {
+      "id": "dependabot-72-73-74-78-77",
+      "status": "content_applied_close_on_merge"
+    },
+    {
+      "id": "spec-drift-registry-refresh",
+      "status": "done"
+    },
+    {
+      "id": "register-currency",
+      "status": "done_until_2026-11-22",
+      "follow_up": [
+        "rows 2.13, 3.6, 3.11 need GitHub issue state in other repositories"
+      ]
+    },
+    {
+      "id": "docs-readme-book-llms",
+      "status": "done"
+    },
+    {
+      "id": "container-image-carries-mcp-conformance",
+      "status": "done",
+      "verified": "CI runs 542 and 543 succeeded as a whole, the image job with them"
+    },
+    {
+      "id": "visual-baselines",
+      "status": "done",
+      "verified": "runner renders from run 541, artifact digest matched, three classes of change looked at"
+    },
+    {
+      "id": "mutation-testing-of-new-code",
+      "status": "check_modules_done_C1_V2_not_run",
+      "needs": [
+        "the PR's Mutants run; expect survivors in check/session.rs and check/wire/"
+      ],
+      "note": "check: no survivor or timeout in the last run of each of its twelve files, on the committed tree; the merged C1/V2 code not run"
+    },
+    {
+      "id": "everything-server-legacy-mode-names-2026-07-28",
+      "status": "maintainer_decision",
+      "recommendation": "known_up_to(V_2025_11_25); drop draft-readiness's legacy leg"
+    },
+    {
+      "id": "accept-ADR-0024-and-0025",
+      "status": "maintainer_decision"
+    },
+    {
+      "id": "release-0.7.0",
+      "status": "prepared_short_of_the_release_commit",
+      "needs": [
+        "RELEASING.md checklist step 1",
+        "cargo xtask semver",
+        "npm organisation, PyPI pending publisher, GHCR visibility"
+      ]
+    },
+    {
+      "id": "interop-pins",
+      "status": "not_done",
+      "note": "interop/rust pins rmcp =3.7.0; Dependabot #76"
+    },
+    {
+      "id": "playwright-1.64.1",
+      "status": "not_done",
+      "note": "Dependabot #66; with the visual baselines"
+    },
+    {
+      "id": "mcpsnoop-pin",
+      "status": "not_done"
+    },
+    {
+      "id": "truth-pass-plan-documents",
+      "status": "not_started"
+    },
+    {
+      "id": "prober",
+      "status": "blocked_on_maintainer_decision"
+    }
+  ],
+  "run_first_next_session": [
+    "read the CI run on the branch tip",
+    "maintainer decisions, then open the pull request and read its Mutants run"
+  ],
+  "ci": {
+    "run": 543,
+    "commit": "67bcf61",
+    "conclusion": "success"
+  }
+}

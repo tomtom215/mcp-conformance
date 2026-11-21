@@ -1,0 +1,17 @@
+{"seq":0,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"corpus-client","version":"0.1.0"}}}}
+{"seq":1,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"prompts":{},"resources":{},"completions":{}},"serverInfo":{"name":"corpus-server","version":"0.1.0"}}}}
+{"seq":2,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","method":"notifications/initialized"}}
+{"seq":3,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"method":"prompts/list"}}
+{"seq":4,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":3,"result":{"prompts":[{"name":"review","description":"Review a diff","arguments":[{"name":"diff","description":"The diff to review","required":true},{"name":"tone","description":"Optional style","required":false}]}]}}}
+{"seq":5,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"nonesuch"}}}
+{"seq":6,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"Unknown prompt: nonesuch"}}}
+{"seq":7,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"method":"prompts/get","params":{"name":"review","arguments":{"tone":"terse"}}}}
+{"seq":8,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":5,"error":{"code":-32602,"message":"Missing required argument: diff"}}}
+{"seq":9,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":6,"method":"resources/list"}}
+{"seq":10,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":6,"result":{"resources":[{"uri":"file:///project/readme.md","name":"readme.md","mimeType":"text/markdown"}]}}}
+{"seq":11,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":7,"method":"resources/templates/list"}}
+{"seq":12,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":7,"result":{"resourceTemplates":[{"uriTemplate":"file:///project/{path}","name":"project-file"}]}}}
+{"seq":13,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":8,"method":"resources/read","params":{"uri":"nonesuch://project/readme.md"}}}
+{"seq":14,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":8,"error":{"code":-32002,"message":"Resource not found","data":{"uri":"nonesuch://project/readme.md"}}}}
+{"seq":15,"direction":"client-to-server","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"method":"completion/complete","params":{"ref":{"type":"ref/prompt","name":"nonesuch"},"argument":{"name":"language","value":"ru"}}}}
+{"seq":16,"direction":"server-to-client","transport":"stdio","kind":"message","payload":{"jsonrpc":"2.0","id":9,"error":{"code":-32602,"message":"Unknown prompt: nonesuch"}}}

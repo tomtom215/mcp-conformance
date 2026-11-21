@@ -9,7 +9,7 @@
 
 use core::fmt::Write as _;
 
-use super::{ExtensionReport, Finding, Outcome, Party, Report, WireSchemaReport};
+use super::{ExtensionReport, Filter, Finding, Outcome, Party, Report, WireSchemaReport};
 
 /// How the human renderers lay a report out: [`Report::render_with`] and
 /// [`MultiReport::render_with`](crate::multi::MultiReport::render_with).
@@ -95,6 +95,21 @@ impl Report {
     /// Renders the human-readable form as `options` lay it out.
     #[must_use]
     pub fn render_with(&self, options: &HumanOptions) -> String {
+        self.render_with_filter(options, &Filter::default())
+    }
+
+    /// Renders the human-readable form as `options` lay it out, listing only
+    /// the clauses `filter` selects. Only the listing changes: the totals and
+    /// the verdict are the report's, and a note says how many findings in the
+    /// other clauses the listing leaves out ([`Filter`]).
+    #[must_use]
+    pub fn render_with_filter(&self, options: &HumanOptions, filter: &Filter) -> String {
+        let hidden: usize = self
+            .requirements
+            .iter()
+            .filter(|row| !filter.matches(&row.id, &row.level))
+            .map(|row| row.findings.len())
+            .sum();
         let mut out = String::new();
         match self.revision_source {
             Some(source) => {
@@ -109,9 +124,14 @@ impl Report {
             }
         }
         self.write_revision_mismatch(&mut out, options);
+        if !filter.is_empty() {
+            out.push_str(&filter.note(hidden));
+        }
         let view = self.party_view;
         for row in &self.requirements {
-            if !options.all && !row.outcome.needs_attention() {
+            if !filter.matches(&row.id, &row.level)
+                || (!options.all && !row.outcome.needs_attention())
+            {
                 continue;
             }
             write_row(&mut out, row, options, view);
@@ -125,6 +145,17 @@ impl Report {
         if let Some(unanswered) = &self.unanswered_requests {
             unanswered.write_human(&mut out);
         }
+        if !filter.is_empty() {
+            out.push_str(&filter.note(hidden));
+        }
+        self.write_verdict(&mut out);
+        self.write_revision_mismatch(&mut out, options);
+        out
+    }
+
+    /// The closing lines: the totals, the wire schema's outcome, what a
+    /// baseline accepted, and the verdict.
+    fn write_verdict(&self, out: &mut String) {
         // Every outcome is named, so the counts sum to the registry's size — a
         // reader can check the arithmetic, and `Totals`' own exhaustive
         // destructuring is what keeps that true as outcomes are added.
@@ -132,28 +163,22 @@ impl Report {
         if let Some(wire_schema) = &self.wire_schema {
             let _ = writeln!(out, "wire schema: {}", wire_schema.summary());
         }
-        match view {
-            // The totals above still count every finding; the line says which
-            // ones this verdict did not.
-            Some(party) => {
-                let _ = write!(
-                    out,
-                    "verdict ({party} findings only): {}",
-                    self.verdict_for(party)
-                );
-                let what = self.party_tally(party).describe(party);
-                if what.is_empty() {
-                    out.push('\n');
-                } else {
-                    let _ = writeln!(out, " — {what}");
-                }
-            }
-            None => {
-                let _ = writeln!(out, "verdict: {}", self.verdict());
-            }
+        // What a baseline accepted is said before the verdict that stopped
+        // counting it, so the two are read together.
+        if self.baseline_applied {
+            let _ = writeln!(out, "baseline: {}", self.baseline_tally().describe());
         }
-        self.write_revision_mismatch(&mut out, options);
-        out
+        let view = self.party_view;
+        let label = HumanOptions::verdict_label("verdict", view, self.baseline_applied);
+        let _ = write!(out, "{label}: {}", self.effective_verdict());
+        // The totals above still count every finding; the line says which ones
+        // a party view did not.
+        let what = view.map_or_else(String::new, |party| self.party_tally(party).describe(party));
+        if what.is_empty() {
+            out.push('\n');
+        } else {
+            let _ = writeln!(out, " — {what}");
+        }
     }
 
     /// Writes the revision-disagreement note, if there is one.
@@ -192,6 +217,27 @@ impl Report {
                 out,
                 "        judge it against revision {suggestion} to hold it to its own."
             );
+        }
+    }
+}
+
+impl HumanOptions {
+    /// What leads the verdict line: `prefix` (`verdict` for a report, `overall
+    /// verdict` for a run of several revisions), then in parentheses the views
+    /// it was reached under — a party's findings only, a baseline applied — so
+    /// a verdict that did not count every finding never reads as one that did.
+    pub(crate) fn verdict_label(prefix: &str, view: Option<Party>, baseline: bool) -> String {
+        let mut views = Vec::new();
+        if let Some(party) = view {
+            views.push(format!("{party} findings only"));
+        }
+        if baseline {
+            views.push("baseline applied".to_owned());
+        }
+        if views.is_empty() {
+            prefix.to_owned()
+        } else {
+            format!("{prefix} ({})", views.join(", "))
         }
     }
 }
@@ -260,11 +306,14 @@ impl HumanOptions {
         let shown = self.max_findings.unwrap_or(usize::MAX);
         for finding in findings.iter().take(shown) {
             let detail = printable(&finding.detail);
-            let tag = match (finding.party, view) {
+            let mut tag = match (finding.party, view) {
                 (Some(party), _) => format!("[{party}] "),
                 (None, Some(_)) => "[unattributed] ".to_owned(),
                 (None, None) => String::new(),
             };
+            if finding.is_baselined() {
+                tag.push_str("[accepted] ");
+            }
             let _ = match (revision, finding.seq) {
                 (Some(revision), Some(seq)) => {
                     writeln!(out, "        {tag}{revision} seq {seq}: {detail}")
@@ -284,6 +333,35 @@ impl HumanOptions {
             };
             let _ = writeln!(out, "        {label}… and {rest} more{how}");
         }
+        write_acceptances(out, findings);
+    }
+}
+
+/// Under a row's findings, why those a baseline accepts are accepted: each
+/// distinct reason once, with how many findings of the row it covers —
+/// counting the ones past the cap, which are not listed but are accepted.
+fn write_acceptances(out: &mut String, findings: &[Finding]) {
+    let mut reasons: Vec<(&str, Option<&str>, usize)> = Vec::new();
+    for acceptance in findings
+        .iter()
+        .filter_map(|finding| finding.baselined.as_ref())
+    {
+        let expires = acceptance.expires.as_deref();
+        match reasons
+            .iter_mut()
+            .find(|(reason, until, _)| *reason == acceptance.reason && *until == expires)
+        {
+            Some((_, _, count)) => *count += 1,
+            None => reasons.push((&acceptance.reason, expires, 1)),
+        }
+    }
+    for (reason, expires, count) in reasons {
+        let until = expires.map_or_else(String::new, |day| format!(" (accepted through {day})"));
+        let _ = writeln!(
+            out,
+            "        accepted by baseline ({count}): {}{until}",
+            printable(reason)
+        );
     }
 }
 

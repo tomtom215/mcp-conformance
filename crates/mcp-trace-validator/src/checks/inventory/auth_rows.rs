@@ -31,4 +31,12 @@ pub(super) const ROWS: &[Check] = &[
         auth::no_offline_access_challenge
     ),
     check!("auth.single-challenge", auth::single_challenge),
+    check!(
+        "auth.invalid-token-not-accepted",
+        auth::invalid_token_not_accepted
+    ),
+    check!(
+        "auth.invalid-token-challenged",
+        auth::invalid_token_challenged
+    ),
 ];

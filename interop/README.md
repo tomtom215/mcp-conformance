@@ -23,8 +23,8 @@ Two scripts, two jobs:
 
 | Session | Client | Server | Transport | Expected |
 |---|---|---|---|---|
-| `ts-stdio` | TypeScript SDK 1.32.1 | `@modelcontextprotocol/server-everything` 2026.8.31 | stdio | `pass-with-warnings` at `2025-11-25`: only `BASE-086`, the server's draft-07 tool schemas |
-| `ts-http` | TypeScript SDK 1.32.1 | the same, `streamableHttp` | HTTP proxy | `pass-with-warnings` at `2025-11-25`: only `BASE-086` |
+| `ts-stdio` | TypeScript SDK 1.32.2 | `@modelcontextprotocol/server-everything` 2026.8.31 | stdio | `pass-with-warnings` at `2025-11-25`: only `BASE-086`, the server's draft-07 tool schemas |
+| `ts-http` | TypeScript SDK 1.32.2 | the same, `streamableHttp` | HTTP proxy | `pass-with-warnings` at `2025-11-25`: only `BASE-086` |
 | `py-stdio` | Python SDK (`mcp` 2.3.0) | [`py-server.py`](py-server.py) | stdio | `pass` at `2026-07-28` |
 | `py-http` | Python SDK | `py-server.py http` | HTTP proxy | `pass` at `2026-07-28` |
 | `ts-2025-06-18` | TypeScript SDK 1.13.0 | the everything server | stdio | refused, exit 2 (no `2025-06-18` registry) |
@@ -33,11 +33,11 @@ Two scripts, two jobs:
 
 | SDK | Release | Its conformance server | Revisions |
 |---|---|---|---|
-| TypeScript v1 | `@modelcontextprotocol/sdk` 1.32.1 | `test/conformance/src/everythingServer.ts` at the release tag, imports pointed at the npm package | `2025-11-25` (the 1.x line does not serve `2026-07-28`) |
-| TypeScript v2 | `@modelcontextprotocol/server` 2.3.1 (with `node` 2.1.1 and `express` 2.0.2) | `test/conformance/src/everythingServer.ts` at the release tag, unmodified: it imports the published packages by name | both, from one process |
+| TypeScript v1 | `@modelcontextprotocol/sdk` 1.32.2 | `test/conformance/src/everythingServer.ts` at the release tag, imports pointed at the npm package | `2025-11-25` (the 1.x line does not serve `2026-07-28`) |
+| TypeScript v2 | `@modelcontextprotocol/server` 2.4.0 (with `node` 2.1.2 and `express` 2.0.2) | `test/conformance/src/everythingServer.ts` and the `skills.ts` it imports, at the release tag, unmodified: otherwise it imports the published packages by name | both, from one process |
 | Python | `mcp` 2.3.0 | `examples/servers/everything-server` at the release tag | both |
 | Go | `go-sdk` v1.8.0 | `conformance/everything-server`, shipped in the module | both |
-| Rust | `rmcp` 3.7.0 | `conformance/src/bin/server.rs` at the release tag ([`rust/`](rust/Cargo.toml) builds it against the crates.io release) | both |
+| Rust | `rmcp` 3.10.0 | `conformance/src/bin/server.rs` at the release tag ([`rust/`](rust/Cargo.toml) builds it against the crates.io release) | both |
 
 Every server is driven over Streamable HTTP through the capture proxy, by
 [`ts-client.mjs`](ts-client.mjs) (the TypeScript v1 SDK's client) at
@@ -65,10 +65,10 @@ matrix have to move with it:
 
 A release is pinned once it has been public for a week, as the `cooldown` in
 [`.github/dependabot.yml`](../.github/dependabot.yml) has it, and that goes for
-the transitive packages a lockfile resolves too. The one exception is the Rust
-leg: `rmcp` 3.7.0 (published 2026-10-22) is what this workspace builds against,
-and the 3.5.x it replaces is inside the range of GHSA-4432-vg92-fqh6, fixed in
-3.6.0 (register row 3.1).
+the transitive packages a lockfile resolves too. There is no exception at
+present: every pin above had been public for a week on 2026-11-20, `rmcp` 3.10.0
+(published 2026-11-12) included, with `rmcp-macros` held at the same version in
+`rust/Cargo.lock`.
 
 ## Running it
 

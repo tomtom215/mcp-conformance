@@ -51,12 +51,12 @@ fn the_inline_trace_example_produces_exactly_the_quoted_output() {
             "README quotes a line the validator does not produce:\n  {line}\nactual output:\n{rendered}"
         );
     }
-    // The narrative around the example claims exactly five not-applicable
+    // The narrative around the example claims exactly ten not-applicable
     // rows; hold the prose to the same standard as the quoted output.
     let report = validate_text(&trace);
     assert_eq!(
-        report.totals.not_applicable, 6,
-        "the README prose explains six not-applicable rows"
+        report.totals.not_applicable, 10,
+        "the README prose explains ten not-applicable rows"
     );
 }
 

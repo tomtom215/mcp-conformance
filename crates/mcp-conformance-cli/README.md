@@ -3,18 +3,45 @@
 
 # mcp-conformance
 
-Run the official [Model Context Protocol](https://modelcontextprotocol.io) conformance
-suite against your server or client *through* a recording tap, and get two verdicts on
-the same traffic: the suite's checks, and
-[`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator)'s clause-by-clause
-report of every session the suite drove — with whether the two agree. Or keep it open
-while you work: `watch` records a session as it happens and prints each finding as the
-exchange that shows it completes.
+One binary for [Model Context Protocol](https://modelcontextprotocol.io) conformance
+work, built on [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) and
+[`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator):
 
-> **Not yet released.** This crate is on `main` only
-> ([ADR-0021](../../docs/plan/decisions/0021-a-workbench-people-keep-open.md), phases W1,
-> W4 and W5);
-> build it from the repository: `cargo install --path crates/mcp-conformance-cli`.
+| Command | What it does |
+|---------|--------------|
+| `check` | Exercises a server as a conforming client would and prints its clause report. No client, SDK or Node.js needed |
+| `validate`, `requirements` | `mcp-trace-validator`'s, flag for flag: judge recorded traces; look up a requirement |
+| `watch` | Records a session as `mcp-trace-capture` does and prints each finding as it happens |
+| `test` | Runs the pinned official conformance suite through the recorder and reports both verdicts and whether they agree (needs Node.js) |
+| `serve`, `library` | A local workbench over a library of recordings |
+
+> **Not yet released.** This crate is on `main` only; build it from the repository:
+> `cargo install --path crates/mcp-conformance-cli`. From the next release the binary is
+> in the release archives and the npm and PyPI packages.
+
+## Checking a server
+
+```text
+mcp-conformance check -- python my_server.py           # a stdio server
+mcp-conformance check --url http://localhost:3000/mcp   # a Streamable HTTP server
+```
+
+`check` asks `server/discover` (`2026-07-28`) and falls back to `initialize`
+(`2025-11-25`), lists what the server declares, reads the listed resources, gets the
+prompts that need no arguments, and calls only the tools the server annotates
+`readOnlyHint: true`; `--call <tool>` and `--call-all` call more. Arguments come from
+each tool's own `inputSchema` and are checked against it; a tool they cannot be built
+for is skipped and named. The session is recorded through the recorder and judged as
+`validate --party server` judges it, with `validate`'s flags (`--format`, `--strict`,
+`--baseline`, …) and exit codes: `0` nothing held against the server, `1` a clause
+failed, `2` the run could not be made or judged. What the run exercised, and what it
+left alone and why, is printed to stderr and written as JSON with `--summary`.
+
+It sends only what a conforming client sends, to what the server listed; it is not a
+fuzzer or a security scanner. Bounds (`--max-requests`, `--max-tool-calls`,
+`--timeout`, …), `--header` for a credential, and the rest are in the book's
+[Checking a server](../../book/src/checking.md) chapter and
+[ADR-0024](../../docs/plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md).
 
 ## What it needs
 
@@ -64,14 +91,61 @@ mcp-conformance test --url http://localhost:3000/mcp --format json -o report.jso
 
 `--format human` (the default) and `json` carry three parts: the suite's checks by
 scenario; the clause report of each recorded session, as `mcp-trace-validator` renders
-it; and the **agreement** — every failing clause either explained by a divergence
-baseline (`--divergences`, the format of this repository's
-[`agreement-divergences.json`](../../conformance/agreement-divergences.json)) or listed
-as an unexplained divergence, and every baseline entry that explained nothing listed as
-stale. `junit` and `sarif` are the validator's own renderings of the clause report, for
-CI ingestion; the suite's checks and the agreement go to stderr in every format. The
-suite's results and the traces are kept in the work directory (`--work-dir`, or a new
-one under the system's temporary directory), whose path is printed.
+it, viewed for your end of the session (below); and the **agreement** — every failing
+clause either explained by a divergence baseline (`--divergences`, the format of this
+repository's [`agreement-divergences.json`](../../conformance/agreement-divergences.json))
+or listed as an unexplained divergence, and every baseline entry that explained nothing
+listed as stale. `junit` and `sarif` are the validator's own renderings of the clause
+report, for CI ingestion. The suite's results and the traces are kept in the work
+directory (`--work-dir`, or a new one under the system's temporary directory), whose path
+is printed.
+
+On stderr, a human or JSON report on stdout is followed by the verdicts alone (the
+suite's, the clause verdict, the agreement, the exit). A report written to a file with
+`-o`, and `junit` or `sarif`, which carry only the clause report, are followed by the
+suite's checks and the agreement whole.
+
+### Whose finding it is
+
+The suite drives a server with a client of its own, and a client with a test server of
+its own, and that end breaks clauses too: it calls `logging/setLevel` on a server that
+never declared `logging`, closes a session without `notifications/initialized`, answers a
+notification with HTTP 200 and a body. Each finding names the party it is held against
+(`[client]` or `[server]`; `[unattributed]` when the trace cannot say). `test` judges
+your end: a server (`--url`, `--command`) by the findings held against the server, a
+client (`--client-command`) by those held against the client; a finding held against
+nobody counts, as `mcp-trace-validator validate --party` counts it, and is tagged.
+Findings held against the other end are shown, listed under "held against the suite's
+own client" (or "test server"), and **set aside**: they move neither a session's verdict
+nor the agreement. A clause that fails on a session is still a failing row in that
+session's report; the party view changes what counts, not what was found. A baseline
+entry explains a failure of either end and is stale only when it explains none, so one
+baseline file serves this command and `cargo xtask conformance`'s gate, which counts both
+ends.
+
+In the JSON report, `agreement.party` and `sessions.party` name your end;
+`agreement.divergences.set_aside` lists the failures set aside (it is absent when there
+are none); `sessions.findings` counts the findings counted, set aside and unattributed;
+and `sessions.verdict` is the verdict for your end.
+
+### A server that is not the suite's own
+
+The pinned suite asks a server for tools, prompts and resources by fixed names
+(`test_simple_text` is one), which a server defines or does not. When the suite fails
+scenarios and the recorded traffic holds requests for names that none of the server's own
+`tools/list`, `prompts/list`, `resources/list` or `resources/templates/list` answers in
+the run include, the human report says so after the suite's verdict, and the JSON report
+carries `suite.fixtures` (`null` otherwise) with every such name. The note claims what
+the requests show — the recording does not say which scenario's failure follows from a
+missing name — and it is left out for a kind with no list answer in the run or a paged
+one, since the traffic then cannot show that a name is missing.
+
+```text
+note: 18 of the suite's 28 scenario(s) failed. In 21 of the 28 recorded sessions the suite asked for a tool, prompt or resource that none of this server's own list answers in this run includes:
+  tools (12): test_audio_content, test_elicitation, test_elicitation_sep1034_defaults, test_elicitation_sep1330_enums and 8 more
+  prompts (4): test_prompt_with_arguments, test_prompt_with_embedded_resource, test_prompt_with_image, test_simple_prompt
+  resources (4): test://static-binary, test://static-text, test://template/123/data, test://watched-resource
+```
 
 | Exit code | Meaning |
 |-----------|---------|
@@ -95,11 +169,22 @@ or point it at the proxy in front of a streamable-HTTP server:
 mcp-conformance watch http --upstream http://localhost:3000/mcp --listen 127.0.0.1:8080
 ```
 
+`watch http` takes `mcp-trace-capture http`'s `Host` flags by the same names and reads
+them by the same rule (`HostHeader::from_flags`): for a server on this machine the
+client's `Host` goes through to it, so its DNS-rebinding check judges what the client
+sent; `--no-preserve-host` sends the server's own name instead, and `--preserve-host`
+asks for the client's wherever the server is. At the end of a run the recorder's summary
+asks "is the endpoint path right?" about a `404` that was not the MCP server speaking
+(`ping`'s method-not-found rides a `404`, and draws no question), and names
+`--no-preserve-host` when the server answered `403` to a request whose `Host` named
+another host than the server's, passed through unchanged.
+
 After every completed exchange — a response paired with its request, or a notification —
 the trace so far is judged as `mcp-trace-validator validate` would judge it, and each
 **new** `fail` or `warn` finding is printed on stderr with its clause ID, level, `seq`,
-detail and the quoted clause, under a one-line running tally. At the end comes the
-validator's report of the whole trace. Only findings are printed: a clause going from
+detail and the quoted clause, under a one-line running tally. The tally counts findings
+and says how many clauses they are (`14 warn in 1 clause(s)`), because the report's
+totals count clauses. At the end comes the validator's report of the whole trace. Only findings are printed: a clause going from
 `not observed` to `pass` is not one. A check that concludes from what the rest of the
 trace does not hold (`LIFE-003`, an `initialized` notification that has not come *yet*)
 waits for the end, and a finding the whole trace no longer shows is named as withdrawn.
@@ -189,7 +274,9 @@ timeline with its findings at their events and an inspector, two sessions compar
 trace that is still being written followed live, dashboards of verdicts over time, clause
 coverage and findings, and administration — import (traces, `mcpsnoop` captures, MCP
 Inspector exports, each with what its source does not record), tags, retention, delete,
-export, and redacted copies. It listens on `127.0.0.1` and prints a link with a single-use
+export, and redacted copies. A recording's server and client are named from the
+`initialize` handshake or, at `2026-07-28`, which has none, from the `serverInfo` and
+`clientInfo` in `_meta`. It listens on `127.0.0.1` and prints a link with a single-use
 token; it sends nothing anywhere. [The workbench](../../book/src/workbench.md) chapter has
 the details. An export names each recording once and holds at most 100 of them and
 192 MiB of traces, since the archive is built in memory; and the page's JSON API answers

@@ -58,16 +58,6 @@ pub(crate) fn split(url: &str) -> Result<(Uri, String), String> {
     Ok((upstream, path))
 }
 
-/// Whether `upstream` names this machine: `localhost`, `127.0.0.0/8` or `::1`.
-pub(crate) fn is_loopback(upstream: &Uri) -> bool {
-    let host = upstream.host().unwrap_or_default();
-    let host = host.trim_start_matches('[').trim_end_matches(']');
-    host.eq_ignore_ascii_case("localhost")
-        || host
-            .parse::<std::net::IpAddr>()
-            .is_ok_and(|ip| ip.is_loopback())
-}
-
 /// Starts a proxy to `upstream` on `127.0.0.1:0`, recording each session to the
 /// next `NNN.jsonl` in `dir` (which must exist).
 ///
@@ -193,27 +183,6 @@ mod tests {
             let error = split(bad).unwrap_err();
             assert!(!error.contains("s3cret"), "{error}");
             assert!(error.contains("http"), "{bad}: {error}");
-        }
-    }
-
-    #[test]
-    fn loopback_is_localhost_and_the_loopback_addresses() {
-        for host in [
-            "http://localhost:1",
-            "http://LOCALHOST",
-            "http://127.0.0.1:2",
-            "http://127.8.0.1",
-            "http://[::1]:3",
-        ] {
-            assert!(is_loopback(&host.parse().unwrap()), "{host}");
-        }
-        for host in [
-            "http://example.com",
-            "http://10.0.0.1",
-            "http://[::2]",
-            "http://localhost.example",
-        ] {
-            assert!(!is_loopback(&host.parse().unwrap()), "{host}");
         }
     }
 

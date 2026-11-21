@@ -162,7 +162,9 @@
         "section": "basic#notifications",
         "quote": "The receiver MUST NOT send a response."
       },
-      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
+      "checks": [
+        "base.notification-unanswered"
+      ]
     },
     {
       "id": "BASE-012",
@@ -363,7 +365,7 @@
         "section": "basic#auth",
         "quote": "Implementations using an HTTP-based transport SHOULD conform to this specification, whereas implementations using STDIO transport SHOULD NOT follow this specification, and instead retrieve credentials from the environment."
       },
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page. AUTH-001 and AUTH-002 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of that page, which carry their own checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
     },
     {
       "id": "BASE-086",

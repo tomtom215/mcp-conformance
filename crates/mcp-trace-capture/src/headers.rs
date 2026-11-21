@@ -4,15 +4,16 @@
 //! Which headers a recording keeps, and which a proxy must not forward.
 //!
 //! Recording uses the allowlist every capture shares
-//! ([`RECORDED_HEADERS`], [`RECORDED_HEADER_PREFIXES`]): credentials are never
-//! written because they are never on the list. Forwarding is the opposite shape — a
+//! ([`records_header`]): credentials are never written because they are never
+//! on the list. The one `Authorization` value kept is the public constant
+//! `mcp-conformance check` sends as a probe, which is not a credential. Forwarding is the opposite shape — a
 //! blocklist of hop-by-hop fields (RFC 9110 §7.6.1), which describe one connection
 //! and are the proxy's to set, not the endpoints'.
 
 use std::collections::BTreeMap;
 
 use axum::http::{HeaderMap, HeaderName, header};
-use mcp_conformance_core::trace::{RECORDED_HEADER_PREFIXES, RECORDED_HEADERS};
+use mcp_conformance_core::trace::records_header;
 
 /// The allowlisted subset of `headers`, with names lowercased and repeated field
 /// lines joined by `, ` (RFC 9110 §5.3). A field with any non-UTF-8 line is omitted
@@ -22,13 +23,10 @@ pub fn recorded(headers: &HeaderMap) -> BTreeMap<String, String> {
     headers
         .keys()
         .map(HeaderName::as_str)
-        .filter(|name| {
-            RECORDED_HEADERS.contains(name)
-                || RECORDED_HEADER_PREFIXES
-                    .iter()
-                    .any(|prefix| name.starts_with(prefix))
-        })
         .filter_map(|name| joined(headers, name).map(|value| (name.to_owned(), value)))
+        // By name, and for `Authorization` by value too: only the public
+        // probe credential is ever kept.
+        .filter(|(name, value)| records_header(name, value))
         .collect()
 }
 
@@ -100,6 +98,30 @@ mod tests {
             );
         }
         headers
+    }
+
+    #[test]
+    fn the_probe_credential_is_the_one_authorization_value_kept() {
+        use mcp_conformance_core::trace::PROBE_AUTHORIZATION;
+        let kept = |value: &str| recorded(&map(&[("Authorization", value)]));
+        assert_eq!(
+            kept(PROBE_AUTHORIZATION)["authorization"],
+            PROBE_AUTHORIZATION
+        );
+        // Whole and exact: a real credential that merely contains it, a
+        // different scheme spelling, and a second field line are all dropped.
+        for value in [
+            "Bearer mcp-conformance-probe-invalid-token-and-more",
+            "bearer mcp-conformance-probe-invalid-token",
+            "Bearer secret",
+        ] {
+            assert!(kept(value).is_empty(), "{value}");
+        }
+        let twice = recorded(&map(&[
+            ("Authorization", PROBE_AUTHORIZATION),
+            ("Authorization", "Bearer secret"),
+        ]));
+        assert!(twice.is_empty(), "{twice:?}");
     }
 
     #[test]

@@ -7,6 +7,7 @@
 
 use super::*;
 use crate::reader::{Limits, parse_trace};
+use crate::report::Outcome;
 use mcp_conformance_core::requirement::Registry;
 
 fn report_for(trace: &str) -> Report {
@@ -132,6 +133,7 @@ fn every_skip_variant() -> Report {
         seq: Some(7),
         party: None,
         detail: "it went wrong".to_owned(),
+        baselined: None,
     }];
     let mut excluded_a = bare_row("AAAA-002", Outcome::Excluded);
     excluded_a.exclusion = Some("not judgeable from traces".to_owned());
@@ -145,6 +147,7 @@ fn every_skip_variant() -> Report {
         revision_mismatch: None,
         revision_source: None,
         party_view: None,
+        baseline_applied: false,
         revision: "2025-11-25".to_owned(),
         totals: Totals {
             pass: 0,
@@ -212,6 +215,7 @@ fn skip_accounting_and_location_text_are_exact() {
         seq,
         party,
         detail: String::new(),
+        baselined: None,
     };
     assert_eq!(location(&finding(None, None)), "[x.y]");
     assert_eq!(location(&finding(Some(3), None)), "[x.y] at seq 3");
@@ -332,6 +336,7 @@ fn with_schema(outcome: Outcome) -> Report {
             seq: Some(4),
             party: Some(crate::report::Party::Server),
             detail: "bad message".to_owned(),
+            baselined: None,
         }]
     } else {
         vec![]
@@ -414,4 +419,5 @@ fn an_extension_suite_counts_every_clause_and_skips_the_unjudged() {
     ));
 }
 
+mod baseline;
 mod party;

@@ -15,6 +15,7 @@ fn schema(outcome: Outcome) -> WireSchemaReport {
             seq: Some(4),
             party: Some(Party::Client),
             detail: "not a valid JSONRPCRequest".to_owned(),
+            baselined: None,
         }]
     } else {
         vec![]

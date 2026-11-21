@@ -10,8 +10,9 @@
 #![allow(clippy::redundant_pub_crate)]
 
 use mcp_conformance_core::trace::TraceEvent;
+use serde_json::{Value, json};
 
-use crate::judge;
+use crate::judge::{self, Judgment};
 use crate::report::Report;
 
 /// A `2026-07-28` session that conforms to the core protocol and breaks the
@@ -28,4 +29,100 @@ pub(crate) const UNDECLARED_TASK: &str = r#"{"seq":0,"direction":"client-to-serv
 pub(crate) fn undeclared_task() -> (Vec<Report>, Vec<TraceEvent>) {
     let judgment = judge::judge(UNDECLARED_TASK).expect("the fixture is judgeable");
     (judgment.reports, judgment.events)
+}
+
+pub(crate) const DRAFT_07: &str = "http://json-schema.org/draft-07/schema#";
+pub(crate) const DRAFT_2020: &str = "https://json-schema.org/draft/2020-12/schema";
+
+/// One JSON Lines event.
+pub(crate) fn event(seq: u64, direction: &str, payload: &Value) -> String {
+    json!({
+        "seq": seq,
+        "direction": direction,
+        "transport": "stdio",
+        "kind": "message",
+        "payload": payload,
+    })
+    .to_string()
+}
+
+/// A `2025-11-25` session of a server listing `tools`, each with the `$schema`
+/// its input schema declares: the shape of the TypeScript SDK's.
+pub(crate) fn session(tools: &[(&str, &str)]) -> String {
+    let listed: Vec<Value> = tools
+        .iter()
+        .map(|(name, dialect)| {
+            json!({ "name": name, "inputSchema": { "$schema": dialect, "type": "object" } })
+        })
+        .collect();
+    session_answering(&json!({ "tools": listed }))
+}
+
+/// The same session, the server answering `tools/list` with `result`.
+pub(crate) fn session_answering(result: &Value) -> String {
+    [
+        event(
+            0,
+            "client-to-server",
+            &json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-11-25", "capabilities": {},
+                "clientInfo": {"name": "c", "version": "1"}}}),
+        ),
+        event(
+            1,
+            "server-to-client",
+            &json!({"jsonrpc": "2.0", "id": 1, "result": {
+                "protocolVersion": "2025-11-25", "capabilities": {"tools": {}},
+                "serverInfo": {"name": "s", "version": "1"}}}),
+        ),
+        event(
+            2,
+            "client-to-server",
+            &json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+        ),
+        event(
+            3,
+            "client-to-server",
+            &json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+        ),
+        event(
+            4,
+            "server-to-client",
+            &json!({"jsonrpc": "2.0", "id": 2, "result": result}),
+        ),
+    ]
+    .join("\n")
+}
+
+pub(crate) fn judged(tools: &[(&str, &str)]) -> Judgment {
+    judge::judge(&session(tools)).expect("the fixture session judges")
+}
+
+/// The three-tool session the tests start from: two draft-07 tools, one not.
+pub(crate) fn sdk_session() -> Judgment {
+    judged(&[("a", DRAFT_07), ("b", DRAFT_07), ("c", DRAFT_2020)])
+}
+
+/// [`sdk_session`], with a baseline accepting both its findings for `reason`
+/// applied: the report a server author with known findings reads.
+pub(crate) fn baselined_sdk_session(reason: &str) -> Judgment {
+    use crate::baseline::{Baseline, Entry, TraceReports, record};
+    let mut judgment = sdk_session();
+    let recorded = record(&[(Some("t.jsonl"), &judgment.reports)], None, None);
+    let baseline = Baseline::new(
+        recorded
+            .baseline
+            .entries()
+            .iter()
+            .map(|entry| Entry::new(entry.fingerprint.clone(), reason))
+            .collect(),
+    );
+    let mut traces = [TraceReports {
+        name: Some("t.jsonl"),
+        reports: &mut judgment.reports,
+    }];
+    baseline
+        .apply(&mut traces, None)
+        .expect("no entry has a date");
+    judgment
 }

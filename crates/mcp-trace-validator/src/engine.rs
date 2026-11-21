@@ -129,6 +129,7 @@ fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
         revision_mismatch: crate::declared::mismatch(registry.revision(), events),
         revision_source: None,
         party_view: None,
+        baseline_applied: false,
         totals,
         requirements: rows,
         wire_schema: crate::wire_schema::check(registry.revision(), &context),

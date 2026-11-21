@@ -337,7 +337,9 @@
         "section": "basic/authorization/security-considerations#access-token-privilege-restriction",
         "quote": "MCP servers MUST validate access tokens before processing the request, ensuring the access token is issued specifically for the MCP server, and take all necessary steps to ensure no data is returned to unauthorized parties."
       },
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps."
+      "checks": [
+        "auth.invalid-token-not-accepted"
+      ]
     },
     {
       "id": "AUTH-191",
@@ -350,7 +352,9 @@
         "section": "basic/authorization/security-considerations#access-token-privilege-restriction",
         "quote": "A MCP server MUST follow the guidelines in OAuth 2.1 - Section 5.2 to validate inbound tokens."
       },
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
+      "checks": [
+        "auth.invalid-token-not-accepted"
+      ]
     },
     {
       "id": "AUTH-192",

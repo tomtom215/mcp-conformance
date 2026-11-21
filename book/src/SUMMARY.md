@@ -8,6 +8,7 @@
 # Using the toolkit
 
 - [Getting started](getting-started.md)
+- [Checking a server](checking.md)
 - [Capturing from your client](clients.md)
 - [Recording an SDK's server](sdk-servers.md)
 - [Testing a server or client](testing.md)

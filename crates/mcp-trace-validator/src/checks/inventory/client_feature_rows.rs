@@ -43,6 +43,10 @@ pub(super) const ROWS: &[Check] = &[
         elicitation::undeclared_mode_rejected
     ),
     check!(
+        "elicitation.declared-mode-handled",
+        elicitation::declared_mode_handled
+    ),
+    check!(
         "elicitation.complete-notification-id",
         url_flow::complete_notification_id
     ),
@@ -89,4 +93,5 @@ pub(super) const ROWS: &[Check] = &[
     check!("roots.uri-file-scheme", roots::uri_file_scheme),
     check!("roots.capability-checked", roots::capability_checked),
     check!("roots.unsupported-rejected", roots::unsupported_rejected),
+    check!("roots.list-changed-notified", roots::list_changed_notified),
 ];

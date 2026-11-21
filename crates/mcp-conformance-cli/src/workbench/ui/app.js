@@ -9,7 +9,7 @@
 //   #/diff/<a>/<b>          two sessions compared
 //   #/dashboards            the library's numbers
 
-import { replace, notice } from './dom.js';
+import { replace, notice, h } from './dom.js';
 import * as library from './library.js';
 import * as session from './session.js';
 import * as diff from './diff.js';
@@ -43,12 +43,47 @@ async function route() {
   }
   if (current.cleanup) current.cleanup();
   current = { key: next.key, view: next.view, cleanup: null };
+  main.classList.add('busy');
   try {
     current.cleanup = (await next.view.render(main, next.args)) || null;
   } catch (error) {
-    replace(main, notice(`This view could not be shown: ${error.message}`));
+    replace(main,
+      notice(`This view could not be shown: ${error.message}`),
+      h('p', {}, h('a', { class: 'button', href: '#/' }, 'Back to the library')));
+  } finally {
+    main.classList.remove('busy');
   }
 }
+
+// The theme: the system's until the reader pins one; remembered on this machine.
+const THEMES = ['system', 'light', 'dark'];
+const themeButton = document.getElementById('theme');
+function applyTheme(theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  document.getElementById('theme-name').textContent = theme;
+  themeButton.setAttribute('aria-label', `Colour theme: ${theme}. Change it.`);
+}
+function storedTheme() {
+  try {
+    const stored = localStorage.getItem('theme');
+    return THEMES.includes(stored) ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}
+let theme = storedTheme();
+applyTheme(theme);
+themeButton.hidden = false;
+themeButton.addEventListener('click', () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  applyTheme(theme);
+  try {
+    localStorage.setItem('theme', theme);
+  } catch {
+    // Storage refused: the choice lasts until the page is closed.
+  }
+});
 
 window.addEventListener('hashchange', route);
 route();

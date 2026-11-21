@@ -87,7 +87,8 @@ if [[ -d "$scratch/venv/Scripts" ]]; then bin="$scratch/venv/Scripts"; else bin=
 run_script() { local name="$1"; shift; "$bin/$name" "$@"; }
 versions run_script
 judge "$bin/mcp-trace-validator"
-got="$("$bin/python" -I -m mcp_conformance --version | tr -d '\r')"
+# The first line, as above: `--version` goes on to name the revisions judged.
+got="$("$bin/python" -I -m mcp_conformance --version | head -n 1 | tr -d '\r')"
 [[ "$got" == "mcp-conformance $version" ]] || fail "python -m mcp_conformance --version printed '${got}'"
 echo "ok: python -m mcp_conformance --version -> $got"
 echo "pip: installed the wheel pip chose for this machine into a venv and ran it"

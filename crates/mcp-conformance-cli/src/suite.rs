@@ -38,16 +38,85 @@ pub const SPEC_VERSION: &str = "2025-11-25";
 /// The client scenarios run when none is named: the pinned suite's protocol
 /// scenarios for [`SPEC_VERSION`].
 ///
-/// The `auth/*` scenarios are left out — they
-/// exercise an authorization server the suite runs beside the MCP one, which a
-/// recording tap in front of the MCP server does not carry (deferral ledger row
-/// `auth-client-scenarios`); name them with `--scenario` to run them anyway.
+/// The `auth/*` scenarios ([`AUTH_CLIENT_SCENARIOS`]) are left out of the
+/// default on purpose. A client with no OAuth support fails every one of them,
+/// so running them unasked would turn a passing protocol client into twenty
+/// failures about a feature it never claimed; and `mcp-conformance test` puts a
+/// recording relay between the client and the suite's server, so the client
+/// sees the relay's URL while the server's protected-resource metadata names
+/// its own — the mismatch RFC 9728 tells a client to refuse. Name them with
+/// `--scenario` to run them anyway; `cargo xtask conformance` runs them
+/// against the reference host directly, with no relay.
 pub const CLIENT_SCENARIOS: [&str; 4] = [
     "initialize",
     "tools_call",
     "elicitation-sep1034-client-defaults",
     "sse-retry",
 ];
+
+/// The pinned suite's `auth/*` client scenarios `cargo xtask conformance` runs
+/// against the reference host (`mcp-reference-host --oauth-conformance`).
+///
+/// Twenty of the twenty-two the suite lists; [`AUTH_CLIENT_SCENARIOS_NOT_RUN`]
+/// is the rest. Nineteen pass. `auth/2025-03-26-oauth-metadata-backcompat` is
+/// run and expected to fail — `conformance/expected-failures.yaml` says why —
+/// so that the day it passes, the stale baseline entry fails the gate.
+///
+/// The scenarios tagged `[2025-03-26]`, `[draft]` and `[extension]` by the
+/// suite's `list` are here beside the `2025-11-25` ones: a scenario named with
+/// `--scenario` runs whatever `--spec-version` says.
+pub const AUTH_CLIENT_SCENARIOS: [&str; 20] = [
+    "auth/metadata-default",
+    "auth/metadata-var1",
+    "auth/metadata-var2",
+    "auth/metadata-var3",
+    "auth/basic-cimd",
+    "auth/scope-from-www-authenticate",
+    "auth/scope-from-scopes-supported",
+    "auth/scope-omitted-when-undefined",
+    "auth/scope-step-up",
+    "auth/scope-retry-limit",
+    "auth/token-endpoint-auth-basic",
+    "auth/token-endpoint-auth-post",
+    "auth/token-endpoint-auth-none",
+    "auth/pre-registration",
+    "auth/2025-03-26-oauth-metadata-backcompat",
+    "auth/2025-03-26-oauth-endpoint-fallback",
+    "auth/resource-mismatch",
+    "auth/offline-access-scope",
+    "auth/offline-access-not-supported",
+    "auth/client-credentials-basic",
+];
+
+/// The pinned suite's `auth/*` client scenarios nothing here runs: both are
+/// `[extension]` scenarios for grants the reference host does not implement.
+///
+/// `auth/client-credentials-jwt` (SEP-1046 `private_key_jwt`) needs rmcp's
+/// `auth-client-credentials-jwt` feature, which brings `jsonwebtoken` and the
+/// `aws-lc-rs` C library into the tree for one scenario.
+/// `auth/cross-app-access-complete-flow` (SEP-990) needs the token-exchange
+/// and JWT-bearer glue around rmcp's `auth-enterprise-managed` feature, which
+/// has not been written. Listed so that `cargo xtask conformance` can check
+/// the two lists together are exactly what the pinned suite lists.
+pub const AUTH_CLIENT_SCENARIOS_NOT_RUN: [&str; 2] = [
+    "auth/client-credentials-jwt",
+    "auth/cross-app-access-complete-flow",
+];
+
+/// The `auth/*` client scenarios in the suite's `list` output, in its order.
+///
+/// A line of that output reads `  - auth/metadata-default [2025-11-25]`; the
+/// name is the word after the dash.
+#[must_use]
+pub fn listed_auth_scenarios(list_output: &str) -> Vec<String> {
+    list_output
+        .lines()
+        .filter_map(|line| line.trim_start().strip_prefix("- "))
+        .filter_map(|entry| entry.split_whitespace().next())
+        .filter(|name| name.starts_with("auth/"))
+        .map(ToOwned::to_owned)
+        .collect()
+}
 
 /// The pinned suite's server scenarios that exercise the streamable-HTTP
 /// transport itself (`Host` validation, SSE stream handling).
@@ -60,16 +129,6 @@ pub const HTTP_TRANSPORT_SCENARIOS: [&str; 3] = [
     "server-sse-polling",
     "server-sse-multiple-streams",
 ];
-
-/// The pinned suite's *pending* server scenarios: listed by its `list`
-/// command, but left out of the `active` set its `server` command runs by
-/// default.
-///
-/// `mcp-conformance test --command` chooses its scenarios from `list` (one
-/// invocation per scenario), and leaves these out so a stdio server is run
-/// against the same set an HTTP one is. `cargo xtask conformance` checks this
-/// list against what the pinned suite's default run actually runs.
-pub const PENDING_SERVER_SCENARIOS: [&str; 2] = ["json-schema-2020-12", "server-sse-polling"];
 
 /// One check the suite reported.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

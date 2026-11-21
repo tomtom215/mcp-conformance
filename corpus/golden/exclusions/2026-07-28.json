@@ -44,16 +44,10 @@
       "exclusion": "Client-side acceptance of a legacy code is internal handling; the trace records the `-32002` a server sent, not whether the client honoured it. The emitting side is judged by BASE-058."
     },
     {
-      "id": "BASE-061",
-      "level": "MUST NOT",
-      "actor": "both",
-      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by `base.result-id-matches` and `base.error-id-matches`. Same reasoning as BASE-011 at 2025-11-25."
-    },
-    {
       "id": "BASE-063",
       "level": "MUST NOT",
       "actor": "server",
-      "exclusion": "Reliance is internal reasoning. A server that answers correctly may or may not have consulted prior requests, and one that errors may have done so for any reason; the trace shows the answer, not the inference behind it. The adjacent observable is that every request carries its own context, judged by BASE-030."
+      "exclusion": "Reliance is internal reasoning; its only wire form is a difference: a request refused on a connection that has carried no `server/discover` and the same request served after one. A recording cannot attribute that difference. A refusal before the probe may have any cause the request itself or the moment explains (an unsupported version, a capability the server lacks, a transient failure, a feature still loading), and a success after it shows that time passed, not that the earlier request was consulted; the order cannot be re-run to tell them apart. The half a single exchange does show is judged elsewhere: every request must carry its own context (BASE-030), and a request that omits it must be rejected rather than served from context an earlier request established (BASE-031)."
     },
     {
       "id": "BASE-064",
@@ -65,7 +59,7 @@
       "id": "BASE-065",
       "level": "SHOULD NOT",
       "actor": "server",
-      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection — two correlated connections in one recording, which the trace vocabulary does not span: each recorded session is one transport."
+      "exclusion": "Falsifying this needs a server refusing an operation *because* it arrived on a different connection or process: the same cursor, `requestState` or other handle served on the connection that issued it and refused on another. A trace is one recorded transport, and its HTTP events carry no connection identity, so a recording never shows which connection a request used; over stdio a second process is a second recording. A refusal seen in one recording has no counterpart to be compared with."
     },
     {
       "id": "BASE-066",
@@ -83,7 +77,7 @@
       "id": "BASE-068",
       "level": "SHOULD NOT",
       "actor": "both",
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages: AUTH-086 and AUTH-087 restate this sentence there, and the challenge clauses a recording can judge carry checks. Same decision as BASE-085 at 2025-11-25."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own pages. AUTH-086 and AUTH-087 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of those pages, which carry their own checks. Same decision as BASE-085 at 2025-11-25."
     },
     {
       "id": "BASE-069",
@@ -188,12 +182,6 @@
       "exclusion": "Origin validation is server-internal policy applied before any MCP message; the trace records admitted sessions, not the requests a policy refused. Same reasoning as TRAN-002 at 2025-11-25; the everything server's policy middleware is tested directly in http_policy.rs."
     },
     {
-      "id": "TRAN-052",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "A refused request never becomes an MCP session, so the 403 it drew is outside what the tap records. Same reasoning as TRAN-007 at 2025-11-25; enforced in code and covered by the server's own policy tests."
-    },
-    {
       "id": "TRAN-053",
       "level": "SHOULD",
       "actor": "server",
@@ -210,12 +198,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Adds to TRAN-056's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a non-object body — TRAN-059 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded. Same split as TRAN-024/TRAN-049 at 2025-11-25."
-    },
-    {
-      "id": "TRAN-062",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Which inputs a server declines to accept, and why, is server-internal admission policy; a declined request produces no MCP message to judge. Same reasoning as TRAN-028 at 2025-11-25."
     },
     {
       "id": "TRAN-064",
@@ -266,18 +248,6 @@
       "exclusion": "A descriptive clause explaining why names are carried encoded, not an independent obligation; the encoding rule itself is checked on the clauses above."
     },
     {
-      "id": "TRAN-090",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step."
-    },
-    {
-      "id": "TRAN-091",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097."
-    },
-    {
       "id": "TRAN-093",
       "level": "MUST",
       "actor": "client",
@@ -300,18 +270,6 @@
       "level": "MUST",
       "actor": "both",
       "exclusion": "Case-insensitive comparison is internal string handling. The trace lowercases header names on read (`EventBody::Http`), so a capture cannot even preserve the casing a party compared against."
-    },
-    {
-      "id": "TRAN-101",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Numeric-versus-string comparison is internal; only the comparison's verdict reaches the wire, and that is judged by TRAN-097."
-    },
-    {
-      "id": "TRAN-103",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Same internal-decode boundary as the earlier decode clauses: the wire shows the encoded value and the outcome, not the decoding in between."
     },
     {
       "id": "TRAN-104",
@@ -377,13 +335,13 @@
       "id": "VERS-009",
       "level": "SHOULD",
       "actor": "client",
-      "exclusion": "The compatibility matrix's modern-client, legacy-server row. Its antecedent is the server being legacy, which is exactly what an unprobed exchange fails to reveal — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics — and, as for TRAN-142, a recording cannot show that its first request was the client's first. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras."
+      "exclusion": "The compatibility matrix's modern-client, legacy-server row. Both antecedents are facts about the peer and the moment that a recording of an unscripted session does not hold: that the server is legacy — the row itself says such a server may reject the request, stay silent, or process it under legacy semantics, so its answer does not reveal it — and, as for TRAN-142, that the first recorded request was the client's first. Only a scripted legacy stdio server that the client itself spawns knows both, and could judge that the client's first message is `server/discover`; the validator judges recordings and scripts no server. The dual-era form of the same advice is TRAN-128, judged where a session witnesses both eras."
     },
     {
       "id": "TRAN-110",
       "level": "MUST",
       "actor": "both",
-      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+      "exclusion": "Restates TRAN-003 at 2025-11-25, and the same boundary holds: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because the HTTP capture tooling drops undecodable bodies and chunks. On stdio a mis-encoded line is not valid JSON; the recorder keeps it as a (lossily decoded) string payload and it is judged as a non-message line under TRAN-117 and TRAN-118, not attributed to this clause."
     },
     {
       "id": "TRAN-111",
@@ -413,13 +371,13 @@
       "id": "TRAN-115",
       "level": "MUST NOT",
       "actor": "both",
-      "exclusion": "Restates TRAN-002 at 2025-11-25 verbatim, and its exclusion holds unchanged: framing is enforced at capture time, the JSON Lines trace format cannot represent an embedded-newline violation, and a parseable trace is evidence the rule held."
+      "exclusion": "Restates TRAN-001 at 2025-11-25 verbatim, and the same boundary holds: an embedded newline is read as the delimiter and splits the message into lines that are not valid messages, which the stdio recorder keeps (as string payloads) and which are judged under TRAN-117 and TRAN-118. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-116",
       "level": "SHOULD NOT",
       "actor": "client",
-      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-003 at 2025-11-25."
+      "exclusion": "Binds an inference the client draws from `stderr` — and `stderr` is not part of the recorded message stream at all, so neither the input to that inference nor the inference itself reaches a trace. Same boundary as TRAN-021 at 2025-11-25."
     },
     {
       "id": "TRAN-121",
@@ -497,7 +455,7 @@
       "id": "MRTR-014",
       "level": "MUST NOT",
       "actor": "server",
-      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client declines to retry, and a conforming session never exhibits that: the client either retries, which tells us nothing about the assumption, or does not, and the trace simply ends."
+      "exclusion": "Forbids an assumption. Its wire-visible consequence would be a server that breaks when a client does not retry — it stops answering, or exits. A recording cannot tell that from its own end: requests left unanswered when a trace stops, and a transport that closes after an abandoned `input_required` result, are also what a conforming session cut short looks like, and a server may exit for any reason. A client that retries tells us nothing about the assumption."
     },
     {
       "id": "MRTR-021",
@@ -509,7 +467,7 @@
       "id": "MRTR-022",
       "level": "SHOULD",
       "actor": "server",
-      "exclusion": "The antecedent is not identifiable from a trace: nothing in an exchange says whether the server met a protocol error, so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
+      "exclusion": "A recording identifies a protocol error only where another clause already names its answer, and each of those is more exact than this SHOULD: a request missing a required `_meta` field must draw `-32602` (BASE-031, with HTTP `400` under BASE-032), an unrecognized log level should draw `-32602` (LOG-010), and a result returned in their place is reported under those clauses. Outside them nothing in an exchange says whether the server met malformed JSON, an invalid schema or an internal error — a line that is not JSON has no id for an answer to be paired with over stdio, and an internal error is the server's own knowledge — so an error response and a completed result are equally consistent with the clause. \"Appropriate\" is also unbounded — the clause names no code — and the shape an error must have regardless is BASE-052's, which is checked."
     },
     {
       "id": "MRTR-023",
@@ -734,12 +692,6 @@
       "exclusion": "Access control happens before a response is composed, inside the server: a trace shows what one caller was given, never what a different caller would have been refused. Whether `cacheScope` was *relied upon* for that decision is a fact about the server's code."
     },
     {
-      "id": "COMP-008",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Each row's antecedent is a server-side determination — that this prompt name is invalid, that a required argument is missing — and a trace shows the answer without the reason for it. An exchange ending in `-32602` and one ending in a result are equally consistent with the clause, because nothing on the wire says which case the server was in."
-    },
-    {
       "id": "COMP-009",
       "level": "SHOULD",
       "actor": "server",
@@ -780,12 +732,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "A recording's witness for a cursor the client made up — one no result in the session issued — does not hold at this revision. 2026-07-28 drops 2025-11-25's \"Don't persist cursors across sessions\" and has no sessions to persist across; its caching page says \"When a cached page expires, the client SHOULD re-fetch that page using its cursor\", a cursor issued before the recording began. A parsed or altered cursor is indistinguishable on the wire from such a one."
-    },
-    {
-      "id": "PAGE-011",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a cursor is invalid is the server's knowledge. At 2025-11-25 a cursor no result in the session issued witnesses it (cursors must not outlive a session, and 2025-11-25's PAGE-003 judges that); at this revision a cursor issued before the recording began is a valid one the client should re-present (server/utilities/caching), so a server accepting it may be conforming. The everything server still rejects cursors its own scheme did not issue; the probe capture exercises that."
     },
     {
       "id": "LOG-006",
@@ -920,12 +866,6 @@
       "exclusion": "Design guidance about which scheme to prefer, resolved before a URI is ever minted. Whether \"other use cases\" applies is the server author's judgement, and RES-018 checks the only part a trace can hold the result to: that a custom scheme is well-formed."
     },
     {
-      "id": "RES-019",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "The antecedent — that the requested resource does not exist — is the server's own knowledge. An error and a result are both consistent with the clause, because nothing on the wire says which case the server was in. The one shape the clause rules out explicitly is checked, as RES-022."
-    },
-    {
       "id": "RES-020",
       "level": "SHOULD",
       "actor": "server",
@@ -948,12 +888,6 @@
       "level": "SHOULD",
       "actor": "server",
       "exclusion": "The antecedent is that the underlying set changed, which happens inside the server and reaches the wire only as the notification the clause is asking for. A session with no notification is equally consistent with a list that never changed."
-    },
-    {
-      "id": "PROM-019",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Each row's antecedent is a server-side determination — an invalid prompt name, a missing required argument — and the trace shows the answer without the reason. Same shape as COMP-008."
     },
     {
       "id": "PROM-021",
@@ -1013,7 +947,7 @@
       "id": "ELIC-068",
       "level": "MUST",
       "actor": "server",
-      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang ends the recording rather than writing anything into it."
+      "exclusion": "\"Handle\" names no observable outcome: the specification lets a server answer a declined, cancelled or failed elicitation with a result, an error or a further `input_required` round, and every one of those is handling. A server that fails to handle the case shows it only by breaking — a crash or a hang after the client's retry — and a recording cannot attribute that: a transport that closes or aborts after a declined retry, with the retry unanswered, is also what a recording stopped early or a server ended by its host looks like, so no trace convicts the server of it."
     },
     {
       "id": "ELIC-069",
@@ -1514,40 +1448,16 @@
       "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
     },
     {
-      "id": "AUTH-121",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
       "id": "AUTH-122",
       "level": "MUST",
       "actor": "server",
       "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
-      "id": "AUTH-123",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
-    },
-    {
       "id": "AUTH-125",
       "level": "MUST NOT",
       "actor": "client",
       "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
-    },
-    {
-      "id": "AUTH-126",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
-      "id": "AUTH-127",
-      "level": "MUST NOT",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
     },
     {
       "id": "AUTH-128",
@@ -1890,18 +1800,6 @@
       "level": "MUST",
       "actor": "server",
       "exclusion": "Consent is obtained in the user's browser, and the forwarding is the proxy server's own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures."
-    },
-    {
-      "id": "AUTH-190",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps."
-    },
-    {
-      "id": "AUTH-191",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
       "id": "AUTH-192",

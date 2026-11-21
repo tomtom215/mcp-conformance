@@ -5,10 +5,10 @@
     "pass": 22,
     "fail": 0,
     "warn": 1,
-    "excluded": 246,
+    "excluded": 228,
     "unsupported": 0,
-    "not_applicable": 14,
-    "not_observed": 65
+    "not_applicable": 18,
+    "not_observed": 79
   },
   "requirements": [
     {
@@ -70,6 +70,12 @@
       "level": "MUST",
       "actor": "both",
       "outcome": "pass"
+    },
+    {
+      "id": "BASE-011",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "not-observed"
     },
     {
       "id": "BASE-017",
@@ -150,6 +156,12 @@
       "outcome": "pass"
     },
     {
+      "id": "LIFE-012",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "LIFE-018",
       "level": "MUST",
       "actor": "client",
@@ -168,6 +180,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-007",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-011",
       "level": "MUST",
       "actor": "server",
@@ -177,6 +195,18 @@
       "id": "TRAN-013",
       "level": "MUST",
       "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-014",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-015",
+      "level": "MUST",
+      "actor": "server",
       "outcome": "not-observed"
     },
     {
@@ -227,6 +257,12 @@
       "level": "MUST",
       "actor": "server",
       "outcome": "pass"
+    },
+    {
+      "id": "TRAN-028",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "TRAN-029",
@@ -413,6 +449,13 @@
       "capability": "server.resources"
     },
     {
+      "id": "RES-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.resources"
+    },
+    {
       "id": "PROM-001",
       "level": "MUST",
       "actor": "server",
@@ -440,6 +483,13 @@
       "capability": "server.prompts"
     },
     {
+      "id": "PROM-007",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.prompts"
+    },
+    {
       "id": "PROM-008",
       "level": "SHOULD",
       "actor": "server",
@@ -453,10 +503,24 @@
       "outcome": "not-observed"
     },
     {
+      "id": "LOG-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.logging"
+    },
+    {
       "id": "COMP-001",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "COMP-003",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-applicable",
+      "capability": "server.completions"
     },
     {
       "id": "PAGE-002",
@@ -472,6 +536,12 @@
     },
     {
       "id": "ELIC-004",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "ELIC-005",
       "level": "MUST",
       "actor": "client",
       "outcome": "not-observed"
@@ -603,6 +673,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "ROOT-002",
+      "level": "MUST",
+      "actor": "client",
+      "outcome": "not-observed"
+    },
+    {
       "id": "ROOT-003",
       "level": "MUST",
       "actor": "client",
@@ -627,8 +703,32 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-042",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-044",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-045",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-047",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-048",
+      "level": "MUST NOT",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -649,12 +749,24 @@
       "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-081",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-082",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     }
   ],
   "wire_schema": {
     "outcome": "pass",
     "messages": 3,
-    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2025-11-25/schema.json",
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9/schema/2025-11-25/schema.json",
     "source": {
       "section": "basic#schema",
       "quote": "This is the source of truth for all protocol messages and structures.",

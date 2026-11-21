@@ -27,7 +27,9 @@
         "section": "client/roots#root-list-changes",
         "quote": "When roots change, clients that support `listChanged` MUST send a notification:"
       },
-      "exclusion": "The antecedent — that the client's roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed."
+      "checks": [
+        "roots.list-changed-notified"
+      ]
     },
     {
       "id": "ROOT-003",

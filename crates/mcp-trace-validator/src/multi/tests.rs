@@ -14,6 +14,7 @@ use mcp_conformance_core::requirement::Actor;
 
 use super::*;
 use crate::reader::{Limits, parse_trace};
+use crate::report::HumanOptions;
 
 /// A two-revision set: BASE-001 throughout, LIFE-009 removed at 2026-07-28, DISC-001
 /// introduced at 2026-07-28. All use a real check so outcomes are meaningful.
@@ -200,6 +201,32 @@ fn findings_render_lists_only_rows_needing_attention_with_their_clause() {
         ),
         "{quiet}"
     );
+}
+
+#[test]
+fn a_filtered_render_counts_the_findings_of_the_clauses_it_leaves_out() {
+    let events = parse_trace(WRONG_VERSION, &Limits::default()).unwrap();
+    let failing = validate_revisions(&set(), &revs(), &events).unwrap();
+    let options = HumanOptions::default().all(false);
+    // BASE-001 fails under both revisions, LIFE-009 and DISC-001 under the one
+    // each is in: four findings, of which a filter on LIFE lists one.
+    let only = |area: &str| crate::report::Filter::new(vec![area.to_owned()], Vec::new());
+    let life = failing.render_with_filter(&options, &only("LIFE"));
+    assert!(
+        life.contains("LIFE-009") && !life.contains("BASE-001"),
+        "{life}"
+    );
+    assert!(
+        life.contains("listing only LIFE clauses (a display filter): 3 findings in other clauses are not shown."),
+        "{life}"
+    );
+    let base = failing.render_with_filter(&options, &only("BASE"));
+    assert!(
+        base.contains("2 findings in other clauses are not shown."),
+        "{base}"
+    );
+    // The default filter leaves nothing out and says nothing.
+    assert!(!failing.render_with(&options).contains("display filter"));
 }
 
 #[test]

@@ -151,7 +151,7 @@ pub(in crate::checks) fn x_mcp_header_integer_range(
 /// exists but has no content". So the shape alone convicts nothing — judged that
 /// way until 2026-10-04, this reported servers for faithfully returning an
 /// existing resource with no content. Whether a resource exists is the server's
-/// own knowledge (the reason RES-019 is excluded), and the one place a trace
+/// own knowledge (the reason RES-019 judges only a refusal), and the one place a trace
 /// carries the server's word on it is a not-found answer: `-32602`, the code
 /// this revision assigns, or the withdrawn `-32002`. An empty `contents` for a
 /// URI the same session also answered as not found is the violation, and every

@@ -206,9 +206,10 @@ own errata, so two correct readings can differ. The pinned `0.1.16` predates the
 check: on the pinned run the runner's green verdict is its whole side, and any message
 the validator flags is a divergence, exactly as a failing requirement row is. The
 message-level comparison proper runs wherever the runner reports the check — the
-scheduled alpha-tracking job (`MCP_SUITE_VERSION`), and both legs of
-`cargo xtask draft-readiness`, whose sessions are judged at `2026-07-28` because that
-is the revision the runner validates against whatever the server serves. The
+scheduled alpha-tracking job (`MCP_SUITE_VERSION`), and
+`cargo xtask draft-readiness` (one leg since 2026-11-20: the server's `2026-07-28`
+mode), whose sessions are judged at `2026-07-28`, the revision the runner validates
+against. The
 reconciliation is the `wire_schema` member of `agreement.json` (for the draft legs,
 `target/draft-readiness/<revision>/wire-schema-agreement.json`). Known sources of
 divergence that no run has yet exercised: the runner asserts the `ajv-formats` formats

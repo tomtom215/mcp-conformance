@@ -106,6 +106,7 @@ fn the_properties_list_each_party_once_in_order() {
         seq: None,
         party,
         detail: String::new(),
+        baselined: None,
     };
     let mut out = String::new();
     properties(

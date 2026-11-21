@@ -9,10 +9,62 @@ use core::fmt::Write as _;
 
 use crate::report::{Finding, Outcome, Party, RequirementReport};
 
-/// Whether a row's findings count under `view`: always, without one;
-/// otherwise when any of them does ([`Finding::counts_for`]).
-pub(super) fn counted(findings: &[Finding], view: Option<Party>) -> bool {
-    view.is_none_or(|party| findings.iter().any(|finding| finding.counts_for(party)))
+/// How a failing or warning row stands in a report as it is viewed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Standing {
+    /// A finding of it counts toward the verdict: a baseline does not accept
+    /// it and the party view, if any, does not set it aside.
+    Counts,
+    /// None counts, and a baseline accepts some: known findings, still there.
+    /// Reported as skipped, never as passing.
+    Accepted,
+    /// None counts, and none is accepted: the party view set them all aside.
+    SetAside,
+}
+
+/// The standing of a row with these `findings` under `view`. Without a view or
+/// a baseline every row counts, as it always has.
+pub(super) fn standing(findings: &[Finding], view: Option<Party>) -> Standing {
+    let counts = |finding: &Finding| {
+        !finding.is_baselined() && view.is_none_or(|party| finding.counts_for(party))
+    };
+    if findings.iter().any(counts) || (findings.is_empty() && view.is_none()) {
+        Standing::Counts
+    } else if findings.iter().any(Finding::is_baselined) {
+        Standing::Accepted
+    } else {
+        Standing::SetAside
+    }
+}
+
+/// The line that heads an accepted case's `<system-out>`, and the `<skipped>`
+/// message: the findings are the baseline's, and are listed so that they are
+/// not lost.
+pub(super) fn accepted_line(findings: &[Finding]) -> String {
+    let accepted = findings
+        .iter()
+        .filter(|finding| finding.is_baselined())
+        .count();
+    format!(
+        "accepted by baseline: {accepted} of {} findings are known and do not count; they are \
+         still in the trace\n",
+        findings.len()
+    )
+}
+
+/// `accepted by baseline (reason)` for a finding a baseline accepts, so that a
+/// reader of the case's output sees why next to the finding itself.
+pub(super) fn acceptance_note(finding: &Finding) -> String {
+    finding
+        .baselined
+        .as_ref()
+        .map_or_else(String::new, |acceptance| {
+            let until = acceptance
+                .expires
+                .as_deref()
+                .map_or_else(String::new, |day| format!(", through {day}"));
+            format!(" [accepted by baseline: {}{until}]", acceptance.reason)
+        })
 }
 
 /// The `<properties>` of a case with findings: the party the clause binds, and

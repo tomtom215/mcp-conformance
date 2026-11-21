@@ -15,18 +15,18 @@ use super::{Inputs, PINNED};
 /// The npm tarballs the binary was taken from, with the registry's `integrity`.
 pub(crate) const TARBALLS: [(&str, &str); 2] = [
     (
-        "mcpsnoop@0.26.1",
-        "sha512-midlHuFR9PGrrW8BUm/F16k76ccPmVfE8OVBWR7DkSQzZjaGookgTH4ACpytuWnD5VnKIxvNN2Y8smwjyq4xMw==",
+        "mcpsnoop@0.28.0",
+        "sha512-I+XXUp3FRRaIKtfazbXXeAeimn7mvurWovcllP+yALNEiNDjM0+vpNqlzpbJF2StLWYeG9jTQmDJHLsEE0mPEA==",
     ),
     (
-        "@mcpsnoop/linux-x64@0.26.1",
-        "sha512-mNsXyDgs4vznFP6BQz9oxAJYLEo+I2YC2F9vDICd5Z4FSUPTjHWT/A6HW+i6/FvyUu0Ymf3HnMc2zM9X2xZQ2Q==",
+        "@mcpsnoop/linux-x64@0.28.0",
+        "sha512-dJfx8h9Gwrs8Svvgkj7I5y4ccdifRx/sskv073OW67d9XZZ0CHD7aReBeTvGoBNal5tCn+uJhWfC6qNXOFGQyA==",
     ),
 ];
 
 /// SHA-256 of `package/bin/mcpsnoop` inside the linux-x64 tarball.
 pub(crate) const BINARY_SHA256: &str =
-    "81c3636fa5a371833ab4558d6ac417d9d94a86f99949e0cff32bb09ccf69c2a9";
+    "b291a4e7795c9d12860b42d380182d5b83a7345e06370d32d038ab4c37a0984b";
 
 /// A table cell: one line, pipes escaped.
 fn cell(text: &str) -> String {
@@ -256,6 +256,9 @@ fn recorded(out: &mut String, inputs: &Inputs) {
         "## Found on live recordings\n\nDivergences that only a session recorded by mcpsnoop itself shows, \
 because they turn on something our trace format does not record.\n\n"
     );
+    if inputs.triage.recorded.is_empty() {
+        let _ = write!(out, "None at mcpsnoop `{PINNED}`.\n\n");
+    }
     for entry in &inputs.triage.recorded {
         let evidence: Vec<String> = entry
             .evidence
@@ -282,6 +285,9 @@ fn issues(out: &mut String, inputs: &Inputs) {
         "## Upstream issue drafts\n\nWritten for mcpsnoop's tracker and **not filed**: filing is the \
 owner's call.\n\n"
     );
+    if inputs.triage.issues.is_empty() {
+        let _ = write!(out, "None drafted at mcpsnoop `{PINNED}`.\n\n");
+    }
     for issue in &inputs.triage.issues {
         let _ = write!(
             out,

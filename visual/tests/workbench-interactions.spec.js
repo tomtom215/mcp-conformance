@@ -44,7 +44,9 @@ test('search finds the sessions a query names', async ({ page, workbench }) => {
   await search('code:-32602', ['hostile-markup', 'sdk-go-2025-11-25', 'sdk-rust-2025-11-25', 'sdk-rust-2026-07-28']);
   await search('code:-32602 -tag:sdk', ['hostile-markup']);
   await search('verdict:fail', ['base-001-request-id-boolean']);
-  await search('tool:test_simple_text server:rust*', ['sdk-rust-2025-11-25']);
+  // Both Rust SDK sessions: the `2026-07-28` one names its server in the
+  // discover result's `_meta`, which the library reads.
+  await search('tool:test_simple_text server:rust*', ['sdk-rust-2025-11-25', 'sdk-rust-2026-07-28']);
   await search('method:tools/call tag:needs-redaction', ['leaky-session']);
   // A hit links to the event it matched.
   await search('req:BASE-001', ['base-001-request-id-boolean']);

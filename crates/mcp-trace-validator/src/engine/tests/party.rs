@@ -101,6 +101,7 @@ fn nobody_is_blamed_without_a_message_to_blame() {
         seq,
         party: None,
         detail: String::new(),
+        baselined: None,
     };
     // Both parties, no seq: nobody.
     let mut findings = vec![finding(None), finding(Some(5)), finding(Some(2))];

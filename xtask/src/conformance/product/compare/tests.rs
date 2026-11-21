@@ -104,27 +104,17 @@ fn stdio_is_compared_without_the_http_transport_scenarios() {
         &[],
     );
     check(Leg::Stdio, &gate, &report, &wire("[]")).unwrap();
-    // The pending list: what `list` names beyond the default run.
-    let listed = report_with_pending();
-    pending_is_what_the_default_run_leaves_out(&gate, &listed).unwrap();
-    // A scenario `list` names that the default run did not run, and that the
-    // pending list does not name: the list is stale.
-    let unexpected = report_with(&["extra"]);
-    let error = pending_is_what_the_default_run_leaves_out(&gate, &unexpected).unwrap_err();
-    assert!(error.contains("stale"), "{error}");
-}
-
-fn report_with_pending() -> Report {
-    report_with(&[])
-}
-
-/// The stdio run of the gate above: `ping` run, the rest of what `list`
-/// names (the pending scenarios, the HTTP-transport one, and `extra`) not.
-fn report_with(extra: &[&str]) -> Report {
-    let mut not_run: Vec<&str> = suite::PENDING_SERVER_SCENARIOS.to_vec();
-    not_run.push("dns-rebinding-protection");
-    not_run.extend_from_slice(extra);
-    report(&[("ping", &["SUCCESS"])], &not_run, &[])
+    // Everything `list` names is run by the gate, and stdio leaves out only
+    // the HTTP-transport scenario.
+    every_listed_scenario_is_run(&gate, &report).unwrap();
+    // A scenario left out for any other reason, or one the gate did not run.
+    let unexpected = self::report(
+        &[("ping", &["SUCCESS"])],
+        &["dns-rebinding-protection", "extra"],
+        &[],
+    );
+    let error = every_listed_scenario_is_run(&gate, &unexpected).unwrap_err();
+    assert!(error.contains("extra"), "{error}");
 }
 
 #[test]

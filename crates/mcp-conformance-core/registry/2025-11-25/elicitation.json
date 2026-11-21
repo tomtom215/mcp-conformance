@@ -66,7 +66,9 @@
         "section": "client/elicitation#capabilities",
         "quote": "Clients declaring the `elicitation` capability MUST support at least one mode (`form` or `url`)."
       },
-      "exclusion": "No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode \"equivalent to declaring support for `form` mode only\", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`."
+      "checks": [
+        "elicitation.declared-mode-handled"
+      ]
     },
     {
       "id": "ELIC-006",

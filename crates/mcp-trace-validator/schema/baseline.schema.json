@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/tomtom215/mcp-conformance/main/crates/mcp-trace-validator/schema/baseline.schema.json",
+  "title": "mcp-trace-validator baseline",
+  "description": "The findings an author has accepted, for `mcp-trace-validator validate --baseline` (ADR-0025): each is named by the fingerprint SARIF reports for it (`partialFingerprints[\"mcpConformanceFinding/v2\"]`), with the reason it is accepted and, optionally, the last day it is. `validate --write-baseline` writes one. Closed (`additionalProperties: false`), as the reader is: an unknown member would otherwise be ignored in silence. The reader also rejects what a schema cannot say: a `reason` with no non-blank character, a repeated `fingerprint`, and an `expires` that is not a day on the calendar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "fingerprint_key", "findings"],
+  "properties": {
+    "version": {
+      "description": "The version of this file format.",
+      "const": 1
+    },
+    "fingerprint_key": {
+      "description": "The scheme the fingerprints are of: the key SARIF reports them under. A build that computes another scheme refuses the file, and does not call every entry stale.",
+      "const": "mcpConformanceFinding/v2"
+    },
+    "findings": {
+      "description": "The accepted findings. Written sorted by fingerprint, so a diff of the file shows only what changed.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "description": "One accepted finding.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "reason"],
+      "properties": {
+        "fingerprint": {
+          "description": "The finding's identity: `{rule}:{check}:{detail with digit runs folded to #}:{n}`. It carries no `seq` and no trace path, so a re-recorded or renamed trace keeps it; it changes with a finding's wording (a renamed tool), a check's name, and a release that rewords either. Unique in the file.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "description": "Why the finding is accepted, in words. Must contain a non-blank character. `--write-baseline` writes a sentence saying the finding was recorded and not reviewed (`baseline::GENERATED_REASON`), and every run counts how many entries still carry it.",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "expires": {
+          "description": "The last day (UTC) the entry accepts the finding, `YYYY-MM-DD`. From the next day the entry accepts nothing and the finding counts again; the report names the lapsed entry.",
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      }
+    }
+  }
+}

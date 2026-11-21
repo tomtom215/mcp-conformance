@@ -229,3 +229,84 @@ fn sarif_output_is_valid_under_the_oasis_schema() {
     assert!(validator.is_valid(&serde_json::from_str(&empty).unwrap()));
     eprintln!("{checked} SARIF logs valid under the OASIS schema");
 }
+
+/// A baseline accepting every finding of `reports`, every other entry with an
+/// expiry far in the future, and one entry that matches nothing.
+fn accepting_with_dates(
+    name: Option<&str>,
+    reports: &[Report],
+) -> mcp_trace_validator::baseline::Baseline {
+    use mcp_trace_validator::baseline::{Baseline, Entry, record};
+    let recorded = record(&[(name, reports)], None, None);
+    let mut entries: Vec<Entry> = recorded
+        .baseline
+        .entries()
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let accepted = Entry::new(entry.fingerprint.clone(), format!("known {index}"));
+            if index % 2 == 0 {
+                accepted.expiring("2999-12-31".parse().unwrap())
+            } else {
+                accepted
+            }
+        })
+        .collect();
+    entries.push(Entry::new("BASE-001:no:such:1", "was fixed"));
+    Baseline::new(entries)
+}
+
+/// The same, for a run with a baseline applied: every violation trace with all
+/// of its findings accepted (so each result carries a `suppressions` entry) and
+/// with one stale and one lapsed entry (so the run carries both notifications),
+/// validated against the OASIS schema — the exact shape of `suppression`
+/// (`kind`, `status`, `justification`, `properties`) is the schema's, not ours.
+#[test]
+#[ignore = "needs SARIF_SCHEMA=<path to sarif-schema-2.1.0.json>; run by CI"]
+fn a_baselined_log_is_valid_under_the_oasis_schema() {
+    use mcp_trace_validator::baseline::{Entry, TraceReports};
+    let path = std::env::var("SARIF_SCHEMA").expect("SARIF_SCHEMA names the schema file");
+    let schema: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let validator = jsonschema::draft4::new(&schema).unwrap();
+    let mut suppressed = 0;
+    for path in violation_traces() {
+        let (mut reports, text) = judge(&path);
+        let events = reader::parse_trace(&text, &reader::Limits::default()).unwrap();
+        let baseline = accepting_with_dates(path.to_str(), &reports);
+        let mut traces = [TraceReports::new(path.to_str(), &mut reports)];
+        let today = "2026-10-25".parse().unwrap();
+        let mut applied = baseline.apply(&mut traces, Some(today)).unwrap();
+        applied.notes.lapsed.push(
+            Entry::new("BASE-002:old:old:1", "until July").expiring("2020-07-01".parse().unwrap()),
+        );
+        let log = sarif::render_run_with_baseline(
+            &[(
+                sarif::Artifact {
+                    uri: path.to_str(),
+                    events: &events,
+                },
+                &reports[..],
+            )],
+            &[],
+            &sarif::Options::default(),
+            &applied.notes,
+        );
+        let log: Value = serde_json::from_str(&log).unwrap();
+        let errors: Vec<String> = validator
+            .iter_errors(&log)
+            .map(|error| format!("{error} at {}", error.instance_path()))
+            .collect();
+        assert!(errors.is_empty(), "{}: {errors:#?}", path.display());
+        suppressed += log["runs"][0]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|result| result.get("suppressions").is_some())
+            .count();
+    }
+    assert!(
+        suppressed > 50,
+        "only {suppressed} suppressed results were validated"
+    );
+    eprintln!("{suppressed} suppressed results valid under the OASIS schema");
+}

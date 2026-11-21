@@ -68,10 +68,14 @@ if grep -q "\.\./\.\./\.\./src/" upstream/ts-everything-server.ts; then
   exit 1
 fi
 # The v2 line's server needs no rewrite: it imports the published packages by
-# name, and nothing else (no relative import at all).
+# name. From 2.4.0 it also imports `./skills`, its skills-extension fixtures,
+# a second file of the same directory: fetched at the same commit, pinned by
+# its own hash, and put beside the server under the name the import asks for.
+# Any other relative import is refused, in either file.
 from_upstream "$TS2_SDK_REPO" "$TS2_SDK_COMMIT" "$TS2_SERVER_PATH" "$TS2_SERVER_SHA256" upstream/ts2-everything-server.ts
-if grep -q "from '\.\.\?/" upstream/ts2-everything-server.ts; then
-  echo "setup: the TypeScript v2 server imports a file of the SDK's repository" >&2
+from_upstream "$TS2_SDK_REPO" "$TS2_SDK_COMMIT" "$TS2_SKILLS_PATH" "$TS2_SKILLS_SHA256" upstream/skills.ts
+if grep "from '\.\.\?/" upstream/ts2-everything-server.ts upstream/skills.ts | grep -qv "from '\./skills\(\.js\)\?'"; then
+  echo "setup: the TypeScript v2 server imports a file of the SDK's repository other than ./skills" >&2
   exit 1
 fi
 

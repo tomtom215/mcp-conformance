@@ -236,6 +236,24 @@ pub const RECORDED_HEADERS: [&str; 11] = [
     "www-authenticate",
 ];
 
+/// The one `Authorization` value a recorder keeps: `check`'s probe.
+///
+/// Not a credential: a public constant no authorization server issued, kept
+/// only as the field's whole value, so a recording says nothing about any
+/// other request's credential.
+pub const PROBE_AUTHORIZATION: &str = "Bearer mcp-conformance-probe-invalid-token";
+
+/// Whether a recorder keeps the header `name` (lowercase) with `value`: on
+/// either allowlist, or `authorization` carrying [`PROBE_AUTHORIZATION`].
+#[must_use]
+pub fn records_header(name: &str, value: &str) -> bool {
+    RECORDED_HEADERS.contains(&name)
+        || RECORDED_HEADER_PREFIXES
+            .iter()
+            .any(|prefix| name.starts_with(prefix))
+        || (name == "authorization" && value == PROBE_AUTHORIZATION)
+}
+
 /// Header-name prefixes recorded in addition to [`RECORDED_HEADERS`].
 ///
 /// SEP-2243 lets a tool designate an argument for a header of its own naming

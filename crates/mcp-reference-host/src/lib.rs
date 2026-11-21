@@ -21,6 +21,10 @@
 //!   the SSE `retry` field is a server-named delay, which is exactly
 //!   [`retry::RetryPolicy::delay_honoring_retry_after`] — and `resume` is
 //!   where that becomes load-bearing.
+//! - `oauth` (feature `oauth`, off by default) — OAuth for the official
+//!   suite's `auth/*` client scenarios: rmcp's OAuth client under a wrapper
+//!   that reacts to the server's `401`/`403`, with a headless consent step
+//!   fenced to loopback. A conformance harness mode, not a way to sign in.
 //! - `probe` (feature `http`) — the deliberately malformed requests, sent
 //!   outside rmcp because rmcp's client is what makes the other captures
 //!   trustworthy and therefore cannot emit one. Every rejection clause the
@@ -57,6 +61,8 @@ pub mod capture;
 pub mod connect;
 pub mod diagnose;
 pub mod handler;
+#[cfg(feature = "oauth")]
+pub mod oauth;
 #[cfg(feature = "http")]
 pub mod probe;
 #[cfg(feature = "http")]

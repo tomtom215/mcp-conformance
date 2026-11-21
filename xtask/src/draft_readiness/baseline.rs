@@ -62,9 +62,9 @@ pub(super) fn write(path: &Path, measured: &BTreeMap<String, Scenario>) -> Resul
     let document = serde_json::json!({
         "_policy": "Measured by `cargo xtask draft-readiness`: the status of every check the \
                     official runner's 2026-07-28 scenarios report against the everything \
-                    server, once per revision the server can serve. Scenario keys are \
-                    `<served revision>/<scenario>`: the 2025-11-25 leg measures migration \
-                    distance, the 2026-07-28 leg measures the server's own stateless mode. \
+                    server's 2026-07-28 mode. Scenario keys are `<served revision>/<scenario>` \
+                    (the legacy mode was measured too until 2026-11-20, when it stopped \
+                    naming a revision it does not serve). \
                     The gate fails on ANY change — a lost pass is a regression, a gained one \
                     is progress that gets recorded deliberately (BLESS=1) in the commit that \
                     earned it. Statuses are verbatim: INFO is the runner's informational \

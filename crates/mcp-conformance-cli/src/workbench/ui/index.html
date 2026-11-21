@@ -22,10 +22,11 @@
       <a href="#/" data-tab="library">Library</a>
       <a href="#/dashboards" data-tab="dashboards">Dashboards</a>
     </nav>
+    <button type="button" class="ghost theme" id="theme" hidden><span class="theme-dot" aria-hidden="true"></span><span class="theme-word">Theme: <span id="theme-name">system</span></span></button>
   </div>
 </header>
 <main id="main" class="wrap" tabindex="-1">
-  <p class="lede">Loading the library…</p>
+  <div class="state loading" role="status"><span class="spinner" aria-hidden="true"></span><p>Loading the library…</p></div>
   <noscript><p class="notice error">The workbench needs JavaScript; the HTML report (<code>--format html</code>) does not.</p></noscript>
 </main>
 <footer class="wrap foot">

@@ -103,10 +103,10 @@ const FALSIFIERS: &[Falsifier] = &[
         runner: Runner::Xtask,
         file: ".github/workflows/ci.yml",
         edit: Edit::Replace(
+            "rust: [\"1.100.0\", \"1.88\"]",
             "rust: [\"1.99.1\", \"1.88\"]",
-            "rust: [\"1.99.0\", \"1.88\"]",
         ),
-        expect: "1.99.0",
+        expect: "1.99.1",
     },
     Falsifier {
         gate: "page-set",
@@ -206,7 +206,7 @@ const FALSIFIERS: &[Falsifier] = &[
             "violation_traces_fail_and_match_goldens",
         ]),
         file: "corpus/golden/base-001-request-id-boolean.json",
-        edit: Edit::Replace("\"pass\": 16,", "\"pass\": 17,"),
+        edit: Edit::Replace("\"pass\": 17,", "\"pass\": 18,"),
         expect: "base-001-request-id-boolean",
     },
 ];

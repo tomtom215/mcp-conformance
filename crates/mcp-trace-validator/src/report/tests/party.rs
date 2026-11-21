@@ -18,6 +18,7 @@ fn mixed() -> Report {
         seq: Some(5),
         party: Some(Party::Server),
         detail: "tool name has a space".to_owned(),
+        baselined: None,
     }];
     report.requirements.push(warned);
     report.totals.warn = 1;
@@ -29,6 +30,7 @@ fn mixed() -> Report {
             seq: None,
             party: None,
             detail: "not valid".to_owned(),
+            baselined: None,
         }],
         schema: "https://example.test/schema.json".to_owned(),
         source: ClauseSource {
@@ -47,6 +49,7 @@ fn a_finding_counts_for_its_party_and_an_unattributed_one_for_both() {
         seq: None,
         party,
         detail: String::new(),
+        baselined: None,
     };
     assert!(held(Some(Party::Client)).counts_for(Party::Client));
     assert!(!held(Some(Party::Client)).counts_for(Party::Server));

@@ -248,8 +248,16 @@ pub struct Unrecorded {
     pub upstream_cut: u64,
     /// Responses whose status was not 2xx (recorded as the server sent them).
     pub not_2xx: u64,
-    /// Of those, `404 Not Found`: usually a client pointed at the wrong path.
+    /// Of those, `404 Not Found` whose body was not a JSON-RPC message:
+    /// usually a client pointed at the wrong path. A `404` that carries one is
+    /// the MCP server answering (`ping`'s method-not-found, a session it ended),
+    /// and is in [`Self::not_2xx`] only.
     pub not_found: u64,
+    /// Of those, `403 Forbidden` answering a request whose `Host` the proxy
+    /// passed through unchanged and which named a host other than the
+    /// upstream's: what a server's `Host`/`Origin` check refuses, and what
+    /// `--no-preserve-host` stops sending it.
+    pub forbidden_foreign_host: u64,
     /// Requests whose path had a `.` or `..` segment (once percent-decoded,
     /// any `;parameters` aside), which would leave the upstream's path, or
     /// was not UTF-8 once decoded: answered 400 by the proxy, not forwarded,
@@ -275,6 +283,7 @@ struct Counters {
     upstream_cut: AtomicU64,
     not_2xx: AtomicU64,
     not_found: AtomicU64,
+    forbidden_foreign_host: AtomicU64,
     refused_paths: AtomicU64,
     refused_connects: AtomicU64,
     stalled_bodies: AtomicU64,
@@ -292,6 +301,7 @@ impl Counters {
             upstream_cut: self.upstream_cut.load(Ordering::Relaxed),
             not_2xx: self.not_2xx.load(Ordering::Relaxed),
             not_found: self.not_found.load(Ordering::Relaxed),
+            forbidden_foreign_host: self.forbidden_foreign_host.load(Ordering::Relaxed),
             refused_paths: self.refused_paths.load(Ordering::Relaxed),
             refused_connects: self.refused_connects.load(Ordering::Relaxed),
             stalled_bodies: self.stalled_bodies.load(Ordering::Relaxed),

@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 102 judged from a recorded trace and 246 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 120 judged from a recorded trace and 228 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -116,7 +116,7 @@ Judged by `base.result-field`.
 
 [`basic#notifications`](https://modelcontextprotocol.io/specification/2025-11-25/basic#notifications)
 
-**Excluded.** A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009.
+Judged by `base.notification-unanswered`.
 
 ### BASE-012
 
@@ -266,7 +266,7 @@ Judged by `base.meta-key-format`.
 
 [`basic#auth`](https://modelcontextprotocol.io/specification/2025-11-25/basic#auth)
 
-**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.
+**Excluded.** Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page. AUTH-001 and AUTH-002 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of that page, which carry their own checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28.
 
 ### BASE-086
 
@@ -408,7 +408,7 @@ Judged by `lifecycle.initialize-result-shape`.
 
 [`basic/lifecycle#version-negotiation`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 
-**Excluded.** The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available.
+Judged by `lifecycle.fallback-version-latest`.
 
 ### LIFE-013
 
@@ -418,7 +418,7 @@ Judged by `lifecycle.initialize-result-shape`.
 
 [`basic/lifecycle#version-negotiation`](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
 
-**Excluded.** Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).
+**Excluded.** Whether the client supports the answered version is client-internal, and a recording of an unscripted session cannot supply the premise: a client that carries on after any answered version may simply support it, released or not. Only a scripted server that answers `initialize` with a version no client can support knows the premise, and could judge that the client then sends nothing further and closes; the validator judges recordings and scripts no server. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header).
 
 ### LIFE-014
 
@@ -500,7 +500,7 @@ Judged by `transport.protocol-version-header`.
 
 [`basic/transports#stdio`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio)
 
-**Excluded.** Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings.
+**Excluded.** An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause.
 
 ### TRAN-002
 
@@ -560,7 +560,7 @@ Judged by `transport.stdio-client-input-valid`.
 
 [`basic/transports#security-warning`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning)
 
-**Excluded.** Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2).
+Judged by `transport.invalid-origin-403`.
 
 ### TRAN-008
 
@@ -630,7 +630,7 @@ Judged by `transport.session-id-echoed`.
 
 [`basic/transports#session-management`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management)
 
-**Excluded.** Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way.
+Judged by `transport.missing-session-id-400`.
 
 ### TRAN-015
 
@@ -640,7 +640,7 @@ Judged by `transport.session-id-echoed`.
 
 [`basic/transports#session-management`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management)
 
-**Excluded.** Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden).
+Judged by `transport.terminated-session-404`.
 
 ### TRAN-016
 
@@ -770,7 +770,7 @@ Judged by `transport.accepted-input-status`.
 
 [`basic/transports#sending-messages-to-the-server`](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#sending-messages-to-the-server)
 
-**Excluded.** Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it.
+Judged by `transport.unaccepted-input-error-status`.
 
 ### TRAN-029
 
@@ -1550,7 +1550,7 @@ Judged by `resources.blob-base64`.
 
 [`server/resources#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/resources#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry.
+Judged by `resources.not-found-code`.
 
 ### RES-009
 
@@ -1642,7 +1642,7 @@ Judged by `prompts.embedded-resource-shape`.
 
 [`server/prompts#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/prompts#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry.
+Judged by `prompts.get-error-codes`.
 
 ### PROM-008
 
@@ -1704,7 +1704,7 @@ Judged by `logging.capability-declared`.
 
 [`server/utilities/logging#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/logging#error-handling)
 
-**Excluded.** Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry.
+Judged by `logging.set-level-invalid-rejected`.
 
 ### LOG-004
 
@@ -1756,7 +1756,7 @@ Judged by `completion.capability-declared`.
 
 [`server/utilities/completion#error-handling`](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion#error-handling)
 
-**Excluded.** Whether a failure case actually occurred is server-side ground truth a trace does not carry.
+Judged by `completion.error-codes`.
 
 ### COMP-004
 
@@ -1880,7 +1880,7 @@ Judged by `elicitation.client-declares-capability`.
 
 [`client/elicitation#capabilities`](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation#capabilities)
 
-**Excluded.** No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode "equivalent to declaring support for `form` mode only", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`.
+Judged by `elicitation.declared-mode-handled`.
 
 ### ELIC-006
 
@@ -2584,7 +2584,7 @@ Judged by `roots.client-declares-capability`.
 
 [`client/roots#root-list-changes`](https://modelcontextprotocol.io/specification/2025-11-25/client/roots#root-list-changes)
 
-**Excluded.** The antecedent — that the client's roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed.
+Judged by `roots.list-changed-notified`.
 
 ### ROOT-003
 
@@ -3086,7 +3086,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization#token-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-043
 
@@ -3106,7 +3106,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization#token-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-handling)
 
-**Excluded.** Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`.
+Judged by `auth.invalid-token-challenged`.
 
 ### AUTH-045
 
@@ -3136,7 +3136,7 @@ Judged by `auth.invalid-token-401`.
 
 [`basic/authorization#token-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-048
 
@@ -3146,7 +3146,7 @@ Judged by `auth.invalid-token-401`.
 
 [`basic/authorization#token-handling`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-handling)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-049
 
@@ -3476,7 +3476,7 @@ Judged by `auth.insufficient-scope-names-scopes`.
 
 [`basic/authorization#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-082
 
@@ -3486,7 +3486,7 @@ Judged by `auth.insufficient-scope-names-scopes`.
 
 [`basic/authorization#access-token-privilege-restriction`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction)
 
-**Excluded.** Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens.
+Judged by `auth.invalid-token-not-accepted`.
 
 ### AUTH-083
 

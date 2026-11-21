@@ -3,10 +3,10 @@
 
 [package]
 name = "mcp-conformance-cli"
-description = "Run the official Model Context Protocol conformance suite through a recording tap and judge the same traffic clause by clause; and a local workbench over a library of recordings"
+description = "Check a Model Context Protocol (MCP) server against the specification in one command, clause by clause; validate and watch recorded sessions; run the official conformance suite through a recording tap; and a local workbench over a library of recordings"
 readme = "README.md"
 documentation = "https://docs.rs/mcp-conformance-cli"
-keywords = ["mcp", "conformance", "testing", "protocol", "validator"]
+keywords = ["mcp", "model-context-protocol", "conformance", "testing", "validator"]
 categories = ["development-tools::testing", "command-line-utilities"]
 edition.workspace = true
 rust-version.workspace = true
@@ -29,6 +29,10 @@ publish = false
 default = ["cli"]
 cli = [
     "dep:clap",
+    "dep:clap_complete",
+    "dep:base64",
+    "dep:jsonschema",
+    "mcp-trace-validator/cli",
     "dep:tokio",
     "dep:axum",
     "dep:futures",
@@ -46,6 +50,12 @@ mcp-trace-validator = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { workspace = true, optional = true }
+clap_complete = { workspace = true, optional = true }
+# `check` (ADR-0024): the Base64 sentinel form of the request-metadata headers,
+# and the engine that confirms built tool arguments satisfy the tool's own
+# schema. Both are in the tree already (jsonschema is the validator's).
+base64 = { version = ">=0.22.1, <0.24", default-features = false, features = ["std"], optional = true }
+jsonschema = { version = ">=0.60.1, <0.61", default-features = false, optional = true }
 # The recorder, in process: the HTTP proxy for `--url` and for a client under
 # test, the stdio relay behind the bridge for `--command`. `tls` for `https://`
 # servers.
@@ -66,6 +76,9 @@ futures = { version = ">=0.3.30, <0.4", optional = true }
 ring = { version = ">=0.17.14, <0.18", default-features = false, optional = true }
 
 [dev-dependencies]
+mcp-everything-server = { workspace = true }
+axum = { workspace = true }
+proptest = { workspace = true }
 # The bridge's tests drive it over loopback; plain HTTP, no TLS features.
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }

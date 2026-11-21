@@ -60,10 +60,14 @@
 #[doc = include_str!("../README.md")]
 pub struct ReadmeDoctests;
 
+pub mod baseline;
 pub mod checks;
+#[cfg(feature = "cli")]
+pub mod cli;
 pub mod context;
 pub mod declared;
 pub mod engine;
+pub mod fingerprint;
 #[cfg(test)]
 mod fixtures;
 pub mod html;

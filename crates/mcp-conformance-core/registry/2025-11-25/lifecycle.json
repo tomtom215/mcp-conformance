@@ -173,7 +173,9 @@
         "section": "basic/lifecycle#version-negotiation",
         "quote": "This SHOULD be the latest version supported by the server."
       },
-      "exclusion": "The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available."
+      "checks": [
+        "lifecycle.fallback-version-latest"
+      ]
     },
     {
       "id": "LIFE-013",
@@ -186,7 +188,7 @@
         "section": "basic/lifecycle#version-negotiation",
         "quote": "If the client does not support the version in the server's response, it SHOULD disconnect."
       },
-      "exclusion": "Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
+      "exclusion": "Whether the client supports the answered version is client-internal, and a recording of an unscripted session cannot supply the premise: a client that carries on after any answered version may simply support it, released or not. Only a scripted server that answers `initialize` with a version no client can support knows the premise, and could judge that the client then sends nothing further and closes; the validator judges recordings and scripts no server. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
     },
     {
       "id": "LIFE-014",

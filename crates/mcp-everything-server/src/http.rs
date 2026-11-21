@@ -27,9 +27,9 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use rmcp::transport::streamable_http_server::StreamableHttpService;
-use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 
 use crate::policy::HttpSecurityPolicy;
+use crate::reconnection::sessions::ResumableSessions;
 use crate::server::{EverythingServer, ServedRevision};
 
 mod envelope;
@@ -106,7 +106,9 @@ fn mcp_router(policy: &HttpSecurityPolicy, revision: ServedRevision) -> Router {
     // above, calling the same function the stdio envelope calls.
     let service = StreamableHttpService::new(
         move || Ok(EverythingServer::serving(revision)),
-        Arc::new(LocalSessionManager::default()),
+        // rmcp's local session manager, wrapped so `test_reconnection` can
+        // close and await its own stream (see [`crate::reconnection`]).
+        Arc::new(ResumableSessions::default()),
         config,
     );
     Router::new().nest_service(MCP_PATH, service)

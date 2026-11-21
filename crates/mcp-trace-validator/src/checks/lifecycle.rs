@@ -15,6 +15,10 @@ use serde_json::Value;
 use super::FindingSink;
 use crate::context::{Phase, TraceContext};
 
+mod fallback;
+
+pub(super) use fallback::fallback_version_latest;
+
 /// `LIFE-001`: "The initialization phase MUST be the first interaction between client
 /// and server." — the first message in the trace must be the client's `initialize`
 /// request. A trace with no messages examines nothing and reports *not observed*

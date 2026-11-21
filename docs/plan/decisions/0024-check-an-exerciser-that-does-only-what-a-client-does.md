@@ -4,8 +4,8 @@
 # ADR 0024: `check` — an Exerciser That Does Only What a Conforming Client Does
 
 **Date:** 2026-10-24
-**Status:** Proposed (written in an implementation session; the maintainer accepts or
-rejects it before the command ships in a release)
+**Status:** Accepted (by the maintainer, 2026-11-20; implemented 2026-11-19; what was
+built, and where it departs from the text below, is in "As built" at the end)
 **Author:** Tom F. (maintainer); drafted by Claude Code
 
 ---
@@ -126,3 +126,48 @@ is that it behaves as a conforming client would.
   dogfood author to hand-written scripts. Rejected.
 - **Wrap the MCP Inspector's CLI.** Rejected: a Node dependency we do not control, and no
   guarantee about the bytes it sends.
+
+## As built (2026-11-19)
+
+The decision's ten items are implemented as written, with these differences, each
+checked against the code and a test:
+
+- **Subject (item 1).** A stdio server's command is given after `--`
+  (`check -- python server.py`), which keeps arguments with spaces; `--command "…"` is
+  also accepted, for symmetry with `test`. `--header` sends a header with every HTTP
+  request (a server that wants `Authorization`); its value is not recorded.
+- **Formats and exit codes (item 1).** The report is produced by `validate`'s own code
+  (`mcp_trace_validator::cli`), so the formats are `validate`'s five (HTML included),
+  its baseline flags and filters apply, and the exit codes are `validate`'s: `0`, `1`,
+  `2`, and `3` for a trace not written whole; `130` when interrupted.
+- **Reads (item 3).** `resources/read` is sent for listed resources and `prompts/get`
+  for prompts that require no arguments, each bounded by `--max-reads` (25), a bound
+  the list in item 4 did not name. Resource templates and prompts with required
+  arguments are listed as not exercised: nothing states their values.
+- **Argument building (item 3).** As listed, plus `$ref` inside the schema, the first
+  buildable `anyOf`/`oneOf` branch, and `minItems`; `pattern`, `allOf`, unknown
+  formats and untyped members are refused. The built arguments are validated against
+  the schema at run time with the JSON Schema engine, not only in a property test, so
+  a call is never made with arguments the schema refuses.
+- **A server the probe ends (item 7).** A stdio server that exits on `server/discover`
+  is started again and opened with `initialize`; the trace is the second process's
+  session. A server that negotiates a revision this build has no registry for ends
+  the run with exit `2` after the session is closed.
+- **Item 9 (the fixtures note in `test`)** shipped separately, with the party view
+  (CHANGELOG, `Unreleased`).
+- **Item 10.** `cargo xtask exerciser` (also a leg of `cargo xtask conformance`): four
+  sessions, stdio and HTTP at both revisions, `--call-all`, each required to exit `0`
+  and to judge clean under `validate --strict` with no party view, and to have run
+  under the revision the server mode serves, which the default negotiation must find.
+
+**Found by the first runs.** The everything server in its default (`2025-11-25`) mode
+answered `server/discover` with rmcp's whole version list, `2026-07-28` included, and a
+client that believed it and spoke that revision was then answered without
+`serverInfo` in results (`BASE-037`, SHOULD) and, in a `--call-all` run, with log
+notifications no request asked for (`LOG-008`, MUST NOT). The official suite's
+`2026-07-28` scenarios passed on that mode (the `draft-readiness` legacy leg), so this
+was a difference the clause report sees and the scenarios do not. **Decided 2026-11-20:** the
+legacy mode names only the revisions it serves and refuses the rest with
+`UnsupportedProtocolVersionError`; the `draft-readiness` legacy leg is gone with the
+behaviour it measured; and the exerciser leg uses the default negotiation for both
+modes, which now arrives at the served revision in each.

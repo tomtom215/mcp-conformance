@@ -58,6 +58,64 @@ in one trace (the validator notes this, and `{session}` in the capture's `-o`
 separates them), or a capture started mid-session. [Troubleshooting](troubleshooting.md)
 covers both.
 
+## A baseline of accepted findings
+
+A server that already has findings cannot gate CI on "no findings". A baseline lets
+it gate on "no *new* findings" instead
+([ADR-0025](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0025-a-baseline-for-validate.md)):
+
+```text
+mcp-trace-validator validate --write-baseline mcp-baseline.json session.jsonl
+mcp-trace-validator validate --baseline mcp-baseline.json --strict session.jsonl
+```
+
+(`mcp-conformance check` and `mcp-conformance validate` take the same flags.) The
+file is JSON, one entry per accepted finding:
+
+```json
+{ "version": 1,
+  "fingerprint_key": "mcpConformanceFinding/v2",
+  "findings": [
+    { "fingerprint": "BASE-086:base.schemas-use-2020-12:the server sent tool \"echo\"'s inputSchema declaring …:1",
+      "reason": "the TypeScript SDK's generator emits draft-07",
+      "expires": "2027-03-31" } ] }
+```
+
+- **An accepted finding stays in the report**, in every format, marked and counted
+  apart (`baseline: 18 findings accepted, 0 not accepted`). The rows and totals are
+  still the trace's facts; only the verdict and the exit status stop counting what
+  the file accepts, and the verdict line says a baseline was applied.
+- **A new finding is never hidden.** Matching is exact on the fingerprint, which is
+  the identity SARIF reports: the requirement, the check, and the finding's text with
+  digits folded. A second tool with the same defect is a new finding.
+- **An entry that matches nothing is stale and fails the run** (exit `1`), so a fixed
+  defect is removed from the file rather than left to excuse the next one;
+  `--allow-stale-baseline` lists it without failing.
+- **`reason` is required; `expires` is optional** (`YYYY-MM-DD`, inclusive, UTC). An
+  expired entry accepts nothing and its finding counts again.
+- **`--write-baseline` records what is there and says so**: each entry's reason reads
+  `recorded by --write-baseline …; not reviewed`, and every later run reports how many
+  accepted findings still carry it. To refresh a file, pass it as both `--baseline`
+  and `--write-baseline`: entries that still match keep their reason and expiry.
+
+Two limits to know. A release that rewords a finding's text changes its fingerprint,
+so its entries go stale and the finding reads as new, once; the changelog announces
+those. And a baseline fits the revision it was written under: keep one file per
+revision if you judge under both.
+
+## Whose finding it is, and shorter listings
+
+Every finding names the party it is held against (`[client]`, `[server]`).
+`--party server` (or `client`) counts only that party's findings, and those held
+against nobody, toward the verdict and the exit status: for judging a server that
+someone else's client drove. The report still lists every finding.
+`mcp-conformance check` applies `--party server` itself.
+
+`--area BASE,TOOL` and `--level MUST,SHOULD` shorten the *human* listing to those
+clauses. They are display filters only: no verdict, total or exit status changes,
+the report says how many findings they hide, and a machine format with either flag
+is refused rather than silently filtered.
+
 ## The wire schema
 
 Below the clause rows, every report judges each message against the revision's own

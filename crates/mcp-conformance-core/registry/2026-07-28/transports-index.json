@@ -12,7 +12,7 @@
         "section": "basic/transports/index#messages",
         "quote": "JSON-RPC messages MUST be UTF-8 encoded."
       },
-      "exclusion": "Restates TRAN-001 at 2025-11-25, whose exclusion this project already argued and which holds unchanged: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because capture tooling drops undecodable bytes. Violations surface as capture-time parse failures, not trace findings."
+      "exclusion": "Restates TRAN-003 at 2025-11-25, and the same boundary holds: trace documents are UTF-8 by construction, so recorded messages prove nothing was mis-encoded, and absence is not evidence because the HTTP capture tooling drops undecodable bodies and chunks. On stdio a mis-encoded line is not valid JSON; the recorder keeps it as a (lossily decoded) string payload and it is judged as a non-message line under TRAN-117 and TRAN-118, not attributed to this clause."
     },
     {
       "id": "TRAN-111",

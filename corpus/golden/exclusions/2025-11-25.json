@@ -2,12 +2,6 @@
   "revision": "2025-11-25",
   "requirements": [
     {
-      "id": "BASE-011",
-      "level": "MUST NOT",
-      "actor": "both",
-      "exclusion": "A response to a notification carries no correlating ID, so it is indistinguishable on the wire from any other unsolicited response; unsolicited responses are flagged by base.result-id-matches and base.error-id-matches under BASE-004/BASE-009."
-    },
-    {
       "id": "BASE-012",
       "level": "MUST",
       "actor": "both",
@@ -77,7 +71,7 @@
       "id": "BASE-085",
       "level": "SHOULD NOT",
       "actor": "both",
-      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page: AUTH-001 and AUTH-002 restate this sentence there, and the challenge clauses a recording can judge carry checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
+      "exclusion": "Credential retrieval from the environment is process-local conduct with no wire footprint, and the HTTP half defers to the authorization specification, whose clauses are entered on its own page. AUTH-001 and AUTH-002 restate this sentence there and are excluded as well, for the same reasons; no check judges the sentence under any id. What a recording can judge of an HTTP implementation's authorization is the individual challenge clauses of that page, which carry their own checks. One entry for the sentence's SHOULD and SHOULD NOT, as BASE-068 enters it at 2026-07-28."
     },
     {
       "id": "BASE-087",
@@ -98,16 +92,10 @@
       "exclusion": "The client's supported-version set is internal state with no wire footprint; the trace shows the version sent, not the versions available."
     },
     {
-      "id": "LIFE-012",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "The server's supported-version set is internal state with no wire footprint; the trace shows the version answered, not the versions available."
-    },
-    {
       "id": "LIFE-013",
       "level": "SHOULD",
       "actor": "client",
-      "exclusion": "Whether the client supports the answered version is client-internal; a continued session is only evidence of support if the premise is known. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
+      "exclusion": "Whether the client supports the answered version is client-internal, and a recording of an unscripted session cannot supply the premise: a client that carries on after any answered version may simply support it, released or not. Only a scripted server that answers `initialize` with a version no client can support knows the premise, and could judge that the client then sends nothing further and closes; the validator judges recordings and scripts no server. TRAN-018 warns on the adjacent observable (a mismatched MCP-Protocol-Version header)."
     },
     {
       "id": "LIFE-014",
@@ -149,7 +137,7 @@
       "id": "TRAN-001",
       "level": "MUST NOT",
       "actor": "both",
-      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+      "exclusion": "An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-002",
@@ -168,12 +156,6 @@
       "level": "MUST",
       "actor": "server",
       "exclusion": "Recorded HTTP events carry status and conformance-relevant headers, not request lines, so endpoint topology is invisible in a trace. Enforced by mcp-everything-server's transport integration tests (roadmap M2)."
-    },
-    {
-      "id": "TRAN-007",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
     },
     {
       "id": "TRAN-008",
@@ -198,18 +180,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Secure handling (storage, exposure, logging discipline) is client-internal behavior with no wire footprint beyond the echo requirement judged under TRAN-013."
-    },
-    {
-      "id": "TRAN-014",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
-    },
-    {
-      "id": "TRAN-015",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
     },
     {
       "id": "TRAN-016",
@@ -246,12 +216,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Adds to TRAN-049's verb obligation that each message ride a *new* POST to the MCP endpoint. A POST body is one JSON value, which a recorder writes as one payload, so more than one message in a POST is a batch array — TRAN-026 judges that. What remains — that the request was new rather than reused, and was addressed to the MCP endpoint — leaves no trace: the endpoint is not recorded."
-    },
-    {
-      "id": "TRAN-028",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Whether input was acceptable is server-internal judgment, and the trace schema records HTTP request and response observations as independent events without request/response correlation, so which response answered which POST is not decidable offline; the official suite exercises this live and the conformance gate runs it."
     },
     {
       "id": "TRAN-030",
@@ -536,12 +500,6 @@
       "exclusion": "The premise — whether the client could fetch the URI directly — is a property of the client's environment, not of the session (the RES-003 argument)."
     },
     {
-      "id": "RES-008",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a failure case actually occurred (the resource was absent, an internal fault happened) is server-side ground truth a trace does not carry."
-    },
-    {
       "id": "RES-009",
       "level": "SHOULD",
       "actor": "server",
@@ -566,12 +524,6 @@
       "exclusion": "Validation thoroughness is implementation-internal; a trace shows the prompt traffic, not the vetting applied to it."
     },
     {
-      "id": "PROM-007",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a failure case actually occurred (the name was invalid, an argument was missing) is server-side ground truth a trace does not carry."
-    },
-    {
       "id": "PROM-009",
       "level": "SHOULD",
       "actor": "client",
@@ -590,12 +542,6 @@
       "exclusion": "Deciding whether free-form log data contains secrets or PII is semantic content analysis, not structural validation; offline heuristics would produce unsound, unfalsifiable verdicts — a fixed pattern list is deterministic but proves nothing about what it misses."
     },
     {
-      "id": "LOG-003",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a failure case actually occurred (the level was invalid for this server, configuration failed) is server-side ground truth a trace does not carry."
-    },
-    {
       "id": "LOG-004",
       "level": "SHOULD",
       "actor": "server",
@@ -612,12 +558,6 @@
       "level": "MUST",
       "actor": "both",
       "exclusion": "Input validation, rate limiting, and access control are implementation-internal enforcement without a deterministic wire signature."
-    },
-    {
-      "id": "COMP-003",
-      "level": "SHOULD",
-      "actor": "server",
-      "exclusion": "Whether a failure case actually occurred is server-side ground truth a trace does not carry."
     },
     {
       "id": "COMP-004",
@@ -666,12 +606,6 @@
       "level": "MUST",
       "actor": "client",
       "exclusion": "Binds the client's user interface — what it shows the user, offers them, or lets them do — and none of that reaches the wire: a recording carries the client's messages, not its screens. The reference host this project ships has no interactive interface at all (it answers from its interaction script, `crates/mcp-reference-host/src/handler.rs`), so the clause is a host-implementation property, reviewed in the host, never judged from a trace."
-    },
-    {
-      "id": "ELIC-005",
-      "level": "MUST",
-      "actor": "client",
-      "exclusion": "No declaration can violate it on the wire. The page makes an `elicitation` object naming neither mode \"equivalent to declaring support for `form` mode only\", so every declared `elicitation` capability names at least one mode. What remains is whether the client can actually handle the mode it declared, which is internal: a client that cannot still returns a well-formed `decline` or `cancel`."
     },
     {
       "id": "ELIC-008",
@@ -962,12 +896,6 @@
       "exclusion": "A limit on a loop's length is a policy whose threshold the page does not set: any finite loop in a recording is consistent with some limit, and an unbounded one cannot be recorded."
     },
     {
-      "id": "ROOT-002",
-      "level": "MUST",
-      "actor": "client",
-      "exclusion": "The antecedent — that the client's roots changed — happens inside the client. A recording sees only the notification, so a session without one cannot be told from one whose roots never changed."
-    },
-    {
       "id": "ROOT-005",
       "level": "SHOULD",
       "actor": "client",
@@ -1238,40 +1166,16 @@
       "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
     },
     {
-      "id": "AUTH-042",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
       "id": "AUTH-043",
       "level": "MUST",
       "actor": "server",
       "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
-      "id": "AUTH-044",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Whether validation failed is decided inside the server, against a token the recording never holds, and the sentence imports OAuth 2.1 Section 5.3 wholesale. What a recording can hold the response to is the page's own statement of it: the status each declared error receives and the 401 for an invalid token, judged by `auth.error-status` and `auth.invalid-token-401`."
-    },
-    {
       "id": "AUTH-046",
       "level": "MUST NOT",
       "actor": "client",
       "exclusion": "`Authorization` is never in a trace: recorders keep headers by allowlist (`RECORDED_HEADERS`), and credentials stay off it by construction (docs/plan/05-security-model.md). Which requests carried a token, and which token, cannot be read back from a recording."
-    },
-    {
-      "id": "AUTH-047",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
-    },
-    {
-      "id": "AUTH-048",
-      "level": "MUST NOT",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. Transiting a token is a request to an upstream service, outside the MCP session."
     },
     {
       "id": "AUTH-052",
@@ -1446,18 +1350,6 @@
       "level": "MUST",
       "actor": "server",
       "exclusion": "Consent is obtained in the user's browser, and the forwarding is the proxy server's own OAuth flow with a third-party authorization server; neither is a message on the MCP endpoint the recording captures."
-    },
-    {
-      "id": "AUTH-081",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens. A result returned to an unauthorized party would need the request's credential to show, and that is the header a recording never keeps."
-    },
-    {
-      "id": "AUTH-082",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "Token validation is decided inside the server, against a token the recording never holds (`Authorization` is not recorded). What the server says about the outcome is its challenge, judged where the page states what it must carry: the error-handling table and the 401 for invalid tokens."
     },
     {
       "id": "AUTH-083",

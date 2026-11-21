@@ -237,7 +237,7 @@ fn a_corpus_violation_prints_before_the_client_sends_its_next_message() {
     assert!(report.contains("  WARN  TOOL-006 (SHOULD)"), "{report}");
     assert!(report.contains("verdict: pass-with-warnings"), "{report}");
     assert!(
-        stderr.ends_with("4 exchange(s); findings so far: 0 fail, 2 warn"),
+        stderr.ends_with("4 exchange(s); findings so far: 0 fail, 2 warn in 2 clause(s)"),
         "the tally last: {stderr}"
     );
     assert!(!stderr.contains("withdrawn"), "{stderr}");
@@ -506,6 +506,58 @@ fn a_collector_is_sent_no_query_no_error_message_and_no_whole_hostile_name() {
     std::fs::remove_dir_all(&replay.dir).ok();
 }
 
+/// The dogfood audit's finding 3.9: the live tally counts findings and the
+/// report's totals count clauses, so `findings so far: 0 fail, 14 warn` sat
+/// beside `totals: … 1 warn`. Three tools with bad names make each of two
+/// clauses fail three times; the tally says so, and the report's totals are the
+/// two clauses it names.
+#[test]
+fn the_tally_says_how_many_clauses_its_findings_are() {
+    let client = |text: &str| ("client-to-server".to_owned(), text.to_owned());
+    let server = |text: &str| ("server-to-client".to_owned(), text.to_owned());
+    let replay = replay_of(
+        "watch-spread",
+        vec![
+            client(
+                r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"c","version":"0"}}}"#,
+            ),
+            server(
+                r#"{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"s","version":"0"}}}"#,
+            ),
+            client(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#),
+            client(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#),
+            server(
+                r#"{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"bad name one","inputSchema":{"type":"object"}},{"name":"bad name two","inputSchema":{"type":"object"}},{"name":"bad name three","inputSchema":{"type":"object"}}]}}"#,
+            ),
+        ],
+    );
+    let mut running = start(&replay, &[]);
+    play(&mut running, &replay);
+    let (code, stderr) = running.end();
+    assert_eq!(code, Some(0), "{stderr}");
+    assert_eq!(
+        stderr
+            .matches("mcp-conformance watch: WARN TOOL-006")
+            .count(),
+        3
+    );
+    assert_eq!(
+        stderr
+            .matches("mcp-conformance watch: WARN TOOL-007")
+            .count(),
+        3
+    );
+    assert!(
+        stderr.contains(" 0 fail, 2 warn, "),
+        "the report's totals are clauses: {stderr}"
+    );
+    assert!(
+        stderr.ends_with("findings so far: 0 fail, 6 warn in 2 clause(s)"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&replay.dir).ok();
+}
+
 #[test]
 fn a_collector_that_is_down_costs_the_session_nothing() {
     let replay = replay("watch-otlp-down");
@@ -544,4 +596,125 @@ fn spans_are_accepted_by_a_real_collector() {
         "{stderr}"
     );
     std::fs::remove_dir_all(&replay.dir).ok();
+}
+
+/// Runs `watch http` in front of a stand-in upstream with `flags`, sends one
+/// request through it carrying `Host: client_host`, and returns the `Host` the
+/// upstream received, the upstream's own `host:port`, and what `watch` said on
+/// stderr.
+fn host_through_watch_http(flags: &[&str], client_host: &str) -> (String, String, String) {
+    let (url, requests) = collector();
+    let own = url.trim_start_matches("http://").to_owned();
+    let dir = scratch("watch-host");
+    let mut child = binary()
+        .arg("watch")
+        .arg("-o")
+        .arg(dir.join("trace.jsonl"))
+        .args(["http", "--upstream", &format!("{url}/mcp")])
+        .args(["--listen", "127.0.0.1:0"])
+        .args(flags)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stderr = BufReader::new(child.stderr.take().unwrap());
+    let mut said = String::new();
+    let address = loop {
+        let mut line = String::new();
+        assert!(stderr.read_line(&mut line).unwrap() > 0, "{said}");
+        said.push_str(&line);
+        if let Some(rest) = line.split("listening on http://").nth(1) {
+            break rest.split(',').next().unwrap().to_owned();
+        }
+    };
+    let mut stream = std::net::TcpStream::connect(&address).unwrap();
+    write!(
+        stream,
+        "POST /x HTTP/1.1\r\nHost: {client_host}\r\nContent-Length: 2\r\n\
+         Connection: close\r\n\r\n{{}}"
+    )
+    .unwrap();
+    let mut answer = String::new();
+    stream.read_to_string(&mut answer).unwrap();
+    assert!(answer.starts_with("HTTP/1.1 200"), "{answer}");
+    let interrupted = Command::new("kill")
+        .args(["-INT", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(interrupted.success());
+    stderr.read_to_string(&mut said).unwrap();
+    child.wait().unwrap();
+    let head = requests.lock().unwrap()[0].0.clone();
+    let seen = head
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("host: ")
+                .or_else(|| line.strip_prefix("Host: "))
+        })
+        .unwrap_or_else(|| panic!("no Host in {head}"))
+        .to_owned();
+    std::fs::remove_dir_all(&dir).ok();
+    (seen, own, said)
+}
+
+/// `watch http` takes `mcp-trace-capture http`'s Host flags by the same names
+/// and reads them alike (the dogfood audit's `watch http` finding): for a
+/// server on this machine the client's `Host` goes through unless
+/// `--no-preserve-host` names the server's own, and `--preserve-host` asks for
+/// the default outright. Its startup line names only flags it has.
+#[test]
+fn watch_http_reads_the_hosts_flags_as_the_recorder_does() {
+    let client = "box.internal:8080";
+    let (seen, _, said) = host_through_watch_http(&[], client);
+    assert_eq!(seen, client, "a loopback upstream keeps the client's Host");
+    assert!(
+        said.contains(
+            "sending the client's Host header through to the server, which is on this machine"
+        ) && said.contains("(--no-preserve-host sends the server's own name instead)"),
+        "{said}"
+    );
+
+    let (seen, own, said) = host_through_watch_http(&["--no-preserve-host"], client);
+    assert_eq!(
+        seen, own,
+        "the server's own name, though it is on this machine"
+    );
+    assert!(
+        said.contains("sending the server's own name as Host (--no-preserve-host)"),
+        "{said}"
+    );
+
+    let (seen, _, said) = host_through_watch_http(&["--preserve-host"], client);
+    assert_eq!(seen, client);
+    assert!(
+        said.contains("through to the server (--preserve-host)"),
+        "{said}"
+    );
+
+    // Both at once is a usage error, as it is for the recorder.
+    let both = binary()
+        .args(["watch", "http", "--upstream", "http://127.0.0.1:1/mcp"])
+        .args(["--preserve-host", "--no-preserve-host"])
+        .output()
+        .unwrap();
+    assert_eq!(both.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&both.stderr).contains("cannot be used with"),
+        "{}",
+        String::from_utf8_lossy(&both.stderr)
+    );
+
+    let help = binary().args(["watch", "http", "--help"]).output().unwrap();
+    // Words, not lines: clap wraps its help to the terminal.
+    let help = String::from_utf8_lossy(&help.stdout)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for needle in [
+        "--preserve-host",
+        "--no-preserve-host",
+        "the default for an upstream on this machine",
+        "(the default for any other)",
+    ] {
+        assert!(help.contains(needle), "{needle}: {help}");
+    }
 }

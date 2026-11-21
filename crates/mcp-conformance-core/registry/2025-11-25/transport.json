@@ -12,7 +12,7 @@
         "section": "basic/transports#stdio",
         "quote": "Messages are delimited by newlines, and MUST NOT contain embedded newlines."
       },
-      "exclusion": "Framing is enforced at capture time: the JSON Lines trace format cannot represent an embedded-newline violation, so a parseable trace is evidence the rule held. Violations surface as capture-time parse failures, not as trace findings."
+      "exclusion": "An embedded newline has no observable of its own in a newline-delimited stream: it is read as the delimiter and splits the message into lines that are not valid messages. The stdio recorder keeps such lines (each as a string payload, as it keeps an unterminated last line), and they are judged as what a trace can show them to be - output that is not a valid MCP message - under TRAN-004 and TRAN-005. A trace cannot tell a split message from any other non-message line, so no check attributes one to this clause."
     },
     {
       "id": "TRAN-002",
@@ -94,7 +94,9 @@
         "section": "basic/transports#security-warning",
         "quote": "If the `Origin` header is present and invalid, servers MUST respond with HTTP 403 Forbidden."
       },
-      "exclusion": "Judging whether an Origin value is invalid requires the server's configured allowlist, which recorded traces do not carry (the TRAN-002 rationale). Enforced as default-on policy in mcp-everything-server with 403 tests (roadmap M2)."
+      "checks": [
+        "transport.invalid-origin-403"
+      ]
     },
     {
       "id": "TRAN-008",
@@ -189,7 +191,9 @@
         "section": "basic/transports#session-management",
         "quote": "Servers that require a session ID SHOULD respond to requests without an `MCP-Session-Id` header (other than initialization) with HTTP 400 Bad Request."
       },
-      "exclusion": "Whether a server requires a session ID is server configuration a trace does not carry; without it, a non-400 answer to a session-less request is not evidence either way."
+      "checks": [
+        "transport.missing-session-id-400"
+      ]
     },
     {
       "id": "TRAN-015",
@@ -202,7 +206,9 @@
         "section": "basic/transports#session-management",
         "quote": "The server MAY terminate the session at any time, after which it MUST respond to requests containing that session ID with HTTP 404 Not Found."
       },
-      "exclusion": "Session termination is server-internal state; a trace cannot distinguish a terminated session (404 required) from a live one (404 forbidden)."
+      "checks": [
+        "transport.terminated-session-404"
+      ]
     },
     {
       "id": "TRAN-016",

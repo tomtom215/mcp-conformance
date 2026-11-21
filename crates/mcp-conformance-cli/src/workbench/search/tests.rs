@@ -69,9 +69,12 @@ fn each_field_finds_what_it_names() {
             "resource:test://static-text tag:draft",
             vec!["sdk-rust-2026-07-28"],
         ),
+        // Both Rust SDK sessions ask for the prompt and name `rust-conformance-server`;
+        // the `2026-07-28` one does so in `_meta`, which the library did not read
+        // (it listed that session's server as not recorded) until it did.
         (
             "prompt:test_simple_prompt server:rust*",
-            vec!["sdk-rust-2025-11-25"],
+            vec!["sdk-rust-2025-11-25", "sdk-rust-2026-07-28"],
         ),
         ("nothing-matches-this", vec![]),
     ] {

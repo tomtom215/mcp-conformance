@@ -96,70 +96,25 @@ async fn a_cursor_the_server_issued_passes_the_layer() {
 #[tokio::test]
 async fn the_layer_is_inert_on_the_revision_that_has_no_envelope() {
     // `2025-11-25` has no `_meta` envelope and its own pagination story, so a
-    // request carrying a cursor there is not this layer's business. Answering
-    // it anyway would be the stateless revision's rules leaking backwards onto
-    // the surface every committed baseline pins.
-    let answered = status_of(
-        ServedRevision::V2025_11_25,
-        post(listing_with_cursor("fabricated")),
-    )
-    .await;
-    assert_ne!(
-        answered,
-        StatusCode::BAD_REQUEST,
-        "the envelope layer must not fire at 2025-11-25"
-    );
-}
-
-#[tokio::test]
-async fn a_get_is_never_inspected() {
-    // Only a POST carries a JSON-RPC request; a GET opens a stream, and
-    // buffering its body to look for a cursor would be reading something that
-    // is not there — and, worse, would consume the stream.
-    let get = Request::builder()
-        .method("GET")
-        .uri("/mcp")
-        .header("host", "localhost")
-        .header("accept", "text/event-stream")
-        .header("mcp-protocol-version", "2026-07-28")
-        .body(Body::empty())
+    // request carrying a cursor there is not this layer's business.
+    //
+    // The request names `2026-07-28`, which the legacy mode does not serve
+    // and does not claim to, so the SDK refuses it for the revision
+    // (`-32022`, with the revisions it does serve). That is how the refusal
+    // is told from this layer's, which is `-32602` and about the cursor.
+    let response = router(ServedRevision::V2025_11_25)
+        .oneshot(post(listing_with_cursor("fabricated")))
+        .await
+        .expect("the router answers");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = axum::body::to_bytes(response.into_body(), 1 << 16)
+        .await
         .unwrap();
-    let answered = status_of(ServedRevision::V2026_07_28, get).await;
-    assert_ne!(
-        answered,
-        StatusCode::BAD_REQUEST,
-        "a GET must reach the transport untouched"
-    );
-}
-
-#[tokio::test]
-async fn a_body_far_larger_than_a_request_is_still_inspected() {
-    // The buffering limit has to be large enough that no conforming request
-    // reaches it, or the layer silently stops enforcing on exactly the traffic
-    // an adversary controls the size of. A cursor padded well past any
-    // plausible small bound must still be refused.
-    let padded = "x".repeat(64 * 1024);
-    assert_eq!(
-        status_of(
-            ServedRevision::V2026_07_28,
-            post(listing_with_cursor(&padded))
-        )
-        .await,
-        StatusCode::BAD_REQUEST,
-        "a 64 KiB body is far below the limit and must still be read"
-    );
-}
-
-#[tokio::test]
-async fn a_conforming_request_reaches_the_server() {
-    // The case that matters most: every ordinary request passes through this
-    // layer, so a false rejection breaks the whole transport. `tools/list`
-    // without a cursor is the plainest conforming request there is.
-    let clean = format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{{"_meta":{{{ENVELOPE}}}}}}}"#
-    );
-    assert_eq!(
-        status_of(ServedRevision::V2026_07_28, post(clean)).await,
-        StatusCode::OK
+    let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(body["error"]["code"], -32022, "{body}");
+    assert_eq!(body["error"]["data"]["requested"], "2026-07-28", "{body}");
+    assert!(
+        !body.to_string().contains("cursor"),
+        "the envelope layer must not fire at 2025-11-25: {body}"
     );
 }

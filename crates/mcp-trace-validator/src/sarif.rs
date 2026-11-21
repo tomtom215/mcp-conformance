@@ -17,6 +17,7 @@
 //! | an `unsupported` row | an invocation notification, and `executionSuccessful: false` |
 //! | a trace that could not be judged ([`render_run`]) | an invocation notification located at the trace, and `executionSuccessful: false` |
 //! | the requests a trace ended without answering ([`Report::unanswered_requests`]) | an invocation notification at level `note`, located at the trace, with the requests in its `properties`; `executionSuccessful` is untouched |
+//! | a finding a baseline accepts ([`Finding::baselined`](crate::report::Finding::baselined)) | a result at level `note` with `properties.counted: false` and SARIF's own `suppressions` (`kind: external`, `status: accepted`, the entry's reason as `justification`); a baseline entry that matches no finding is a `warning` notification, an expired one a `note` ([`render_run_with_baseline`]) |
 //! | pass / excluded / not-applicable / not-observed | nothing — SARIF records problems, not coverage |
 //!
 //! Every judged revision's findings are results of one run: code scanning
@@ -29,20 +30,22 @@
 //! registry and finding order, no timestamps or environment — like every other
 //! report format.
 
-use std::collections::BTreeMap;
-
 use mcp_conformance_core::trace::TraceEvent;
 use serde_json::{Value, json};
 
-use crate::report::{Outcome, Report, RequirementReport, Unjudged};
+use crate::baseline::Notes;
+use crate::fingerprint::{Fingerprints, KEY, Place, Slot, WIRE_SCHEMA_RULE};
+use crate::report::{BaselineTally, Outcome, Report, RequirementReport, Unjudged};
 
+mod baseline;
 mod location;
+mod notify;
 mod rule;
 
 use location::location;
 #[cfg(test)]
 use location::uri_reference;
-use rule::{fold_numbers, level, rule};
+use rule::{level, rule};
 
 /// Where the findings point.
 ///
@@ -167,42 +170,73 @@ pub fn render_run(
     unjudged: &[Unjudged],
     options: &Options,
 ) -> String {
-    let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
+    render_run_with_baseline(traces, unjudged, options, &Notes::default())
+}
+
+/// Renders a run as [`render_run`] does, with what its baseline said about it
+/// ([`crate::baseline`]).
+///
+/// A finding a baseline accepts is a result with a `suppressions` entry —
+/// SARIF's own: `kind: external`, `status: accepted`, the entry's reason as the
+/// `justification` — at level `note`, so a consumer that ignores suppressions
+/// still does not fail on it. `notes` carries what no result can: a stale
+/// entry is a `warning` notification and a lapsed one a `note`, and the run's
+/// `properties.baseline` counts the findings accepted and not. No baseline, no
+/// such members: the log is [`render_run`]'s.
+///
+/// ```
+/// use mcp_trace_validator::baseline::{Entry, Notes};
+/// use mcp_trace_validator::sarif;
+///
+/// let mut notes = Notes::default();
+/// notes.stale.push(Entry::new("BASE-086:check:gone:1", "was fixed"));
+/// let log: serde_json::Value = serde_json::from_str(&sarif::render_run_with_baseline(
+///     &[],
+///     &[],
+///     &sarif::Options::default(),
+///     &notes,
+/// ))?;
+/// let note = &log["runs"][0]["invocations"][0]["toolExecutionNotifications"][0];
+/// assert_eq!(note["level"], "warning");
+/// assert_eq!(note["properties"]["kind"], "baseline-stale");
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[must_use]
+pub fn render_run_with_baseline(
+    traces: &[(Artifact<'_>, &[Report])],
+    unjudged: &[Unjudged],
+    options: &Options,
+    notes: &Notes,
+) -> String {
+    // A finding's fingerprint is the baseline's key as well ([`crate::fingerprint`]),
+    // so both are computed in one place, in one order.
+    let named: Vec<_> = traces
+        .iter()
+        .map(|(artifact, reports)| (artifact.uri, *reports))
+        .collect();
     let mut log = Log {
-        rule_ids: rule_ids(all_reports()),
-        index_of: BTreeMap::new(),
+        fingerprints: Fingerprints::of(&named),
+        index_of: std::collections::BTreeMap::new(),
         rules: Vec::new(),
         results: Vec::new(),
         notifications: Vec::new(),
         strict: options.strict,
         party_view: None,
-        seen: BTreeMap::new(),
+        baseline_applied: false,
         noted: std::collections::BTreeSet::new(),
+        at: (0, 0),
     };
-    for (artifact, reports) in traces {
-        for report in *reports {
+    for (trace, (artifact, reports)) in traces.iter().enumerate() {
+        for (index, report) in reports.iter().enumerate() {
+            log.at = (trace, index);
             log.report(report, *artifact);
         }
     }
     for trace in unjudged {
         log.unjudged(trace);
     }
-    let mut revisions: Vec<&str> = Vec::new();
-    for report in all_reports() {
-        if !revisions.contains(&report.revision.as_str()) {
-            revisions.push(&report.revision);
-        }
-    }
-    // The view every report of the run was rendered under, when they agree
-    // (one `validate` invocation gives every report the same one).
-    let party_view = all_reports()
-        .map(|report| report.party_view)
-        .reduce(|first, next| if first == next { first } else { None })
-        .flatten();
-    let mut properties = json!({ "revisions": revisions });
-    if let Some(party) = party_view {
-        properties["party_view"] = json!(party);
-    }
+    log.notifications.extend(baseline::notifications(notes));
+    let properties = run_properties(traces);
     let log = json!({
         "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
         "version": "2.1.0",
@@ -229,11 +263,42 @@ pub fn render_run(
     out
 }
 
+/// The run's `properties`: the revisions judged, the party view every report
+/// was rendered under (when they agree — one `validate` invocation gives every
+/// report the same one), and how the findings fell under a baseline, when one
+/// was applied.
+fn run_properties(traces: &[(Artifact<'_>, &[Report])]) -> Value {
+    let all_reports = || traces.iter().flat_map(|(_, reports)| reports.iter());
+    let mut revisions: Vec<&str> = Vec::new();
+    for report in all_reports() {
+        if !revisions.contains(&report.revision.as_str()) {
+            revisions.push(&report.revision);
+        }
+    }
+    let party_view = all_reports()
+        .map(|report| report.party_view)
+        .reduce(|first, next| if first == next { first } else { None })
+        .flatten();
+    let mut properties = json!({ "revisions": revisions });
+    if let Some(party) = party_view {
+        properties["party_view"] = json!(party);
+    }
+    if all_reports().any(|report| report.baseline_applied) {
+        let tally = all_reports().fold(BaselineTally::default(), |sum, report| {
+            sum.plus(report.baseline_tally())
+        });
+        properties["baseline"] = json!(tally);
+    }
+    properties
+}
+
 /// The run as it is assembled: rules in order of first finding, their results,
 /// and the notifications for clauses this build cannot judge.
 struct Log<'r> {
-    rule_ids: BTreeMap<(&'r str, &'r str), String>,
-    index_of: BTreeMap<String, usize>,
+    /// Every finding's fingerprint, and the rule each requirement's findings
+    /// are reported under.
+    fingerprints: Fingerprints<'r>,
+    index_of: std::collections::BTreeMap<String, usize>,
     rules: Vec<Value>,
     results: Vec<Value>,
     notifications: Vec<Value>,
@@ -242,10 +307,13 @@ struct Log<'r> {
     /// The party the report being added is viewed for
     /// ([`Report::party_view`]): a finding it sets aside is a `note`.
     party_view: Option<crate::report::Party>,
-    /// How many results so far share each fingerprint stem, per trace.
-    seen: BTreeMap<(String, String), usize>,
+    /// Whether a baseline was applied to the report being added: a finding it
+    /// accepts is a suppressed `note`.
+    baseline_applied: bool,
     /// The unanswered-requests notes already written, per trace.
     noted: std::collections::BTreeSet<(String, String)>,
+    /// The trace and report (of that trace) being added.
+    at: (usize, usize),
 }
 
 impl Log<'_> {
@@ -253,28 +321,39 @@ impl Log<'_> {
     /// notifications, its failed wire schema, then its extensions'.
     fn report(&mut self, report: &Report, artifact: Artifact<'_>) {
         self.party_view = report.party_view;
+        self.baseline_applied = report.baseline_applied;
         if let Some(unanswered) = &report.unanswered_requests {
             self.unanswered(unanswered, artifact);
         }
-        for row in &report.requirements {
+        for (index, row) in report.requirements.iter().enumerate() {
             match row.outcome {
-                Outcome::Fail | Outcome::Warn => self.findings(row, &report.revision, artifact),
+                Outcome::Fail | Outcome::Warn => {
+                    self.results_for(row, Place::Row(index), &report.revision, artifact, None);
+                }
                 Outcome::Unsupported => self.unsupported(row, &report.revision),
                 _ => {}
             }
         }
         if let Some(row) = wire_schema_row(report) {
-            self.findings(&row, &report.revision, artifact);
+            self.results_for(&row, Place::WireSchema, &report.revision, artifact, None);
         }
-        for extension in &report.extensions {
-            for row in &extension.requirements {
+        for (extension_index, extension) in report.extensions.iter().enumerate() {
+            for (index, row) in extension.requirements.iter().enumerate() {
                 match row.outcome {
-                    Outcome::Fail | Outcome::Warn => self.extension_findings(
-                        row,
-                        &report.revision,
-                        artifact,
-                        &extension.extension,
-                    ),
+                    // At level `note`: reported, never scored.
+                    Outcome::Fail | Outcome::Warn => {
+                        let place = Place::Extension {
+                            extension: extension_index,
+                            row: index,
+                        };
+                        self.results_for(
+                            row,
+                            place,
+                            &report.revision,
+                            artifact,
+                            Some(&extension.extension),
+                        );
+                    }
                     Outcome::Unsupported => self.unsupported(row, &report.revision),
                     _ => {}
                 }
@@ -283,60 +362,41 @@ impl Log<'_> {
     }
 
     /// A result per finding on a `fail` / `warn` row, under the row's rule.
-    fn findings(&mut self, row: &RequirementReport, revision: &str, artifact: Artifact<'_>) {
-        self.results_for(row, revision, artifact, None);
-    }
-
-    /// A result per finding on an extension's `fail` / `warn` row, at level
-    /// `note`: reported, never scored.
-    fn extension_findings(
-        &mut self,
-        row: &RequirementReport,
-        revision: &str,
-        artifact: Artifact<'_>,
-        extension: &str,
-    ) {
-        self.results_for(row, revision, artifact, Some(extension));
-    }
-
     fn results_for(
         &mut self,
         row: &RequirementReport,
+        place: Place,
         revision: &str,
         artifact: Artifact<'_>,
         extension: Option<&str>,
     ) {
-        let rule_id = self.rule_ids[&(row.id.as_str(), revision)].clone();
+        let rule_id = self.fingerprints.rule_id(&row.id, revision);
         let rules = &mut self.rules;
         let rule_index = *self.index_of.entry(rule_id.clone()).or_insert_with(|| {
             rules.push(rule(&rule_id, row, revision, extension));
             rules.len() - 1
         });
-        for finding in &row.findings {
-            // Stable across recordings of the same behaviour: a re-recorded
-            // trace moves every `seq`, and a fingerprint keyed on it would
-            // close and reopen every alert on each run. The detail with its
-            // numbers folded identifies the defect; the occurrence index keeps
-            // repeated identical findings distinct.
-            // Counted per trace: code scanning already tells traces apart by
-            // their location, so the trace's path stays out of the fingerprint
-            // and a renamed trace keeps its alerts.
-            let stem = format!(
-                "{rule_id}:{}:{}",
-                finding.check,
-                fold_numbers(&finding.detail)
-            );
-            let occurrence = self
-                .seen
-                .entry((artifact.uri.unwrap_or_default().to_owned(), stem.clone()))
-                .or_insert(0);
-            *occurrence += 1;
+        for (position, finding) in row.findings.iter().enumerate() {
+            // Stable across recordings of the same behaviour, and shared with
+            // the baseline: see [`crate::fingerprint`] for what it is made of.
+            let fingerprint = self
+                .fingerprints
+                .get(Slot {
+                    trace: self.at.0,
+                    report: self.at.1,
+                    place,
+                    finding: position,
+                })
+                .unwrap_or_default();
             // A finding the party view sets aside is shown at level `note`,
             // like an extension's: reported, and failing nothing.
             let set_aside = self
                 .party_view
                 .is_some_and(|party| !finding.counts_for(party));
-            let level = if extension.is_some() || set_aside {
+            // So is a finding a baseline accepts, which also carries SARIF's own
+            // `suppression` saying so and why.
+            let accepted = finding.baselined.as_ref();
+            let level = if extension.is_some() || set_aside || accepted.is_some() {
                 NOT_SCORED
             } else if self.strict && row.outcome == Outcome::Warn {
                 "error"
@@ -349,9 +409,7 @@ impl Log<'_> {
                 "level": level,
                 "message": { "text": finding.detail },
                 "locations": location(artifact, finding.seq),
-                "partialFingerprints": {
-                    "mcpConformanceFinding/v2": format!("{stem}:{occurrence}"),
-                },
+                "partialFingerprints": { KEY: fingerprint },
                 "properties": {
                     "revision": revision,
                     "check": finding.check,
@@ -361,8 +419,11 @@ impl Log<'_> {
             if let Some(party) = finding.party {
                 result["properties"]["party"] = json!(party);
             }
-            if self.party_view.is_some() {
-                result["properties"]["counted"] = json!(!set_aside);
+            if self.party_view.is_some() || self.baseline_applied {
+                result["properties"]["counted"] = json!(!set_aside && accepted.is_none());
+            }
+            if let Some(acceptance) = accepted {
+                result["suppressions"] = baseline::suppressions(acceptance);
             }
             if let Some(extension) = extension {
                 result["properties"]["extension"] = json!(extension);
@@ -371,103 +432,7 @@ impl Log<'_> {
             self.results.push(result);
         }
     }
-
-    /// The requests a trace ended without answering: a `note`-level
-    /// notification located at the trace, once per trace — the reports of one
-    /// trace judged under several revisions all carry the same note.
-    fn unanswered(
-        &mut self,
-        unanswered: &crate::report::UnansweredRequests,
-        artifact: Artifact<'_>,
-    ) {
-        let text = unanswered.one_line();
-        let key = (artifact.uri.unwrap_or_default().to_owned(), text.clone());
-        if !self.noted.insert(key) {
-            return;
-        }
-        self.notifications.push(json!({
-            "level": "note",
-            "message": { "text": text },
-            "locations": location(artifact, None),
-            "properties": {
-                "kind": "unanswered-requests",
-                "count": unanswered.count,
-                "ending": unanswered.ending,
-                "requests": unanswered.requests,
-            },
-        }));
-    }
-
-    /// A trace the run could not judge at all, located at the trace.
-    fn unjudged(&mut self, trace: &Unjudged) {
-        let at = Artifact {
-            uri: Some(&trace.trace),
-            events: &[],
-        };
-        self.notifications.push(json!({
-            "level": "error",
-            "message": { "text": trace.error },
-            "locations": location(at, None),
-        }));
-    }
-
-    /// An `unsupported` row: the run could not judge this clause.
-    fn unsupported(&mut self, row: &RequirementReport, revision: &str) {
-        self.notifications.push(json!({
-            "level": "error",
-            "message": {
-                "text": format!(
-                    "{} ({revision}): the registry references checks this build does not implement: {}",
-                    row.id,
-                    row.missing_checks.join(", ")
-                ),
-            },
-        }));
-    }
 }
-
-/// The SARIF rule ID of each `(requirement ID, revision)` with a finding: the
-/// requirement ID, suffixed with its revision only where the same ID has
-/// findings under more than one.
-fn rule_ids<'r>(reports: impl Iterator<Item = &'r Report>) -> BTreeMap<(&'r str, &'r str), String> {
-    let mut revisions_of: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    for report in reports {
-        let schema = report.wire_schema_failed().then_some(WIRE_SCHEMA_RULE);
-        let extension_rows = report
-            .extensions
-            .iter()
-            .flat_map(|extension| &extension.requirements);
-        let failing = report
-            .requirements
-            .iter()
-            .chain(extension_rows)
-            .filter(|row| matches!(row.outcome, Outcome::Fail | Outcome::Warn))
-            .map(|row| row.id.as_str());
-        for id in failing.chain(schema) {
-            let revisions = revisions_of.entry(id).or_default();
-            // Several traces judged at one revision are still one revision.
-            if !revisions.contains(&report.revision.as_str()) {
-                revisions.push(report.revision.as_str());
-            }
-        }
-    }
-    let mut ids = BTreeMap::new();
-    for (id, revisions) in revisions_of {
-        for revision in &revisions {
-            let rule_id = if revisions.len() > 1 {
-                format!("{id}@{revision}")
-            } else {
-                id.to_owned()
-            };
-            ids.insert((id, *revision), rule_id);
-        }
-    }
-    ids
-}
-
-/// The rule ID of wire-schema results: lower case, so it can never collide
-/// with a requirement ID.
-const WIRE_SCHEMA_RULE: &str = "wire-schema";
 
 /// A failed wire schema as a row the result path already knows how to render;
 /// `None` unless it failed.

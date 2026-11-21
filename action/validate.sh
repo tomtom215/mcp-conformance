@@ -98,10 +98,16 @@ write_unjudged_reports() {
 # CAPTURED is the capture step's glob, judged beside any `traces` given.
 set -f
 # shellcheck disable=SC2206 # word splitting is the point; globbing is off
-patterns=( ${TRACES:-} ${CAPTURED:-} )
+patterns=( ${TRACES:-} ${CAPTURED:-} ${CHECKED:-} )
 set +f
+if [[ -n "${CHECK_PROBLEM:-}" ]]; then
+  # The check step said so already; the reports must exist all the same.
+  write_unjudged_reports "the server could not be checked: ${CHECK_PROBLEM}"
+  echo "exit-code=2" >> "$GITHUB_OUTPUT"
+  exit 0
+fi
 if [[ ${#patterns[@]} -eq 0 ]]; then
-  echo "::error::nothing to validate: set \`traces\`, or \`capture\` to record a session"
+  echo "::error::nothing to validate: set \`check\` or \`check-url\` to check a server, \`traces\` to judge recordings, or \`capture\` to record sessions"
   write_unjudged_reports "nothing to validate: no traces given and nothing captured"
   echo "exit-code=2" >> "$GITHUB_OUTPUT"
   exit 0
@@ -122,6 +128,8 @@ done
 args=()
 for revision in ${REVISIONS:-}; do args+=( --revision "$revision" ); done
 if [[ "${STRICT:-false}" == "true" ]]; then args+=( --strict ); fi
+if [[ -n "${PARTY:-}" ]]; then args+=( --party "$PARTY" ); fi
+if [[ -n "${BASELINE:-}" ]]; then args+=( --baseline "$BASELINE" ); fi
 
 # The human report, to the log and the job summary; its status is the verdict.
 # Its stderr is kept too: it names the problem when no report could be made.
@@ -130,7 +138,7 @@ mcp-trace-validator validate "${args[@]}" "${traces[@]}" > "$RUNNER_TEMP/mcp-con
 cat "$RUNNER_TEMP/mcp-conformance.txt"
 cat "$RUNNER_TEMP/mcp-conformance.err" >&2
 {
-  echo "### MCP trace conformance"
+  echo "### MCP conformance"
   echo
   echo '```text'
   cat "$RUNNER_TEMP/mcp-conformance.txt"
@@ -144,6 +152,13 @@ if [[ -n "${SARIF_FILE:-}" ]]; then
 fi
 if [[ -n "${JUNIT_FILE:-}" ]]; then
   mcp-trace-validator validate --format junit "${args[@]}" "${traces[@]}" > "$JUNIT_FILE" 2> /dev/null || true
+fi
+
+# The page a person opens: every clause and finding, loading nothing. A
+# release from before the HTML report prints none; leave no empty file then.
+if [[ -n "${HTML_FILE:-}" ]]; then
+  mcp-trace-validator validate --format html "${args[@]}" "${traces[@]}" > "$HTML_FILE" 2> /dev/null || true
+  [[ -s "$HTML_FILE" ]] || rm -f "$HTML_FILE"
 fi
 
 # A run that could not start wrote no document, leaving an empty file.

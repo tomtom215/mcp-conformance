@@ -16,7 +16,7 @@ use super::{ExtensionReport, Report};
 
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut report = serializer.serialize_struct("Report", 10)?;
+        let mut report = serializer.serialize_struct("Report", 11)?;
         report.serialize_field("revision", &self.revision)?;
         if let Some(mismatch) = &self.revision_mismatch {
             report.serialize_field("revision_mismatch", mismatch)?;
@@ -34,6 +34,13 @@ impl Serialize for Report {
             report.serialize_field("party_view", party)?;
         } else {
             report.skip_field("party_view")?;
+        }
+        // Counts of the findings a baseline accepts and does not: derived,
+        // like the verdict, and present only when a baseline was applied.
+        if self.baseline_applied {
+            report.serialize_field("baseline", &self.baseline_tally())?;
+        } else {
+            report.skip_field("baseline")?;
         }
         report.serialize_field("verdict", &self.effective_verdict())?;
         report.serialize_field("totals", &self.totals)?;

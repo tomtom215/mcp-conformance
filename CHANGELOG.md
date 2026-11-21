@@ -11,6 +11,84 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+### Highlights
+
+The short version of this release; every item is stated again, with its reasoning,
+in the sections below.
+
+- **`mcp-conformance check`: one command from a server to its clause report**
+  ([ADR-0024](docs/plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md)).
+  `mcp-conformance check -- python my_server.py`, or `--url <endpoint>`. No client to
+  write, no SDK, no Node.js. Read-only by default (it calls only tools the server
+  annotates `readOnlyHint: true`), bounded, and it names everything it left alone.
+- **Nothing to configure.** A bare `mcp-conformance` says where to start; `check` with
+  no flags also leaves the report as a page to open (`report.html` beside the
+  recording) and ends with one plain sentence; `--html-report FILE` writes the page
+  beside any other format. `check` resumes an event stream a server closes before its
+  answer (`Last-Event-ID`). The GitHub Action writes the page too (`html-file`,
+  default `mcp-conformance-report.html`).
+- **The official suite's OAuth client scenarios.** `mcp-reference-host` gains an
+  `--oauth-conformance` mode (crate feature `oauth`, off by default; rmcp's OAuth client
+  with a headless consent step that only answers at a loopback address), and the gate
+  runs 20 of the suite's 22 `auth/*` client scenarios: 19 pass, and
+  `auth/2025-03-26-oauth-metadata-backcompat` is recorded as an expected failure (rmcp
+  refuses the fixture's issuer mismatch). Two extension scenarios are not run
+  (`client-credentials-jwt`, `cross-app-access-complete-flow`). `mcp-conformance test
+  --client-command` still runs the four protocol scenarios by default, so a client
+  without OAuth support is not failed for it.
+- **`check` probes by default.** After the ordinary requests it sends a short fixed
+  list made wrong on purpose (a prompt and a resource the server does not have, a
+  prompt without its required arguments, a completion it cannot resolve, an invalid
+  log level or cursor), because the error-handling clauses are judged only on a
+  session that carries their stimulus. None can change anything on a server; the
+  summary names each with its answer; `--no-probes` leaves them out.
+  Over HTTP, a server that demands a bearer token is also sent a harmless request with
+  no credential and one with a token nobody issued; a server that answers `401` before
+  any session exists now gets a report on how it refuses, instead of only "no session
+  was established". The recorder keeps that one public `Authorization` value and no
+  other.
+- **Every scenario the official suite lists.** `mcp-conformance test` and this
+  project's own gate run all 32 server scenarios of suite `0.1.16`, the two it marks
+  pending included; the everything server passes them (47 checks) with the new
+  `test_reconnection` fixture.
+- **One binary.** `mcp-conformance` also offers `validate`, `requirements` and
+  `completions`, which are `mcp-trace-validator`'s from the same definitions.
+- **Baselines**: `--baseline` and `--write-baseline` gate on *new* findings, so a
+  server with known findings can adopt the tool in CI the day it starts
+  ([ADR-0025](docs/plan/decisions/0025-a-baseline-for-validate.md)).
+- **Findings say whose they are.** `validate --party server` judges one end of a
+  session; `mcp-conformance test` no longer blames a server for the official suite's
+  own client.
+- **The HTML report and the workbench are redesigned** on one token system (light and
+  dark, a type and spacing scale, focus and motion). The report opens on the verdict, one
+  plain sentence and what to do next, with the counts drawn as bars and a results-by-area
+  table; each finding says what was seen before it quotes the rule. The workbench gains
+  an app shell, a theme switch, a filterable library table and labelled charts. Still
+  one self-contained file with no script, and nothing loaded from anywhere.
+- **Thirty-five more clauses judged**, each one the registry had excluded, found
+  judgeable by re-reading all 566 exclusions. Base and lifecycle: a notification
+  answered (`BASE-011`, `BASE-061`), a fallback version that is not the latest
+  (`LIFE-012`). Client features: roots changed with no notification (`ROOT-002`), a
+  declared elicitation mode answered method-not-found (`ELIC-005`). Server features:
+  the error codes their pages name (`LOG-003`, `PROM-007`/`PROM-019`, `RES-008`,
+  `RES-019`, `COMP-003`/`COMP-008`, `PAGE-011`). Transport: a terminated session still
+  served (`TRAN-015`), a missing session id refused with the wrong status (`TRAN-014`),
+  an invalid `Origin` refused with anything but 403 (`TRAN-007`/`TRAN-052`), a declined
+  notification answered under a 2xx (`TRAN-028`/`TRAN-062`), a correctly encoded header
+  rejected as a mismatch (`TRAN-090`/`TRAN-091`/`TRAN-103`, and `TRAN-101` for an
+  integer respelled). Authorization: a token nobody issued served, or refused with
+  anything but `401` and a Bearer challenge (`AUTH-042`, `AUTH-044`, `AUTH-047`,
+  `AUTH-048`, `AUTH-081`, `AUTH-082` and their six `2026-07-28` counterparts), judged on
+  the public probe credential `check` sends. Each judges only when the session carries the stimulus, and is
+  *not observed* otherwise. `2025-11-25` now judges 120 clauses (was 102) and
+  `2026-07-28` 198 (was 181). **A session that passed can now fail or warn** on these.
+- **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
+  registry gains the ping, progress and cancellation pages.
+- **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every
+  quote re-verified against the published specification, the vendored schema at
+  upstream `main`.
+
+
 **This release changes verdicts, report formats and what the capture tool
 records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
@@ -34,7 +112,7 @@ below is stated again in its entry, with the reasoning.
 | `validate` flags | `--max-events 0` and `--max-line-bytes 0` exit `2` (bad invocation), not `3` | Pass a limit of at least 1 |
 | `validate` human output | At most 20 findings under a clause, then a count of the rest | `--all`, or a machine format, for every finding |
 | Rust API | `context::draft` removed (deprecated in 0.6.0) | `context::stateless` holds the same items |
-| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options` is no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap `Options` in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
+| Rust API, `mcp-trace-capture` | `traces::Traces::respond` takes a third argument, `succeeded`; `http::Options`, `traces::Traces`, `traces::Route` and `recorder::Recorder` are no longer `UnwindSafe` or `RefUnwindSafe`; `framing::Line` is `#[non_exhaustive]` and gains `Unterminated`; `signals::Stop` gains `Quit`; `http::Unrecorded` gains `over_budget`, `refused_paths`, `refused_connects` and `stalled_bodies`, `stdio::Unrecorded` gains `unterminated`; `http::Options` gains `buffer_budget`, `header_read_timeout`, `connect_timeout` and `body_read_timeout`, and `http::Options::new` sets `preserve_host` for a loopback upstream; `run::http` takes `impl Into<HostHeader>` (a `bool` still compiles: `false` now means "by the upstream's address"), and `http::is_loopback` and `run::HostHeader` are new | Pass whether the response was a 2xx; wrap any of the four in `AssertUnwindSafe` to move it into `catch_unwind`; match `Line` with a wildcard arm (the structs are `#[non_exhaustive]`) |
 | `mcp-trace-capture http` | A request path with a `.` or `..` segment is answered `400` by the proxy; `CONNECT` is answered `405`, and a path that is not UTF-8 once percent-decoded, or has a `.` or `..` segment once decoded and shorn of `;parameters`, `400`; a request head not complete within 30 s, or an idle kept-alive connection, is closed, and a request body that stalls for 60 s is answered `408`; an upstream not connected within 10 s is a `502`; ids the server has not assigned share one trace until it accepts one | Send normalized paths; nothing to do for a conforming client |
 | `2026-07-28` verdict, new rows | `CANC-003`/`CANC-011`: a server `notifications/cancelled` naming anything but a `subscriptions/listen` request fails | Servers end only subscriptions this way |
 | `2026-07-28` verdict, new rows | `PROG-001`/`002`/`003`, and on stdio `PROG-005`/`008`: a progress token that is not a string or integer, one shared by two unanswered requests, a `progress` value that does not increase, progress after the answer | Fix the sender |
@@ -72,6 +150,49 @@ below is stated again in its entry, with the reasoning.
   `context::stateless`, which holds the same items.
 
 ### Fixed
+
+- **`watch` could print a finding and then withdraw it** when a first `initialize` was
+  refused and a later one served: the refused one was judged under the newest revision
+  until the session declared its own. Findings are now held while a handshake is
+  unresolved.
+- **`check` gave up on a server that closed an answer's event stream to be polled**
+  (SEP-1699): it reported the session ended and exercised nothing after it. It now
+  returns with `Last-Event-ID`, after the `retry` the server asked for (capped at two
+  seconds, three times at most).
+
+- **`mcp-everything-server` in its `2025-11-25` mode named `2026-07-28` among the
+  revisions it supported** (rmcp's whole list, in `server/discover` and in what
+  `initialize` would agree to) and did not keep that revision's rules: no `serverInfo`
+  in results (`BASE-037`), and log notifications no request asked for (`LOG-008`).
+  `mcp-conformance check` found it. The mode now names the revisions up to its own and
+  answers a `2026-07-28` request with `UnsupportedProtocolVersionError` (`-32022`, HTTP
+  `400`) listing them. **Behaviour change** for anyone who sent that mode `2026-07-28`
+  requests: use `--protocol-version 2026-07-28`. `cargo xtask draft-readiness` measures
+  the stateless mode alone (42 passing / 0 failing on `0.2.0-alpha.12`).
+
+- **`mcp-conformance test` held a server to the official suite's own client's
+  findings.** A conforming third-party server ended `agreement: does not hold`
+  because the suite's client calls `logging/setLevel` and others on servers that
+  never declared them (`LIFE-009`). Each report is now viewed for the subject's
+  party: the other end's findings are listed, labelled, and set aside.
+  **Behaviour change:** `sessions.verdict` in `test`'s JSON is the subject's verdict;
+  `agreement.party` and `agreement.divergences.set_aside` are new.
+- **`check` blamed a server that was not there.** A URL nothing answers at ended
+  "the server answered HTTP 502", which was the recorder's own status; it now ends
+  "cannot reach the server at <url>: <cause>". A program that cannot start is named
+  once, not twice.
+- **`requirements <ID>` refused an ID of the other revision while naming it.** With no
+  `--revision`, an ID is now looked up in the revision that has it.
+- **The recorder's hints.** A `404` the MCP server itself sent (a JSON-RPC error or an
+  event stream) no longer draws "is the endpoint path right?"; a `403` to a client's
+  foreign `Host` suggests `--no-preserve-host`.
+- **The workbench and `library list` named no server for a `2026-07-28` session**; they
+  now read `serverInfo` from the discover result's `_meta`.
+- **`watch`'s tally** says how many clauses its findings are.
+- **Four `2026-07-28` quotes** follow upstream's rewording (`AUTH-124`, `BASE-041`,
+  `BASE-052`, `RES-018`), and the skills extension's entries follow its move to
+  `specification/beta/skills.mdx`. No check, level or verdict changed; a report's
+  `quote`, `section` and schema link text did.
 
 **Checks that missed failures**
 
@@ -494,6 +615,54 @@ below is stated again in its entry, with the reasoning.
   of the 404 remark itself. Only the coverage job, then informational, saw it fail.
 
 ### Added
+- **The GitHub Action checks a server.** New inputs `check` (a stdio server's command
+  line) and `check-url` (an HTTP endpoint) run `mcp-conformance check` and judge the
+  session for the server; `check-options` passes more of its flags. `party` and
+  `baseline` are new inputs for every mode. A server that cannot be started or reached
+  is exit code `2`, with the SARIF and JUnit reports still written. The action is now
+  named `MCP Conformance` (was `MCP trace conformance`); `check` with `version` needs
+  `0.7.0` or later, the first release whose archives carry `mcp-conformance`.
+
+- **`mcp-conformance check`** (ADR-0024). Exercises a server as a conforming client
+  would, through the recorder, and judges the recording with `validate`'s own code,
+  viewed for the server. A stdio server's command goes after `--`; `--url` names a
+  Streamable HTTP endpoint and `--header` adds a header (its value is not recorded).
+  It asks `server/discover` and falls back to `initialize` (`--spec-version` names one
+  revision); lists what the server declares; reads listed resources; gets prompts that
+  need no arguments; calls tools annotated `readOnlyHint: true`, or those named with
+  `--call`, or all with `--call-all`. Arguments are built from each tool's
+  `inputSchema` and validated against it before sending; a tool they cannot be built
+  for is skipped with the reason. Bounds: `--max-requests` 100, `--max-tool-calls` 25,
+  `--max-reads` 25, `--max-pages` 20, `--timeout` 30 s, `--max-time` 300 s,
+  `--max-response-bytes` 2 MiB. The run's account goes to stderr and, with
+  `--summary`, to a JSON file; the trace is kept (`-o`). Exit codes are `validate`'s,
+  plus `2` when no session could be held and `130` when interrupted. Held in CI by
+  `cargo xtask exerciser`: four sessions against the everything server, each judged
+  clean for the server and, under `validate --strict` with no party view, for the
+  exerciser itself.
+- **`mcp-conformance validate`, `requirements` and `completions`**: the validator's
+  subcommands under the one binary, from the same definitions, so the flags cannot
+  drift. `mcp-conformance --version` adds the revisions the build judges, as
+  `mcp-trace-validator --version` does (`-V` is unchanged).
+- **`validate --baseline FILE`, `--write-baseline FILE`, `--allow-stale-baseline`**
+  (ADR-0025). A baseline lists accepted findings by their SARIF fingerprint, each with
+  a required reason and an optional `expires` day. Accepted findings stay in every
+  format, marked and counted apart; only the others decide the verdict and the exit
+  status. An entry that matches nothing is stale and fails the run; an expired entry
+  accepts nothing. `check` takes the same flags. New public items:
+  `mcp_trace_validator::baseline`, `mcp_trace_validator::fingerprint`, and
+  `baseline` members on `Report` and `Finding` (both `#[non_exhaustive]`).
+- **`validate --area` and `--level`**: display filters for the human report. They
+  change no verdict, total or exit status, say how many findings they hide, and are
+  refused with a machine format.
+- **`mcp_trace_validator::cli`** (feature `cli`): the command line as a library
+  module, for this workspace's binaries. Not a stable Rust interface (STABILITY.md).
+- **`mcp-conformance test` notes missing fixtures.** When the suite fails scenarios
+  against a server that does not list the tools, prompts and resources the suite asks
+  for by name, the report says which names were asked for and not listed
+  (`suite.fixtures` in JSON), instead of leaving eighteen failures unexplained.
+- **`mcp-conformance watch http` takes `--preserve-host` and `--no-preserve-host`**,
+  as `mcp-trace-capture http` does.
 
 **Judging**
 
@@ -987,6 +1156,28 @@ not yet published to crates.io)
   session, before the old advice to record one client per run.
 
 ### Dependencies
+
+- Rust toolchain pin 1.99.1 → 1.100.0. rmcp 3.7.0 → 3.9.0 (RUSTSEC-2026-0462; the
+  floor is now 3.9.0), rustix 1.1.6 (RUSTSEC-2026-0486), jsonschema 0.60.2.
+  RUSTSEC-2026-0543 (chrono unmaintained, informational) is ignored by id with the
+  reason in `deny.toml` and a dated row in the deferral ledger: chrono is here only
+  through rmcp. The vendored `2026-07-28` schema is upstream `main` at `8a18b4b`.
+  `mcp-conformance-cli` gains `base64` and `jsonschema` (both already in the tree).
+
+- Interop matrix pins: TypeScript SDK 1.32.2, `@modelcontextprotocol/server` 2.4.0
+  with `node` 2.1.2, rmcp 3.10.0 (the Rust leg was at 3.7.0). Re-recorded: every
+  cell judged as before except TypeScript v2 at `2026-07-28` (core pass 72 → 73).
+
+- `mcpsnoop` calibration pin 0.26.1 → 0.28.0, re-measured over 358 traces. 0.28.0
+  no longer shows the five defects the page triaged against 0.26.1, and adds rules
+  this map now reads (an id-less error, an unfounded or wrongly-statused `-32020`,
+  `outputSchema`). Divergent traces 13 → 7; agreeing 79 → 86.
+
+- `@playwright/test` 1.63.0 → 1.64.1 (the visual suite; Dependabot #66). Eight report
+  baselines re-taken from the CI runner: 6 or 12 pixels each, on the link-arrow glyph.
+
+- `clap_complete` floor 4.5 → 4.6.3: 4.6.0 and older panic generating completions
+  for `mcp-conformance` (found by CI's minimal-versions job).
 
 - **rmcp 3.7.0** (from 3.4.1) for `mcp-everything-server` and
   `mcp-reference-host`, with `rmcp-macros` moved in lockstep. The official suite's

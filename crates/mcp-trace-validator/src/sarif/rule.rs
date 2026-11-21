@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
 
-//! A SARIF rule from a report row, and the two small functions a result's
-//! level and fingerprint are built from.
+//! A SARIF rule from a report row, and the level a result is reported at.
 
 use mcp_conformance_core::requirement::Actor;
 use serde_json::{Value, json};
@@ -74,25 +73,6 @@ pub(super) fn rule(
         rule["helpUri"] = json!(url);
     }
     rule
-}
-
-/// `text` with every run of ASCII digits replaced by `#`, so a finding's
-/// identity does not depend on the `seq` and ids a particular recording carries.
-pub(super) fn fold_numbers(text: &str) -> String {
-    let mut folded = String::with_capacity(text.len());
-    let mut in_digits = false;
-    for character in text.chars() {
-        if character.is_ascii_digit() {
-            if !in_digits {
-                folded.push('#');
-            }
-            in_digits = true;
-        } else {
-            folded.push(character);
-            in_digits = false;
-        }
-    }
-    folded
 }
 
 pub(super) const fn level(outcome: Outcome) -> &'static str {

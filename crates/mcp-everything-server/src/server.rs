@@ -282,11 +282,14 @@ impl ServerHandler for EverythingServer {
 
     fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
         match self.revision {
-            // rmcp's default: every revision the SDK knows. Kept verbatim so
-            // the legacy surface negotiates exactly as it did before this
-            // method existed — narrowing it is a change to what `initialize`
-            // may agree to, and belongs to whoever needs it, not here.
-            ServedRevision::V2025_11_25 => Cow::Borrowed(ProtocolVersion::KNOWN_VERSIONS),
+            // Every revision the SDK knows up to the one this mode serves,
+            // not rmcp's whole list: told `2026-07-28` by `server/discover`,
+            // `mcp-conformance check` held this mode to rules it does not
+            // keep (BASE-037, LOG-008). A server names a revision only if
+            // it serves it (decided 2026-11-20; ADR-0024, "As built").
+            ServedRevision::V2025_11_25 => {
+                Cow::Borrowed(ProtocolVersion::known_up_to(&ProtocolVersion::V_2025_11_25))
+            }
             // The stateless surface advertises only itself. This is not
             // cosmetic: the transport requires per-request protocol metadata
             // in this mode, and a client negotiated below `2026-07-28` does

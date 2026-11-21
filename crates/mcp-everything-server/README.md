@@ -7,7 +7,7 @@ A Rust MCP server, built on [rmcp](https://crates.io/crates/rmcp) (the official
 Rust SDK), that exercises the protocol's capabilities at both `2025-11-25` and
 `2026-07-28`. The [mcp-conformance](https://github.com/tomtom215/mcp-conformance)
 project uses it to calibrate its validator: on every change CI runs the official
-conformance suite against it — **40/40 checks** on the `2025-11-25` server
+conformance suite against it — **47/47 checks**, every one of the 32 scenarios it lists, on the `2025-11-25` server
 scenarios at the pinned suite 0.1.16 — and compares the suite's verdicts with the
 validator's. It is also a known-good peer for testing an MCP **client**.
 
@@ -61,6 +61,16 @@ is almost certainly the client's.
   `structuredContent`), which the suite does not exercise but the spec
   defines.
 
+  `test_reconnection` (SEP-1699, the suite's `server-sse-polling` scenario)
+  closes the SSE stream its own call arrived on — after an event carrying an
+  id and a `retry` interval — and delivers the result on the GET the client
+  resumes with (`Last-Event-ID`). It holds the result until that GET arrives
+  (five seconds at most), because rmcp drops a request's stream state once the
+  response is sent. On stdio and at `2026-07-28`, where there is no such
+  stream, it answers directly. `reconnection::sessions::ResumableSessions`, a
+  thin wrapper over rmcp's `LocalSessionManager`, is what tells the handler
+  which stream is its own.
+
   **Every listing is paginated**, and the split is deliberate: the first page
   of `tools/list`, `prompts/list`, `resources/list` and
   `resources/templates/list` is exactly the catalogue the suite's scenarios
@@ -94,9 +104,9 @@ is almost certainly the client's.
   a handshake that leads nowhere. The suite's `2026-07-28` scenarios pass
   **42/42** against this mode at the pinned `0.2.0-alpha.12`, and the
   repository's own requirement registry
-  evidences **148 of the 181 judgeable clauses** across eight committed
+  evidences **149 of the 198 judgeable clauses** across nine committed
   captures — five of it over both transports, with 0 fail on the conforming
-  ones, and three of the official SDKs' conformance servers — and everything
+  ones, and four of the official SDKs' conformance servers — and everything
   the sessions never touched reported *not observed* rather than counted as a
   pass. Server-to-client requests go by SEP-2322's MRTR pattern at this
   revision — `elicitation/create` and `sampling/createMessage` are *returned*

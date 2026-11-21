@@ -259,31 +259,29 @@ pub(crate) fn check(
     }
 }
 
-/// The pending list `test --command` subtracts is exactly what the suite's
-/// default run left out: the stdio run's scenarios and its not-run ones are
-/// `list`'s, and less the pending ones they are the gate's run.
-pub(crate) fn pending_is_what_the_default_run_leaves_out(
-    gate: &Gate,
-    stdio: &Report,
-) -> Result<(), String> {
+/// `test --command` leaves out nothing but the HTTP-transport scenarios: the
+/// stdio run's scenarios and its not-run ones are `list`'s, and they are the
+/// gate's run, which asks the suite for every scenario it lists.
+pub(crate) fn every_listed_scenario_is_run(gate: &Gate, stdio: &Report) -> Result<(), String> {
     let listed: BTreeSet<&str> = stdio
         .scenarios
         .keys()
         .map(String::as_str)
         .chain(stdio.not_run.iter().map(String::as_str))
         .collect();
-    let active: BTreeSet<&str> = listed
-        .iter()
-        .copied()
-        .filter(|name| !suite::PENDING_SERVER_SCENARIOS.contains(name))
-        .collect();
     let ran: BTreeSet<&str> = gate.scenarios.keys().map(String::as_str).collect();
-    if active == ran {
+    let beyond_transport: Vec<&str> = stdio
+        .not_run
+        .iter()
+        .map(String::as_str)
+        .filter(|name| !suite::HTTP_TRANSPORT_SCENARIOS.contains(name))
+        .collect();
+    if listed == ran && beyond_transport.is_empty() {
         Ok(())
     } else {
         Err(format!(
-            "mcp_conformance_cli::suite::PENDING_SERVER_SCENARIOS is stale: the suite lists \
-             {listed:?}, and its default run ran {ran:?}"
+            "the suite lists {listed:?}; the gate ran {ran:?}, and `test --command` left out \
+             {beyond_transport:?} beyond the HTTP-transport scenarios"
         ))
     }
 }

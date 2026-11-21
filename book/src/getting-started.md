@@ -3,9 +3,12 @@
 
 # Getting started
 
-Three steps: install the two tools, record a session of your server or client, and
-judge the recording. Nothing here depends on the language or SDK your implementation
-uses — the tools read and write bytes on the wire.
+**If you have a server and want its report, start with
+[Checking a server](checking.md): `mcp-conformance check` is one command and needs no
+client.** This chapter is the longer road, for judging the traffic of *your own*
+client and server: install the tools, record a session, and judge the recording.
+Nothing here depends on the language or SDK your implementation uses — the tools read
+and write bytes on the wire.
 
 ## Install
 

@@ -8,6 +8,8 @@ use super::super::testkit::{
     ask, asked, findings_for, reply, reply_error, round, session, subjects_for, trace,
 };
 
+mod declared_mode;
+
 const FORM: &str = r#"{"mode":"form","message":"Name?","requestedSchema":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}}"#;
 const BARE_FORM: &str = r#"{"message":"Name?","requestedSchema":{"type":"object"}}"#;
 const URL: &str = r#"{"mode":"url","message":"Connect","url":"https://example.com/connect","elicitationId":"e1"}"#;

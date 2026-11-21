@@ -632,8 +632,8 @@ fn readme_quickstart_commands() -> Vec<Vec<String>> {
     let readme =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../README.md")).unwrap();
     let start = readme
-        .find("## Quickstart")
-        .expect("README has a quickstart");
+        .find("## Judge traffic you already have")
+        .expect("README has the record-then-judge section");
     let end = readme[start..]
         .find("\n## ")
         .map_or(readme.len(), |at| start + at);

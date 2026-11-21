@@ -43,7 +43,10 @@ suite's scenarios exercise the HTTP transport itself — `dns-rebinding-protecti
 `server-sse-polling` and `server-sse-multiple-streams` — and would judge the bridge rather
 than your server, so they are not run; the report lists them as not run, with why.
 
-To run some scenarios rather than the suite's default set, name each:
+With no scenario named, `test` runs every server scenario the pinned suite lists (32 at
+`0.1.16`), the two it marks pending among them (`json-schema-2020-12` and
+`server-sse-polling`), which the suite's own default run leaves out. To run some scenarios
+rather than all of them, name each:
 
 ```text
 mcp-conformance test --url http://localhost:3000/mcp --scenario tools-list --scenario ping
@@ -59,9 +62,22 @@ mcp-conformance test --client-command "node my_client.js"
 ```
 
 By default that is the suite's four protocol scenarios (`initialize`, `tools_call`,
-`elicitation-sep1034-client-defaults`, `sse-retry`). The `auth/*` scenarios need the
-suite's authorization server as well as its MCP one, which the recording proxy does not
-stand in front of; name them with `--scenario` to run them anyway.
+`elicitation-sep1034-client-defaults`, `sse-retry`). The suite's 22 `auth/*` (OAuth)
+scenarios are not in the default set, for two reasons. A client with no OAuth support
+fails every one of them, which would say nothing about its protocol behaviour. And the
+recording relay stands between your client and the suite's server, so the client is given
+the relay's URL while the server's protected-resource metadata names its own; a client
+that follows RFC 9728 refuses that mismatch and the scenario fails for a reason that is
+not the client's. Name one with `--scenario` to run it anyway.
+
+This repository runs the `auth/*` scenarios against its own reference host without the
+relay, in `cargo xtask conformance`: the host is built with its `oauth` feature and run
+with `--oauth-conformance`, a mode for the suite only (it approves the authorization
+itself, and refuses to do so anywhere but a loopback address). Of the 22, 19 pass;
+`auth/2025-03-26-oauth-metadata-backcompat` is run as an expected failure, with the reason
+in `conformance/expected-failures.yaml`; `auth/client-credentials-jwt` and
+`auth/cross-app-access-complete-flow` are not run. The deferral ledger row
+`auth-client-scenarios` says what would close each.
 
 ## Reading the result
 
@@ -71,12 +87,60 @@ The human report has three parts:
   any that failed or warned. The suite's verdict is its own: a `FAILURE` or a `WARNING`
   fails it.
 - **The clause report** — one validator report per recorded session, as
-  `mcp-trace-validator validate` prints it ([Reading a report](reading-a-report.md)). A
-  session that holds nothing to judge (a request the server refused before any message
-  was exchanged, say) is listed as not judged, with the reason.
-- **Agreement** — every failing clause is a divergence from the suite's verdict unless a
-  divergence baseline explains it, and every baseline entry that explained nothing is
-  stale. Agreement holds when there is neither.
+  `mcp-trace-validator validate` prints it ([Reading a report](reading-a-report.md)),
+  viewed for your end of the session ([below](#whose-finding-it-is)). A session that
+  holds nothing to judge (a request the server refused before any message was exchanged,
+  say) is listed as not judged, with the reason.
+- **Agreement** — every failing clause held against your end is a divergence from the
+  suite's verdict unless a divergence baseline explains it, and every baseline entry that
+  explained nothing is stale. Agreement holds when there is neither.
+
+### Whose finding it is
+
+The suite drives a server with a client of its own, and a client with a test server of
+its own, and that end breaks clauses too. Its client calls `logging/setLevel` on a server
+that never declared `logging`, uses `completion/complete` or `resources/subscribe` on one
+that declared neither, and closes a session without `notifications/initialized`; its test
+server answers a notification with HTTP 200 and a body. Each is a real finding about the
+traffic, and none is yours to fix.
+
+So every finding names the party it is held against, as `[client]` or `[server]` in the
+report (`[unattributed]` when the trace cannot say), and `test` judges your end: a server
+(`--url`, `--command`) by the findings held against the server, a client
+(`--client-command`) by those held against the client. A finding held against nobody
+counts, as `mcp-trace-validator validate --party` counts it, and is tagged so you can see
+it was counted rather than attributed. The other end's findings are listed — under
+"failing clauses held against the suite's own client" (or "test server") — and **set
+aside**: they move neither a session's verdict nor the agreement, and the clause rows of
+the session still show them failing, because that is what the traffic did. A divergence
+baseline explains a failure of either end, and an entry stays live while it explains any,
+so one baseline file serves `test` and `cargo xtask conformance`'s gate, which counts both
+ends. In the JSON report, `agreement.party` and `sessions.party` name your end,
+`agreement.divergences.set_aside` lists what was set aside (absent when nothing was),
+and `sessions.findings` counts the findings counted, set aside and unattributed.
+
+### A server that is not the suite's own
+
+The pinned suite asks a server for tools, prompts and resources by fixed names
+(`test_simple_text` is one). A server that defines its own fails the scenarios that look
+for those, and the suite's message reads like a broken server (`Unknown prompt:
+test_simple_prompt`). When the suite fails scenarios and the recorded traffic holds
+requests for names that none of the server's own list answers in the run include, the
+human report says so after the suite's verdict:
+
+```text
+note: 18 of the suite's 28 scenario(s) failed. In 21 of the 28 recorded sessions the suite asked for a tool, prompt or resource that none of this server's own list answers in this run includes:
+  tools (12): test_audio_content, test_elicitation, test_elicitation_sep1034_defaults, test_elicitation_sep1330_enums and 8 more
+  prompts (4): test_prompt_with_arguments, test_prompt_with_embedded_resource, test_prompt_with_image, test_simple_prompt
+  resources (4): test://static-binary, test://static-text, test://template/123/data, test://watched-resource
+```
+
+The JSON report has every name, with the counts, under `suite.fixtures` (`null` when there
+is no note). The note says what the requests show and no more: the recording does not say
+which scenario's failure follows from a missing name — a scenario can pass on a server
+that answers the missing tool with an error — so read each scenario's own message beside
+it. A kind of fixture the run never saw the server list, or whose list was paged, is not
+assessed, since the traffic cannot then show a name missing.
 
 `--divergences` names a baseline in the format of this repository's
 `conformance/agreement-divergences.json`: each entry a requirement ID, a triage class
@@ -88,8 +152,12 @@ mcp-conformance test --url http://localhost:3000/mcp --divergences divergences.j
 ```
 
 For CI, `--format json` carries all three parts; `junit` and `sarif` are the validator's
-own renderings of the clause report ([Using it in CI](ci.md)), and the suite's checks and
-the agreement go to stderr whatever the format. `-o` writes the report to a file:
+own renderings of the clause report ([Using it in CI](ci.md)), viewed for your end like
+the human report (a failure set aside is a passing case in JUnit and a `note` in SARIF).
+A human or JSON report on stdout holds the suite's checks and the agreement itself, so
+stderr then says the verdicts and nothing the report repeats; a report in a file, and
+`junit` or `sarif`, which carry only the clause report, leave the suite's checks and the
+agreement on stderr whole. `-o` writes the report to a file:
 
 ```text
 mcp-conformance test --command "python my_server.py" --format sarif -o conformance.sarif

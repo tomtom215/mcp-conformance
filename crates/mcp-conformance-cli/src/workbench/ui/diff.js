@@ -34,10 +34,10 @@ function message(id, m, label) {
 
 function clauses(diff) {
   if (!diff.clauses.length) {
-    return h('p', { class: 'empty' }, 'Every clause reads the same in both, at every revision both were judged at.');
+    return h('p', { class: 'empty' }, 'Every rule came out the same in both, at every revision both were judged at.');
   }
-  return h('div', { class: 'table-scroll' }, h('table', { class: 'grid-table' },
-    h('thead', {}, h('tr', {}, ['Revision', 'Clause', 'A', 'B', 'Findings A → B'].map((title) => h('th', { scope: 'col' }, title)))),
+  return h('div', { class: 'table-scroll', tabindex: '0', role: 'group', 'aria-label': 'Rules that came out differently' }, h('table', { class: 'grid-table' },
+    h('thead', {}, h('tr', {}, ['Revision', 'Rule', 'A', 'B', 'Findings A → B'].map((title) => h('th', { scope: 'col' }, title)))),
     h('tbody', {}, diff.clauses.map((c) => h('tr', {},
       h('td', {}, h('code', {}, c.revision)),
       h('td', {}, h('code', {}, c.id)),
@@ -60,10 +60,11 @@ export async function render(main, { a, b }) {
   only.addEventListener('change', () => rows.classList.toggle('only-diff', only.checked));
   replace(main,
     h('div', { class: 'page-head' },
-      h('div', {}, h('p', { class: 'eyebrow' }, h('a', { href: '#/' }, 'Library'), ' / Compare'), h('h1', {}, 'Two sessions')),
+      h('div', {}, h('p', { class: 'eyebrow' }, h('a', { href: '#/' }, 'Library'), ' / Compare'), h('h1', {}, 'Two sessions'),
+        h('p', { class: 'page-sub' }, 'What differs between two recordings: first the rules that came out differently, then the messages side by side.')),
       h('div', { class: 'actions' }, h('a', { class: 'button', href: `#/diff/${enc(b)}/${enc(a)}` }, 'Swap A and B'))),
     h('div', { class: 'sides' }, side('A', diff.a), side('B', diff.b)),
-    h('section', { class: 'section' }, h('h2', {}, 'Clauses that read differently ', h('span', { class: 'count' }, String(diff.clauses.length))),
+    h('section', { class: 'section' }, h('h2', {}, 'Rules that came out differently ', h('span', { class: 'count' }, String(diff.clauses.length))),
       clauses(diff),
       diff.revisions_only_a.length || diff.revisions_only_b.length
         ? h('p', { class: 'lede' }, 'Judged at one side only: ', [...diff.revisions_only_a.map((r) => `${r} (A)`), ...diff.revisions_only_b.map((r) => `${r} (B)`)].join(', '))

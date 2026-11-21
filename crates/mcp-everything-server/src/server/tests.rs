@@ -132,14 +132,20 @@ fn the_served_revision_chooses_what_get_info_negotiates() {
 }
 
 #[test]
-fn only_the_stateless_mode_narrows_the_advertised_versions() {
-    // The legacy mode keeps rmcp's list verbatim: narrowing it would change
-    // what `initialize` may agree to, which every committed baseline pins.
+fn each_mode_advertises_only_the_revisions_it_serves() {
+    // The legacy mode names every revision up to its own and not the
+    // stateless one: it does not keep that revision's rules, and a client
+    // told otherwise by `server/discover` holds it to them.
     assert_eq!(
         EverythingServer::new()
             .supported_protocol_versions()
             .as_ref(),
-        ProtocolVersion::KNOWN_VERSIONS
+        [
+            ProtocolVersion::V_2024_11_05,
+            ProtocolVersion::V_2025_03_26,
+            ProtocolVersion::V_2025_06_18,
+            ProtocolVersion::V_2025_11_25,
+        ]
     );
     assert_eq!(
         EverythingServer::serving(ServedRevision::V2026_07_28)

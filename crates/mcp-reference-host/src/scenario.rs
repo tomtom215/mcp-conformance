@@ -23,6 +23,11 @@
 //!   `Last-Event-ID`. rmcp 1.7's transport cannot pass it (measured —
 //!   ADR-0009 §Amendment), so the host runs its own compliant resumption
 //!   dance (the `resume` module, feature `http`).
+//!
+//! The `auth/*` scenarios have no row here: each is an ordinary session (the
+//! generic plan) that the server refuses until the client has authorized, and
+//! authorizing is the transport's business (the `oauth` module, feature
+//! `oauth`, the binary's `--oauth-conformance`), not the plan's.
 
 use crate::run::{CallPolicy, RunPlan};
 use crate::script::InteractionScript;

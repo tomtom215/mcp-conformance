@@ -28,6 +28,7 @@ mod inventory;
 mod lifecycle;
 mod negotiation;
 mod prompts;
+mod rejections;
 mod resources;
 mod stateless;
 mod support;
@@ -109,6 +110,7 @@ impl FindingSink {
             seq,
             party: None,
             detail,
+            baselined: None,
         });
     }
 

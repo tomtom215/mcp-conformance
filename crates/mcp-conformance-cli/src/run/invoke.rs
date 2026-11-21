@@ -43,6 +43,10 @@ impl Common {
             command.arg("--url").arg(url);
             if let Some(scenario) = scenario {
                 command.arg("--scenario").arg(scenario);
+            } else {
+                // Every scenario the suite lists, the ones it marks pending
+                // among them: its own default leaves those out.
+                command.arg("--suite").arg("all");
             }
             self.finish(&mut command);
             command
@@ -203,6 +207,8 @@ mod tests {
                 "server",
                 "--url",
                 "http://127.0.0.1:1/mcp",
+                "--suite",
+                "all",
                 "--spec-version",
                 "2025-11-25",
                 "--output-dir",

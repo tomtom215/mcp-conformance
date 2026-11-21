@@ -34,6 +34,10 @@ const SHIPPED: &[Check] = &[
     check!("base.jsonrpc-version", base::jsonrpc_version),
     check!("base.error-id-matches", base::error_id_matches),
     check!(
+        "base.notification-unanswered",
+        base::notification_unanswered
+    ),
+    check!(
         "lifecycle.first-interaction-initialize",
         lifecycle::first_interaction_initialize
     ),
@@ -57,6 +61,10 @@ const SHIPPED: &[Check] = &[
     check!(
         "lifecycle.initialize-result-shape",
         lifecycle::initialize_result_shape
+    ),
+    check!(
+        "lifecycle.fallback-version-latest",
+        lifecycle::fallback_version_latest
     ),
     check!("base.meta-key-format", base::meta_key_format),
     check!("base.result-field", base::result_field),
@@ -125,6 +133,22 @@ const SHIPPED: &[Check] = &[
     check!(
         "transport.accepted-input-status",
         transport::accepted_input_status
+    ),
+    check!(
+        "transport.unaccepted-input-error-status",
+        transport::unaccepted_input_error_status
+    ),
+    check!(
+        "transport.invalid-origin-403",
+        transport::invalid_origin_403
+    ),
+    check!(
+        "transport.terminated-session-404",
+        transport::terminated_session_404
+    ),
+    check!(
+        "transport.missing-session-id-400",
+        transport::missing_session_id_400
     ),
     check!("tools.capability-declared", tools::capability_declared),
     check!("tools.input-schema-object", tools::input_schema_object),
@@ -252,9 +276,14 @@ const FEATURE_ROWS: [Check; REVISION_ROWS.len() + client_feature_rows::ROWS.len(
 const CORE_ROWS: [Check; FEATURE_ROWS.len() + auth_rows::ROWS.len()] =
     concatenated(&FEATURE_ROWS, auth_rows::ROWS);
 
-/// The backing storage for [`ALL`]: the core rows, then the extensions'.
-static EVERY: [Check; CORE_ROWS.len() + extension_rows::ROWS.len()] =
+/// The core rows and the extensions'.
+const EXTENDED_ROWS: [Check; CORE_ROWS.len() + extension_rows::ROWS.len()] =
     concatenated(&CORE_ROWS, extension_rows::ROWS);
+
+/// The backing storage for [`ALL`]: everything above, then the error-handling
+/// clauses' rows.
+static EVERY: [Check; EXTENDED_ROWS.len() + rejection_rows::ROWS.len()] =
+    concatenated(&EXTENDED_ROWS, rejection_rows::ROWS);
 
 /// Every check implemented by this build, in stable order.
 pub static ALL: &[Check] = &EVERY;
@@ -267,6 +296,7 @@ pub fn find(id: &str) -> Option<&'static Check> {
 mod auth_rows;
 mod client_feature_rows;
 mod extension_rows;
+mod rejection_rows;
 mod stateless_rows;
 
 #[cfg(test)]

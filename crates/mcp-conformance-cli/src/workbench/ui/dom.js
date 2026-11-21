@@ -104,6 +104,38 @@ export function badge(verdict, small = false) {
   return h('span', { class: `badge v-${tone}${small ? ' small' : ''}` }, words[verdict] || verdict);
 }
 
+/**
+ * A stacked bar with no SVG: `parts` are `[class, count]`, and each part's
+ * share is its flex-grow, set through the CSSOM (which the Content Security
+ * Policy allows; a style attribute it would refuse). Decorative: the numbers
+ * are always beside it as text.
+ */
+export function stackedBar(parts) {
+  const bar = h('div', { class: 'hbar', 'aria-hidden': 'true' });
+  for (const [cls, count] of parts) {
+    if (!count) continue;
+    const part = h('span', { class: `s-${cls}` });
+    part.style.flexGrow = String(count);
+    bar.appendChild(part);
+  }
+  return bar;
+}
+
+/** A loading placeholder for a view or a list. */
+export function loading(text) {
+  return h('div', { class: 'state loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), h('p', {}, text));
+}
+
+/** Nothing to show: a title, what it means, and (optionally) what to do. */
+export function emptyState(title, text, action = null, tag = 'div') {
+  return h(tag, { class: 'state empty' }, h('p', { class: 'state-title' }, title), h('p', {}, text), action);
+}
+
+/** `count` with the noun that agrees with it. */
+export function plural(count, one, many = `${one}s`) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 /** An outcome pill (`fail`, `warn`, `pass`, …). */
 export function pill(outcome, text = outcome) {
   return h('span', { class: `pill o-${outcome}` }, text);

@@ -24,6 +24,9 @@ use crate::context::TraceContext;
 use competing::{Faults, declared_versions, listed_versions};
 
 mod competing;
+mod spelling;
+
+pub(in crate::checks) use spelling::{encoded_header_decoded, integer_header_compared_numerically};
 
 #[cfg(test)]
 mod tests;

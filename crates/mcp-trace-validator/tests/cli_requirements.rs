@@ -271,17 +271,28 @@ fn an_id_as_json_is_the_registry_shape_and_an_unknown_one_is_an_error() {
 }
 
 #[test]
-fn an_id_of_the_other_revision_says_which_revision_has_it() {
-    // BASE-003 is a 2025-11-25 clause; the default lookup is the newest
-    // revision, which numbers its request-id rule differently. A reader who
-    // copied the ID off a 2025-11-25 report is told where it is.
+fn an_id_is_looked_up_in_the_revision_that_has_it() {
+    // BASE-003 is a 2025-11-25 clause, and the newest revision numbers its
+    // request-id rule differently. A reader who copied the ID off a
+    // 2025-11-25 report gets the clause, without having to say which
+    // revision the report already told them.
     let output = run(&["requirements", "BASE-003"]);
-    assert_eq!(output.status.code(), Some(2), "{output:?}");
-    let message = stderr(&output);
-    assert!(
-        message.contains("it is a 2025-11-25 requirement: pass --revision 2025-11-25"),
-        "{message}"
-    );
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(stdout(&output).contains("2025-11-25"), "{output:?}");
+    // Named explicitly, the wrong revision is still an error that says where
+    // the ID is; so is a second ID from another revision.
+    for arguments in [
+        &["requirements", "--revision", "2026-07-28", "BASE-003"][..],
+        &["requirements", "MRTR-019", "BASE-003"][..],
+    ] {
+        let output = run(arguments);
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        let message = stderr(&output);
+        assert!(
+            message.contains("it is a 2025-11-25 requirement: pass --revision 2025-11-25"),
+            "{message}"
+        );
+    }
     let found = run(&["requirements", "--revision", "2025-11-25", "BASE-003"]);
     assert_eq!(found.status.code(), Some(0), "{found:?}");
     // An ID no revision has gets no such hint.

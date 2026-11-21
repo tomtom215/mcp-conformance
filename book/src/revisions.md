@@ -20,8 +20,8 @@ changelog and becomes a measurement.
 | | `2025-11-25` | `2026-07-28` |
 |---|---:|---:|
 | Registry entries | 348 | 501 |
-| Judged by a named check | 102 | 181 |
-| Carrying a documented exclusion | 246 | 320 |
+| Judged by a named check | 120 | 198 |
+| Carrying a documented exclusion | 228 | 303 |
 | Shipped in every build | yes | yes |
 
 The two registries are extracted **per revision** rather than sharing entries:
@@ -81,9 +81,9 @@ And the verdict splits:
 
 ```text
 per revision:
-  2025-11-25: 17 pass, 0 fail, 0 warn, 246 excluded, 0 unsupported, 14 not applicable, 71 not observed — verdict pass
+  2025-11-25: 18 pass, 0 fail, 0 warn, 228 excluded, 0 unsupported, 18 not applicable, 84 not observed — verdict pass
   2025-11-25: wire schema pass (3 messages valid)
-  2026-07-28: 15 pass, 8 fail, 0 warn, 320 excluded, 0 unsupported, 0 not applicable, 158 not observed — verdict fail
+  2026-07-28: 16 pass, 8 fail, 0 warn, 303 excluded, 0 unsupported, 0 not applicable, 174 not observed — verdict fail
   2026-07-28: wire schema fail (1 of 3 messages invalid)
 overall verdict: fail
 ```
@@ -166,11 +166,11 @@ usually are.
 - The reference server serves the stateless surface with
   `--protocol-version 2026-07-28`, and the official suite's `2026-07-28`
   scenarios score **42 passing / 0 failing** against it.
-- Eight committed captures — a conforming session over each transport, a *probe*
+- Nine committed captures — a conforming session over each transport, a *probe*
   session of deliberately malformed requests, the official runner's two, and
-  three of the official SDKs' own conformance servers
+  four of the official SDKs' own conformance servers
   ([the cross-SDK matrix](sdk-matrix.md)) — evidence
-  **148 of the 181 judgeable clauses** between them. What no capture
+  **149 of the 198 judgeable clauses** between them. What no capture
   reaches is named, one clause at a time, in [the corpus chapter](corpus.md).
 - The project's CI re-runs that measurement weekly and **ratchets** it against a
   committed baseline: any change in either direction fails the build, so a
@@ -184,7 +184,14 @@ so it could not tell the two apart. This project's registry could, and flagged
 the `2025-11-25` server for returning cacheable results without the cache hints
 `2026-07-28` requires (CACH-001). Six weeks later `alpha.11` added a schema check
 and found the same clause, independently, from the other side. The server's SDK
-then fixed it: since rmcp 3.5.1 both legs score 42 passing / 0 failing.
+then fixed it, and from rmcp 3.5.1 both servers scored 42 passing / 0 failing.
+
+The pair ended there. Asked `server/discover`, the `2025-11-25` server still named
+`2026-07-28` among the revisions it supported, and `mcp-conformance check`, which
+believes what a server says, held it to that revision and found two clauses it did
+not keep (`BASE-037`, `LOG-008`), where the suite's scenarios passed. Since
+2026-11-20 that server names only the revisions it serves and refuses the rest, so
+the measurement now has one leg: the server that implements `2026-07-28`.
 
 ## The next revision
 

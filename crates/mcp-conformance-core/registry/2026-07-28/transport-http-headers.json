@@ -202,7 +202,9 @@
         "section": "basic/transports/streamable-http#value-encoding",
         "quote": "Servers and intermediaries that need to inspect these values MUST decode them accordingly."
       },
-      "exclusion": "Decoding is what a receiver does internally before comparison; the trace shows the encoded value on the wire and the outcome, never the decode step."
+      "checks": [
+        "transport.encoded-header-decoded"
+      ]
     },
     {
       "id": "TRAN-091",
@@ -215,7 +217,9 @@
         "section": "basic/transports/streamable-http#value-encoding",
         "quote": "In particular, servers MUST decode an encoded `Mcp-Name` or `Mcp-Param-{Name}` value before comparing it to the corresponding request body value during Server Validation."
       },
-      "exclusion": "Same internal-decode boundary as the clause above: only the comparison's outcome reaches the wire, and that is judged by TRAN-097."
+      "checks": [
+        "transport.encoded-header-decoded"
+      ]
     },
     {
       "id": "TRAN-092",

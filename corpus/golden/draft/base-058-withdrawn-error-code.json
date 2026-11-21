@@ -3,12 +3,12 @@
   "verdict": "fail",
   "totals": {
     "pass": 29,
-    "fail": 1,
+    "fail": 2,
     "warn": 1,
-    "excluded": 320,
+    "excluded": 303,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 150
+    "not_observed": 166
   },
   "requirements": [
     {
@@ -122,6 +122,12 @@
       "outcome": "pass"
     },
     {
+      "id": "BASE-061",
+      "level": "MUST NOT",
+      "actor": "both",
+      "outcome": "not-observed"
+    },
+    {
       "id": "BASE-062",
       "level": "MUST NOT",
       "actor": "both",
@@ -224,6 +230,12 @@
       "outcome": "pass"
     },
     {
+      "id": "TRAN-052",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-056",
       "level": "MUST",
       "actor": "client",
@@ -255,6 +267,12 @@
     },
     {
       "id": "TRAN-061",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-062",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
@@ -374,6 +392,18 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-090",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-092",
       "level": "MUST",
       "actor": "client",
@@ -458,7 +488,19 @@
       "outcome": "not-observed"
     },
     {
+      "id": "TRAN-101",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "TRAN-102",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "TRAN-103",
       "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
@@ -752,10 +794,22 @@
       "outcome": "not-observed"
     },
     {
+      "id": "COMP-008",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "PAGE-006",
       "level": "MUST",
       "actor": "client",
       "outcome": "pass"
+    },
+    {
+      "id": "PAGE-011",
+      "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "LOG-007",
@@ -908,6 +962,25 @@
       "outcome": "not-observed"
     },
     {
+      "id": "RES-019",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "fail",
+      "findings": [
+        {
+          "check": "resources.missing-resource-code",
+          "seq": 1,
+          "party": "server",
+          "detail": "`resources/read` of null was refused with error -32002, the code earlier revisions used for a resource that does not exist; a missing resource must draw -32602"
+        }
+      ],
+      "source": {
+        "section": "server/resources#error-handling",
+        "quote": "If the requested resource does not exist, servers MUST return a JSON-RPC error with code `-32602` (Invalid Params).",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28/server/resources#error-handling"
+      }
+    },
+    {
       "id": "RES-022",
       "level": "MUST NOT",
       "actor": "server",
@@ -952,6 +1025,12 @@
     {
       "id": "PROM-018",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "PROM-019",
+      "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -1088,8 +1167,32 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-121",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-123",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-124",
       "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-126",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-127",
+      "level": "MUST NOT",
       "actor": "server",
       "outcome": "not-observed"
     },
@@ -1122,6 +1225,18 @@
       "level": "SHOULD",
       "actor": "server",
       "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-190",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-191",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     }
   ],
   "wire_schema": {
@@ -1135,7 +1250,7 @@
         "detail": "the client's message is not a valid ReadResourceRequest under the 2026-07-28 schema: /params: \"uri\" is a required property"
       }
     ],
-    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/3778656b2e0ba6725035e816fe3085374cbaa736/schema/2026-07-28/schema.json",
+    "schema": "https://github.com/modelcontextprotocol/modelcontextprotocol/blob/8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9/schema/2026-07-28/schema.json",
     "source": {
       "section": "basic/index#schema",
       "quote": "This is the source of truth for all protocol messages and structures.",

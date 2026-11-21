@@ -36,6 +36,32 @@ pub(super) fn party_pill(out: &mut String, finding: &Finding, view: Option<Party
         (None, Some(_)) => out.push_str("<span class=\"pill party none\">unattributed</span>"),
         (None, None) => {}
     }
+    // A finding a baseline accepts is marked in the page's own vocabulary, with
+    // the reason on hover and in the list beside the finding; it keeps its
+    // place, because it is still in the trace.
+    if let Some(acceptance) = &finding.baselined {
+        let _ = write!(
+            out,
+            "<span class=\"pill party none\" title=\"accepted by baseline: {}\">accepted</span>",
+            Text(&acceptance.reason)
+        );
+    }
+}
+
+/// The reason a baseline accepts a finding, as a line of the finding's item.
+fn acceptance_line(out: &mut String, finding: &Finding) {
+    if let Some(acceptance) = &finding.baselined {
+        let until = acceptance
+            .expires
+            .as_deref()
+            .map_or_else(String::new, |day| format!(" (through {day})"));
+        let _ = write!(
+            out,
+            "<span class=\"check\">accepted by baseline: {}{}</span>",
+            Text(&acceptance.reason),
+            Text(&until)
+        );
+    }
 }
 
 /// The anchor name of the wire schema's row, beside the requirement IDs.
@@ -57,10 +83,16 @@ pub(super) const fn token(outcome: Outcome) -> &'static str {
 /// Opens a section of the trace: its anchor and heading.
 pub(super) fn open_section(out: &mut String, scope: &Scope<'_>, name: &str, title: &str) {
     let id = scope.id(name);
+    // On a page of several traces every trace has this section, so its
+    // landmark is named for the trace as well.
+    let label = if scope.prefix.is_empty() {
+        format!("aria-labelledby=\"{id}-h\"")
+    } else {
+        format!("aria-label=\"{title}: {}\"", Text(&scope.name()))
+    };
     let _ = writeln!(
         out,
-        "<section class=\"section\" id=\"{id}\" aria-labelledby=\"{id}-h\">\n\
-         <h{level} id=\"{id}-h\">{title}</h{level}>",
+        "<section class=\"section\" id=\"{id}\" {label}>\n<h{level} id=\"{id}-h\">{title}</h{level}>",
         level = scope.level
     );
 }
@@ -83,6 +115,10 @@ pub(super) fn revision_heading(out: &mut String, scope: &Scope<'_>, report: &Rep
 /// Every failing, warning and unsupported clause, and a failed wire schema.
 pub(super) fn attention(out: &mut String, scope: &Scope<'_>) {
     open_section(out, scope, "findings", "Clauses to act on");
+    out.push_str(
+        "<p class=\"lede\">The rules this session broke or bent. Each card says what was seen \
+         first, then quotes the rule and links to where it is published.</p>\n",
+    );
     for report in scope.reports {
         let level = revision_heading(out, scope, report);
         let rows: Vec<&RequirementReport> = report
@@ -149,9 +185,7 @@ pub(super) fn clause(
         .map(|(class, text)| (class.as_str(), *text))
         .collect();
     card_head(out, &anchor, &row.id, &pills, level);
-    if let Some(source) = &row.source {
-        quote(out, source);
-    }
+    lead(out, row.outcome, row.findings.len());
     if !row.missing_checks.is_empty() {
         out.push_str(
             "<p class=\"missing\">This build does not implement the checks this clause names:",
@@ -162,7 +196,30 @@ pub(super) fn clause(
         out.push_str(".</p>\n");
     }
     findings(out, scope, &anchor, &row.findings, report.party_view);
+    if let Some(source) = &row.source {
+        quote(out, source);
+    }
     out.push_str("</article>\n");
+}
+
+/// A card's first line: what happened to the rule, in plain words, and how
+/// often.
+fn lead(out: &mut String, outcome: Outcome, findings: usize) {
+    let what = match outcome {
+        Outcome::Fail => "A required rule was broken",
+        Outcome::Warn => "A recommendation was not followed",
+        Outcome::Unsupported => "This rule could not be checked",
+        _ => "This rule needs a look",
+    };
+    let _ = write!(out, "<p class=\"clause-lead\">{what}");
+    match findings {
+        0 => {}
+        1 => out.push_str(", once"),
+        many => {
+            let _ = write!(out, ", {many} times");
+        }
+    }
+    out.push_str(".</p>\n");
 }
 
 fn wire_schema(
@@ -181,7 +238,6 @@ fn wire_schema(
         &[("o-fail", "fail"), ("level", "normative")],
         level,
     );
-    quote(out, &schema.source);
     let _ = write!(
         out,
         "<p class=\"schema\">{} of {} messages are invalid against the revision's vendored \
@@ -203,6 +259,7 @@ fn wire_schema(
         }
     }
     findings(out, scope, &anchor, &schema.findings, report.party_view);
+    quote(out, &schema.source);
     out.push_str("</article>\n");
 }
 
@@ -210,7 +267,7 @@ fn wire_schema(
 fn quote(out: &mut String, source: &ClauseSource) {
     let _ = write!(
         out,
-        "<blockquote class=\"quote\"><p>{}</p></blockquote>\n<p class=\"source\">\
+        "<p class=\"part\">The rule</p>\n<blockquote class=\"quote\"><p>{}</p></blockquote>\n<p class=\"source\">\
          <span class=\"section-path\">{}</span>",
         Text(&source.quote),
         Text(&source.section)
@@ -245,7 +302,7 @@ fn findings(
     if findings.is_empty() {
         return;
     }
-    out.push_str("<ol class=\"findings\">\n");
+    out.push_str("<p class=\"part\">What was seen</p>\n<ol class=\"findings\">\n");
     for (index, finding) in findings.iter().enumerate() {
         let _ = write!(out, "<li id=\"{anchor}-{}\">", index + 1);
         match finding.seq {
@@ -260,12 +317,14 @@ fn findings(
         }
         out.push_str("<span class=\"detail\">");
         party_pill(out, finding, view);
-        let _ = writeln!(
+        let _ = write!(
             out,
-            "{}</span><span class=\"check\">{}</span></li>",
+            "{}</span><span class=\"check\">{}</span>",
             Text(&finding.detail),
             Text(&finding.check)
         );
+        acceptance_line(out, finding);
+        out.push_str("</li>\n");
     }
     out.push_str("</ol>\n");
 }
@@ -308,8 +367,8 @@ const GROUPS: [Group; 4] = [
 pub(super) fn accounting(out: &mut String, scope: &Scope<'_>) {
     open_section(out, scope, "accounting", "Accounting");
     out.push_str(
-        "<p class=\"lede\">Every clause of the revision is counted above. These are the ones \
-         with nothing to act on, and why.</p>\n",
+        "<p class=\"lede\">Every rule of the revision is counted in the summary. These are the \
+         ones with nothing to act on, grouped by why. Open a group to see each rule.</p>\n",
     );
     for report in scope.reports {
         revision_heading(out, scope, report);
