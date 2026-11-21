@@ -329,7 +329,7 @@ container image, so the one-time owner setup in §npm and PyPI comes before the 
 | `reuse lint` (6.3.0) | compliant — 1,846 of 1,846 files with copyright and licence information |
 | `version-sync`, `changelog-links` (in `ci`) | green — README and `CITATION.cff` state `0.7.0`; eight version headings, `[Unreleased]` compares against `v0.7.0` |
 | `Cargo.lock` diff of the release commit | seven version lines: the five published crates, `mcp-conformance-cli` and `xtask` |
-| diff-scoped mutants, locally (`mutants.yml`'s command over the branch diff, 121 mutants) | **incomplete**: stopped at 93 tested when the disk filled. The 9 it had missed are closed, each kill proven by applying the mutant; the other 28 were not tested here. The release pull request's `Mutants (PR diff)` job is the complete run |
+| diff-scoped mutants, locally (`mutants.yml`'s command over the branch diff, 121 mutants) | **incomplete**: stopped at 93 tested when the disk filled. The 9 it had missed are closed, each kill proven by applying the mutant; the other 28 were not tested here. The release pull request's `Mutants (PR diff)` job is the complete run: all sixteen shards green on `33d51f1` (pull request 80, 2026-11-21) |
 
 Not done, and not claimed:
 

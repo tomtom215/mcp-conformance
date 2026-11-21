@@ -33,11 +33,13 @@ State on 2026-11-21, after the `0.7.0` release commit.
 3. **The README now describes the released state** (npm, PyPI, the container image, release
    archives of `mcp-conformance`). Those sentences become true when the Release run publishes,
    and not before.
-4. **Read the release pull request's `Mutants (PR diff)` job.** The local run of the same
-   command stopped at 93 of 121 mutants when the disk filled; its 9 survivors are closed, and
-   the other 28 were not tested locally.
-5. **Visual baselines**: the HTML report and the workbench were not changed on 2026-11-21, so
-   none is owed unless the `Visual` job says otherwise.
+4. **Pull request 80 is the release pull request, and it is green**: all 85 check runs on
+   `33d51f1` completed `success`, among them all sixteen `Mutants (PR diff)` shards (the
+   complete run of what stopped locally at 93 of 121 mutants) and `Visual`. The commit that
+   carries this line changes only this file and `RELEASING.md`.
+5. **Visual baselines** were re-taken on 2026-11-21 (`33d51f1`, from the pull request's own
+   run): 24 of 32 pages, each differing by the counts the metadata checks moved. One page was
+   inspected band by band; the others were accepted on unchanged page sizes.
 
 ## Landed on 2026-11-20
 
@@ -115,7 +117,8 @@ rows); a recorder that keeps stream identity and SSE fields (24 rows).
 - **`RES-019` is narrowed** (owner's decision, 2026-11-21): it fails only on `-32002`, the
   server's own statement that a resource does not exist. A refusal of a URI under an unlisted
   scheme with another code is no longer reported; `-32602` there is still a pass.
-- **The local mutation run was incomplete** (see "Do this first", item 4).
+- **The local mutation run was incomplete**; the pull request's run was complete and found
+  no survivor (see "Do this first", item 4).
 
 ## Release pass
 
