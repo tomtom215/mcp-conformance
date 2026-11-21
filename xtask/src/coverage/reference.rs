@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
+// REUSE-IgnoreStart (string literals below hold the headers this file writes
+// into other files; they are not statements about this one)
 
 //! The book's requirement reference: one generated page per built-in revision,
 //! listing every clause with its level, the party it binds, its verbatim quote,
@@ -263,3 +265,5 @@ mod tests {
         assert!(page.contains(&format!("**Excluded.** {excluded}")));
     }
 }
+
+// REUSE-IgnoreEnd

@@ -256,8 +256,7 @@ const UNCOMMENTABLE: [&str; 2] = ["json", "jsonl"];
 fn header_exempt(path: &str) -> bool {
     // The root licence, and the copies each published crate carries (which
     // `license-files` holds byte-identical to it).
-    path == "LICENSE"
-        || path.ends_with("/LICENSE")
+    is_licence_text(path)
         || path.ends_with("Cargo.lock")
         || path == "interop/requirements.txt"
         || path == "interop/go/go.sum"
@@ -268,7 +267,32 @@ fn header_exempt(path: &str) -> bool {
             .is_some_and(|ext| UNCOMMENTABLE.iter().any(|skip| ext == *skip))
 }
 
-/// Every tracked file that can carry a comment carries an SPDX identifier.
+/// `git ls-files` in `root`, or `None` (having said why) when it cannot be had.
+fn tracked_files(root: &std::path::Path) -> Option<String> {
+    let Ok(listing) = Command::new("git")
+        .args(["ls-files"])
+        .current_dir(root)
+        .output()
+    else {
+        eprintln!("xtask: spdx — cannot run git ls-files");
+        return None;
+    };
+    if !listing.status.success() {
+        eprintln!("xtask: spdx — git ls-files failed; is this a git checkout?");
+        return None;
+    }
+    Some(String::from_utf8_lossy(&listing.stdout).into_owned())
+}
+
+/// A licence's own text: the root `LICENSE`, the copies each published crate
+/// carries (which `license-files` holds byte-identical to it), and the texts
+/// under `LICENSES/` that `REUSE.toml` and the headers refer to.
+fn is_licence_text(path: &str) -> bool {
+    path == "LICENSE" || path.ends_with("/LICENSE") || path.starts_with("LICENSES/")
+}
+
+/// Every tracked file that can carry a comment carries an SPDX identifier,
+/// and every one that cannot is given its licence in `REUSE.toml`.
 ///
 /// This was a line on the pull-request checklist and nothing else — a claim a
 /// human ticked. It happened to be true (at 2026-08-24, 281 of 281 eligible
@@ -282,28 +306,30 @@ fn header_exempt(path: &str) -> bool {
 /// file cannot pass it by being untracked.
 pub(crate) fn spdx_gate() -> bool {
     let root = crate::workspace_root();
-    let Ok(listing) = Command::new("git")
-        .args(["ls-files"])
-        .current_dir(&root)
-        .output()
-    else {
-        eprintln!("xtask: spdx — cannot run git ls-files");
+    let Some(listing) = tracked_files(&root) else {
         return false;
     };
-    if !listing.status.success() {
-        eprintln!("xtask: spdx — git ls-files failed; is this a git checkout?");
-        return false;
-    }
-
+    let named = std::fs::read_to_string(root.join("REUSE.toml"))
+        .map(|text| crate::reuse::patterns(&text))
+        .unwrap_or_default();
     let mut checked = 0_usize;
+    let mut stated = 0_usize;
     let mut missing = Vec::new();
-    for path in String::from_utf8_lossy(&listing.stdout).lines() {
-        if path.is_empty() || header_exempt(path) {
+    for path in listing.lines() {
+        if path.is_empty() || is_licence_text(path) {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(root.join(path)) else {
-            // Unreadable or not UTF-8: nothing to find a header in, and the
-            // file-size gate reports the same class of file the same way.
+        // Not UTF-8 (an image): nothing to find a header in.
+        let text = std::fs::read_to_string(root.join(path)).ok();
+        let Some(text) = text.filter(|_| !header_exempt(path)) else {
+            // No header to carry: `REUSE.toml` states the licence instead.
+            if crate::reuse::covers(&named, path) {
+                stated += 1;
+            } else {
+                missing.push(format!(
+                    "{path} (no header possible: name it in REUSE.toml)"
+                ));
+            }
             continue;
         };
         checked += 1;
@@ -324,13 +350,15 @@ pub(crate) fn spdx_gate() -> bool {
     }
     if missing.is_empty() {
         eprintln!(
-            "xtask: spdx — all {checked} comment-carrying tracked file(s) have a licence header"
+            "xtask: spdx — all {checked} comment-carrying tracked file(s) have a licence header, \
+             and REUSE.toml states the licence of the {stated} that cannot carry one"
         );
         return true;
     }
     eprintln!(
-        "xtask: spdx — {} tracked file(s) have no `SPDX-License-Identifier` in their first three \
-         lines; add the two-line header the PR template shows:",
+        "xtask: spdx — {} tracked file(s) state no licence: add the two-line header the PR \
+         template shows within the first three lines, or, for a file that cannot carry a \
+         comment, name it in REUSE.toml:",
         missing.len()
     );
     for path in &missing {

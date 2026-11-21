@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
+// REUSE-IgnoreStart (string literals below hold the headers this file writes
+// into other files; they are not statements about this one)
 
 //! `cargo xtask falsify-gates`: every gate shown able to go red.
 //!
@@ -460,3 +462,5 @@ mod tests {
         }
     }
 }
+
+// REUSE-IgnoreEnd
