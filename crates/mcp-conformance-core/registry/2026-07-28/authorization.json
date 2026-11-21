@@ -77,7 +77,9 @@
         "section": "basic/authorization/index#overview",
         "quote": "MCP servers MUST implement OAuth 2.0 Protected Resource Metadata (RFC9728)."
       },
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "checks": [
+        "auth.resource-metadata-served"
+      ]
     },
     {
       "id": "AUTH-092",
@@ -90,7 +92,7 @@
         "section": "basic/authorization/index#overview",
         "quote": "MCP clients MUST use OAuth 2.0 Protected Resource Metadata for authorization server discovery."
       },
-      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A fetch that does pass through is recorded with its path when that is under `/.well-known/`, but its absence from a recording does not show that the client made none."
     },
     {
       "id": "AUTH-093",

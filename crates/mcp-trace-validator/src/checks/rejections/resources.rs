@@ -132,24 +132,24 @@ pub(in crate::checks) fn not_found_code(context: &TraceContext<'_>, sink: &mut F
 /// `RES-019` (`2026-07-28`): "If the requested resource does not exist,
 /// servers MUST return a JSON-RPC error with code `-32602`".
 ///
-/// **Stimuli**, either of which a trace may carry:
+/// **Violation (fail):** a `resources/read` answered `-32002`. That code
+/// means one thing — it is the "resource not found" of earlier revisions,
+/// which this page still asks clients to accept as such — so the answer is
+/// the server's own statement that the resource does not exist, in the wrong
+/// code. It is the only witness of a violation a recording holds.
 ///
-/// 1. A `resources/read` answered `-32002`. That code means one thing — it is
-///    the "resource not found" of earlier revisions, which this page still asks
-///    clients to accept as such — so the answer is the server's own statement
-///    that the resource does not exist, in the wrong code.
-/// 2. A `resources/read` of a URI under a scheme the session's complete
-///    listings name nowhere (see the module), answered with an error.
+/// **Conforming answer (pass):** `-32602` to a `resources/read` of a URI
+/// under a scheme the session's complete listings name nowhere (see the
+/// module): the server refused a resource it does not have with the code the
+/// clause names.
 ///
-/// **Conforming answer:** `-32602`, which at this revision covers a URI the
-/// server calls invalid as well as one it calls missing.
-///
-/// **Not judged:** any result (the server's word that the resource exists),
-/// and `-32603`, which the next sentence of the page assigns to internal
-/// errors.
-///
-/// **Reported:** `-32002` wherever it appears, and any other code for the
-/// second stimulus.
+/// **Not judged:** any result (the server's word that the resource exists);
+/// `-32603`, which the next sentence of the page assigns to internal errors;
+/// and any other code for a URI under an unlisted scheme. That a refusal of
+/// such a URI means "does not exist" is this tool's inference, not the
+/// server's statement — it may be refusing access, or the request's shape —
+/// and a MUST is not failed on an inference (narrowed 2026-11-21; such an
+/// answer was reported before).
 pub(in crate::checks) fn missing_resource_code(context: &TraceContext<'_>, sink: &mut FindingSink) {
     let refused: BTreeSet<u64> = refused_unlisted(context)
         .into_iter()
@@ -158,27 +158,24 @@ pub(in crate::checks) fn missing_resource_code(context: &TraceContext<'_>, sink:
     for exchange in context.exchanges_for("resources/read") {
         let answer = Answer::of(&exchange);
         let withdrawn = answer.is_error(RESOURCE_NOT_FOUND);
-        if !withdrawn && !refused.contains(&exchange.response.seq) {
+        let conforming =
+            answer.is_error(INVALID_PARAMS) && refused.contains(&exchange.response.seq);
+        if !withdrawn && !conforming {
             continue;
         }
         sink.examined();
-        if answer.is_error(INVALID_PARAMS) {
+        if !withdrawn {
             continue;
         }
         let uri = exchange
             .params
             .and_then(|params| params.get("uri"))
             .map_or_else(|| "null".to_owned(), ToString::to_string);
-        let reason = if withdrawn {
-            "the code earlier revisions used for a resource that does not exist"
-        } else {
-            "though the session's complete listings name nothing under that scheme"
-        };
         sink.push(
             Some(exchange.response.seq),
             format!(
-                "`resources/read` of {uri} was refused with {}, {reason}; a missing \
-                 resource must draw -32602",
+                "`resources/read` of {uri} was refused with {}, the code earlier revisions \
+                 used for a resource that does not exist; a missing resource must draw -32602",
                 answer.describe()
             ),
         );

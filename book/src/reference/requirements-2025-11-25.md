@@ -4,7 +4,7 @@
 
 # Requirements — `2025-11-25`
 
-Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 120 judged from a recorded trace and 228 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
+Every normative clause of the `2025-11-25` specification that the validator's registry carries — 348 in all, 123 judged from a recorded trace and 225 excluded with the reason below. A report names a clause by the ID used as each heading here; each entry quotes the specification verbatim and links to the published text. `mcp-trace-validator requirements --revision 2025-11-25 --format json` prints the same data as JSON.
 
 ## BASE
 
@@ -2726,7 +2726,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#overview`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#overview)
 
-**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+Judged by `auth.resource-metadata-served`.
 
 ### AUTH-007
 
@@ -2736,7 +2736,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#overview`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#overview)
 
-**Excluded.** Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+**Excluded.** Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A fetch that does pass through is recorded with its path when that is under `/.well-known/`, but its absence from a recording does not show that the client made none.
 
 ### AUTH-008
 
@@ -2766,7 +2766,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#authorization-server-location`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#authorization-server-location)
 
-**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+Judged by `auth.resource-metadata-served`.
 
 ### AUTH-011
 
@@ -2776,7 +2776,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#authorization-server-location`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#authorization-server-location)
 
-**Excluded.** The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+Judged by `auth.resource-metadata-names-servers`.
 
 ### AUTH-012
 
@@ -2786,7 +2786,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#protected-resource-metadata-discovery-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#protected-resource-metadata-discovery-requirements)
 
-**Excluded.** A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+**Excluded.** A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead. Where that document would be is built from the MCP endpoint's own path, which a recording never holds, so a recorded `404` at one well-known path does not show that the document is at none.
 
 ### AUTH-013
 
@@ -2796,7 +2796,7 @@ Judged by `roots.capability-checked`.
 
 [`basic/authorization#protected-resource-metadata-discovery-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#protected-resource-metadata-discovery-requirements)
 
-**Excluded.** Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other.
+**Excluded.** Which URLs the client requested next, and in what order, are fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A recorder keeps the path of a fetch that does pass through when it is under `/.well-known/`, but saying which well-known URI comes first needs the endpoint's own path, which is never recorded.
 
 ### AUTH-014
 
@@ -3026,7 +3026,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization#canonical-server-uri`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#canonical-server-uri)
 
-**Excluded.** The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there.
+**Excluded.** The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records a request path only under `/.well-known/`, so not even the endpoint URL the client used is there.
 
 ### AUTH-037
 
@@ -3076,7 +3076,7 @@ Judged by `auth.challenge-scope`.
 
 [`basic/authorization#token-requirements`](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#token-requirements)
 
-**Excluded.** An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs.
+**Excluded.** An `http` event records the method, status and allowlisted headers, a path only when it is under `/.well-known/`, and never a query string: the query a request was sent with is not in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs.
 
 ### AUTH-042
 

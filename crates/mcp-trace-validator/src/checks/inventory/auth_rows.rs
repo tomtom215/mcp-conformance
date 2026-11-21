@@ -39,4 +39,12 @@ pub(super) const ROWS: &[Check] = &[
         "auth.invalid-token-challenged",
         auth::invalid_token_challenged
     ),
+    check!(
+        "auth.resource-metadata-served",
+        auth::resource_metadata_served
+    ),
+    check!(
+        "auth.resource-metadata-names-servers",
+        auth::resource_metadata_names_servers
+    ),
 ];

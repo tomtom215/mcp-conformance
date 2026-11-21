@@ -5,10 +5,10 @@
     "pass": 49,
     "fail": 0,
     "warn": 1,
-    "excluded": 303,
+    "excluded": 300,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 148
+    "not_observed": 151
   },
   "requirements": [
     {
@@ -1122,6 +1122,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-097",
       "level": "SHOULD",
       "actor": "server",
@@ -1199,6 +1205,18 @@
         "quote": "Whatever scope-inclusion strategy a server adopts, servers SHOULD include all scopes required for the current operation in a single challenge.",
         "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#runtime-insufficient-scope-errors"
       }
+    },
+    {
+      "id": "AUTH-141",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-142",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
     },
     {
       "id": "AUTH-190",

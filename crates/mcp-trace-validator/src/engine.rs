@@ -114,7 +114,11 @@ impl core::fmt::Display for SeqOrderError {
 impl core::error::Error for SeqOrderError {}
 
 fn validate_ordered(registry: &Registry, events: &[TraceEvent]) -> Report {
-    let context = TraceContext::new(events);
+    // A fetch of a well-known document is not MCP traffic: it is judged as
+    // what it is, and the session is judged without it.
+    let (events, fetches) = crate::fetches::split(events);
+    let events = &*events;
+    let context = TraceContext::new(events).with_fetches(fetches);
     let mut totals = Totals::default();
     let mut rows = Vec::with_capacity(registry.requirements().len());
 

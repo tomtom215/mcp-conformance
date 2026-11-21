@@ -6,7 +6,7 @@
 
 # A second opinion: mcpsnoop
 
-[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 401 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
+[`mcpsnoop`](https://github.com/kerlenton/mcpsnoop) is the one other tool that judges a recorded MCP session offline: `mcpsnoop check` reads a capture and fails on a fixed set of rules. The official suite calibrates this project against live scenarios; mcpsnoop calibrates it against a reader of recordings, which is what this project is. This page is that comparison over all 407 corpus traces, with every disagreement triaged: which tool is right, by which clause, and what was done about it.
 
 ## How the comparison is made
 
@@ -25,29 +25,29 @@ The binary inside, `package/bin/mcpsnoop`, has SHA-256 `b291a4e7795c9d12860b42d3
 
 | Corpus directory | Traces |
 |---|---:|
-| `corpus/good/` | 21 |
-| `corpus/violations/` | 123 |
-| `corpus/draft/good/` | 35 |
-| `corpus/draft/violations/` | 213 |
+| `corpus/good/` | 22 |
+| `corpus/violations/` | 125 |
+| `corpus/draft/good/` | 36 |
+| `corpus/draft/violations/` | 215 |
 | `corpus/draft/captured/` | 9 |
 
 Verdicts, ours against mcpsnoop's conformance signals:
 
 | | mcpsnoop flags the trace | mcpsnoop does not |
 |---|---:|---:|
-| our verdict `fail` | 92 | 152 |
-| our verdict `pass` or `pass-with-warnings` | 5 | 152 |
+| our verdict `fail` | 92 | 156 |
+| our verdict `pass` or `pass-with-warnings` | 5 | 154 |
 
 Traces by how the two readings relate:
 
 | Relation | Traces |
 |---|---:|
-| both clean | 58 |
+| both clean | 60 |
 | agree | 92 |
-| beyond mcpsnoop | 242 |
+| beyond mcpsnoop | 246 |
 | **divergent** | 9 |
 
-mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 299 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
+mcpsnoop flagging less than we do is mostly scope, not disagreement: its rules cover a part of the registry, and the traces it passes while we fail are the *beyond mcpsnoop* row. Across the corpus we flag 305 distinct clauses (counted per revision) that no mcpsnoop rule maps fully. Findings were set aside for reading HTTP context the conversion could not supply on 7 traces.
 
 ## Divergences
 
@@ -236,6 +236,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `good/http-notification-refused-400` | 2025-11-25 | pass | — | flags | `response-unmatched` | — | **divergent** |
 | `good/http-origin-alone-refused-403` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-origin-refused-without-id` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `good/http-resource-metadata-served` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-session` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/http-terminated-session-404` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-cancellation` | 2025-11-25 | pass | — | silent | — | — | both clean |
@@ -251,6 +252,8 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `good/stdio-server-negotiates-2024-11-05` | 2025-11-25 | pass | — | silent | — | — | both clean |
 | `good/stdio-task-progress` | 2025-11-25 | pass | — | flags | `progress-after-completion` | — | **divergent** |
 | `good/stdio-tool-image-base64-padding` | 2025-11-25 | pass | — | silent | — | — | both clean |
+| `violations/auth-006-resource-metadata-not-served` | 2025-11-25 | fail | `AUTH-006`, `AUTH-010` | silent | — | — | beyond mcpsnoop |
+| `violations/auth-011-resource-metadata-names-no-server` | 2025-11-25 | fail | `AUTH-011` | silent | — | — | beyond mcpsnoop |
 | `violations/auth-014-challenge-without-scope` | 2025-11-25 | pass-with-warnings | `AUTH-014` | silent | — | — | beyond mcpsnoop |
 | `violations/auth-042-invalid-token-accepted` | 2025-11-25 | fail | `AUTH-042`, `AUTH-047`, `AUTH-048`, `AUTH-081`, `AUTH-082` | silent | — | — | beyond mcpsnoop |
 | `violations/auth-044-invalid-token-refused-without-challenge` | 2025-11-25 | fail | `AUTH-044` | silent | — | — | beyond mcpsnoop |
@@ -386,6 +389,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/http-notification-refused-400` | 2026-07-28 | pass | — | flags | `response-unmatched` | — | **divergent** |
 | `draft/good/http-origin-alone-refused-403` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-origin-refused-without-id` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/good/http-resource-metadata-served` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-stream-closed-by-client` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-upstream-abort` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/http-x-mcp-header-omitted` | 2026-07-28 | pass | — | silent | — | — | both clean |
@@ -409,6 +413,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/good/tasks-http` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/tasks-session` | 2026-07-28 | pass | — | silent | — | — | both clean |
 | `draft/good/traceparent-higher-version` | 2026-07-28 | pass | — | silent | — | — | both clean |
+| `draft/violations/auth-091-resource-metadata-not-served` | 2026-07-28 | fail | `AUTH-091`, `AUTH-141` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-097-challenge-without-scope` | 2026-07-28 | pass-with-warnings | `AUTH-097` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-121-invalid-token-accepted` | 2026-07-28 | fail | `AUTH-121`, `AUTH-126`, `AUTH-127`, `AUTH-190`, `AUTH-191` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-123-invalid-token-refused-without-challenge` | 2026-07-28 | fail | `AUTH-123` | silent | — | — | beyond mcpsnoop |
@@ -418,6 +423,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/auth-131-insufficient-scope-without-resource-metadata` | 2026-07-28 | pass-with-warnings | `AUTH-131` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-132-insufficient-scope-names-no-scope` | 2026-07-28 | pass-with-warnings | `AUTH-131`, `AUTH-132` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/auth-133-scope-challenged-incrementally` | 2026-07-28 | pass-with-warnings | `AUTH-133` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/auth-142-resource-metadata-names-no-server` | 2026-07-28 | fail | `AUTH-142` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/base-030-legacy-initialize-negotiated-2026-07-28` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `DISC-002`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `TRAN-128` | silent | — | — | **divergent** |
 | `draft/violations/base-030-malformed-request-id-reused-correctly` | 2026-07-28 | fail | `BASE-030`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `request-meta-missing` | — | agree |
 | `draft/violations/base-030-malformed-request-refused-without-id` | 2026-07-28 | fail | `BASE-030`, `BASE-052`, `COMP-006`, `MRTR-002`, `PAGE-006`, `PROM-011`, `RES-011`, `TOOL-016`, `wire-schema` | flags | `error-without-request-id`, `request-meta-missing` | — | agree |
@@ -489,7 +495,7 @@ Each mcpsnoop rule, the message template that identifies it (`*` is any run), an
 | `draft/violations/prom-019-missing-argument-wrong-code` | 2026-07-28 | pass-with-warnings | `PROM-019` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-012-resources-undeclared` | 2026-07-28 | fail | `RES-012` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-013-declared-resources-list-unimplemented` | 2026-07-28 | fail | `RES-013` | silent | — | — | beyond mcpsnoop |
-| `draft/violations/res-019-missing-resource-wrong-code` | 2026-07-28 | fail | `RES-019` | silent | — | — | beyond mcpsnoop |
+| `draft/violations/res-019-missing-resource-wrong-code` | 2026-07-28 | fail | `BASE-058`, `BASE-083`, `RES-019` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/res-022-read-empty-contents` | 2026-07-28 | fail | `RES-022` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/root-013-answered-without-capability` | 2026-07-28 | fail | `ROOT-013` | silent | — | — | beyond mcpsnoop |
 | `draft/violations/root-014-root-not-file-uri` | 2026-07-28 | fail | `ROOT-014` | silent | — | — | beyond mcpsnoop |

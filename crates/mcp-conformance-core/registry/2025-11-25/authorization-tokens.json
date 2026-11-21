@@ -64,7 +64,7 @@
         "section": "basic/authorization#canonical-server-uri",
         "quote": "While both `https://mcp.example.com/` (with trailing slash) and `https://mcp.example.com` (without trailing slash) are technically valid absolute URIs according to RFC 3986, implementations SHOULD consistently use the form without the trailing slash for better interoperability unless the trailing slash is semantically significant for the specific resource."
       },
-      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there."
+      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records a request path only under `/.well-known/`, so not even the endpoint URL the client used is there."
     },
     {
       "id": "AUTH-037",
@@ -129,7 +129,7 @@
         "section": "basic/authorization#token-requirements",
         "quote": "Access tokens MUST NOT be included in the URI query string"
       },
-      "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
+      "exclusion": "An `http` event records the method, status and allowlisted headers, a path only when it is under `/.well-known/`, and never a query string: the query a request was sent with is not in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
     },
     {
       "id": "AUTH-042",

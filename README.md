@@ -105,7 +105,7 @@ MCP trace validation — revision 2025-11-25 (declared by the trace)
         spec: "This is the source of truth for all protocol messages and structures."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#schema
         schema: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/8a18b4b3292b9f9b3aee73f6325f9f62f19a89f9/schema/2025-11-25/schema.json
-totals: 43 pass, 0 fail, 1 warn, 228 excluded, 0 unsupported, 0 not applicable, 76 not observed
+totals: 43 pass, 0 fail, 1 warn, 225 excluded, 0 unsupported, 0 not applicable, 79 not observed
 wire schema: fail (1 of 47 messages invalid)
 verdict (server findings only): pass-with-warnings — 1 client finding set aside
 mcp-conformance check: result: the server broke no rule this run could judge (warnings, if any are listed, are the specification's recommendations)
@@ -338,7 +338,7 @@ MCP trace validation — revision 2026-07-28 (declared by the trace)
   NOTE  1 request had no response when the trace ended (the recording simply stopped).
         JSON-RPC expects every request answered; no clause of this revision judges it, so the verdict is unchanged.
         client "tools/call" id 1 at seq 2
-totals: 46 pass, 2 fail, 0 warn, 303 excluded, 0 unsupported, 0 not applicable, 150 not observed
+totals: 46 pass, 2 fail, 0 warn, 300 excluded, 0 unsupported, 0 not applicable, 153 not observed
 wire schema: pass (3 messages valid)
 verdict: fail
 ```
@@ -425,10 +425,10 @@ in CI:
 | ELIC | 46 | 7 | 39 | 0 |
 | SAMP | 23 | 10 | 13 | 0 |
 | ROOT | 9 | 3 | 6 | 0 |
-| AUTH | 109 | 13 | 96 | 0 |
-| **Total** | **501** | **198** | **303** | **0** |
+| AUTH | 109 | 16 | 93 | 0 |
+| **Total** | **501** | **201** | **300** | **0** |
 
-501 requirements: 198 judged by 155 distinct trace checks, 303 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+501 requirements: 201 judged by 157 distinct trace checks, 300 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 **Extensions attached to `2026-07-28` — reported beside the verdict, never scored ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md))**
 
@@ -459,10 +459,10 @@ in CI:
 | ELIC | 53 | 12 | 41 | 0 |
 | SAMP | 20 | 10 | 10 | 0 |
 | ROOT | 10 | 5 | 5 | 0 |
-| AUTH | 85 | 11 | 74 | 0 |
-| **Total** | **348** | **120** | **228** | **33** |
+| AUTH | 85 | 14 | 71 | 0 |
+| **Total** | **348** | **123** | **225** | **33** |
 
-348 requirements: 120 judged by 110 distinct trace checks, 228 carrying a documented exclusion that explains why a recorded trace cannot judge them.
+348 requirements: 123 judged by 112 distinct trace checks, 225 carrying a documented exclusion that explains why a recorded trace cannot judge them.
 
 Every check is falsified by a committed violation trace and examines a real subject on at least one conforming one. A requirement is reported *pass* only where the session carried something it binds to: a capability-gated clause the session never negotiated reports *not-applicable*, and a clause whose subject matter never appeared reports *not-observed*. Neither is a vacuous pass.
 <!-- coverage:end -->
@@ -535,7 +535,7 @@ event:
         [client] seq 3: request "tools/list" reuses id 1, already used by the same party at seq 0
         spec: "The request ID MUST NOT have been previously used by the requestor within the same session."
         see:  https://modelcontextprotocol.io/specification/2025-11-25/basic#requests
-totals: 18 pass, 1 fail, 0 warn, 228 excluded, 0 unsupported, 10 not applicable, 91 not observed
+totals: 18 pass, 1 fail, 0 warn, 225 excluded, 0 unsupported, 10 not applicable, 94 not observed
 wire schema: pass (4 messages valid)
 verdict: fail
 ```
@@ -574,7 +574,7 @@ runs the official suite and this reading together.
 | [`mcp-trace-validator`](https://crates.io/crates/mcp-trace-validator) | **The judge**, as a library and a CLI: a pure function from trace events to a report. Every check is falsified by at least one committed violation trace in [`corpus/`](corpus). |
 | [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture) | **The recorder**: a stdio wrapper and an HTTP reverse proxy (SSE and `https://` included) that forward bytes unchanged and write the trace. |
 | [`mcp-conformance-core`](https://crates.io/crates/mcp-conformance-core) | **The specification as data**: one registry entry per normative clause, with its verbatim quote, RFC 2119 level and either a check or the written reason no recording can judge it. Serde only. |
-| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk): passes every server scenario the pinned official suite lists for `2025-11-25` (**47/47 checks** in 32 scenarios) and scores **42 passing / 0 failing** on the suite's pre-release `2026-07-28` scenarios; the nine committed captures at that revision evidence **149 of the 198 judgeable clauses** between them. |
+| [`mcp-everything-server`](https://crates.io/crates/mcp-everything-server) | **The calibration subject**, on [rmcp](https://github.com/modelcontextprotocol/rust-sdk): passes every server scenario the pinned official suite lists for `2025-11-25` (**47/47 checks** in 32 scenarios) and scores **42 passing / 0 failing** on the suite's pre-release `2026-07-28` scenarios; the nine committed captures at that revision evidence **149 of the 201 judgeable clauses** between them. |
 | [`mcp-reference-host`](https://crates.io/crates/mcp-reference-host) | **The reference client**, on rmcp: passes the official suite's four `2025-11-25` client scenarios and, with its `oauth` feature, 19 of the 20 `auth/*` client scenarios the gate runs; scriptable sampling, elicitation and roots. |
 
 **Calibration.** On every CI run the official suite (pinned `0.1.16`, `2025-11-25`)

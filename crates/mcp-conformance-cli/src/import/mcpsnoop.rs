@@ -206,6 +206,8 @@ fn http_event(
     headers: BTreeMap<String, String>,
 ) -> EventBody {
     EventBody::Http {
+        path: None,
+        document: None,
         method: method.map(ToOwned::to_owned),
         status,
         headers,

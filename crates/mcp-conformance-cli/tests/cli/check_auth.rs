@@ -37,7 +37,7 @@ pub(crate) fn response(status: &str, challenge: Option<&str>, body: &str) -> Str
 }
 
 /// What a legacy server with nothing to offer answers `body` with.
-fn served(body: &str) -> String {
+pub(crate) fn served(body: &str) -> String {
     let message: Value = serde_json::from_str(body).unwrap_or(Value::Null);
     let id = message.get("id").cloned();
     let answer = match (message.get("method").and_then(Value::as_str), id) {
@@ -133,7 +133,7 @@ pub(crate) fn check(address: SocketAddr, name: &str, flags: &[&str]) -> (Output,
 }
 
 /// The outcome of the first of `ids` the report of `trace` has a row for.
-fn outcome(trace: &Path, ids: &[&str]) -> Option<String> {
+pub(crate) fn outcome(trace: &Path, ids: &[&str]) -> Option<String> {
     let report = binary()
         .args(["validate", "--party", "server", "--format", "json"])
         .arg(trace)
@@ -167,6 +167,11 @@ const KNOCKS: [&str; 2] = [
     "the same request with a token nobody issued — refused with HTTP 401",
 ];
 
+/// This stand-in's challenge names a URL on another origin (no port), which
+/// a run does not fetch.
+const NOT_FETCHED: &str = "the Protected Resource Metadata the challenge names — not fetched: \
+                           it is on another origin than the URL given";
+
 #[test]
 fn a_server_that_wants_a_credential_is_knocked_on_and_how_it_refuses_is_judged() {
     let address = guarded(false);
@@ -180,7 +185,11 @@ fn a_server_that_wants_a_credential_is_knocked_on_and_how_it_refuses_is_judged()
         "{said}"
     );
     assert!(!said.contains("no session was established:"), "{said}");
-    assert_eq!(probes(&summary), KNOCKS, "{summary}");
+    assert_eq!(
+        probes(&summary),
+        [KNOCKS[0], NOT_FETCHED, KNOCKS[1]],
+        "{summary}"
+    );
     // Each knock is a request sent, and is counted as one.
     assert_eq!(summary["requests"], 4, "{summary}");
     // The probe credential is in the recording, whole, exactly once.

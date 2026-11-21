@@ -13,7 +13,9 @@ use axum::extract::Request;
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse as _, Response};
 use futures::{Stream, TryStreamExt as _};
-use mcp_conformance_core::trace::{Direction, EventBody, LifecycleEvent, TransportKind};
+use mcp_conformance_core::trace::{
+    Direction, EventBody, LifecycleEvent, TransportKind, records_path,
+};
 
 use super::Proxy;
 use super::body::{self, End, Held, cut_at_stop, idle_bounded, is_stall, read_prefix, then_rest};
@@ -24,8 +26,10 @@ use crate::recorder::{NotRecorded, Recorder};
 use crate::traces::Route;
 
 /// The `http` event that records an upstream response's status and headers.
-fn status_event(response: &axum::http::response::Parts) -> EventBody {
+fn status_event(response: &axum::http::response::Parts, path: Option<String>) -> EventBody {
     EventBody::Http {
+        path,
+        document: None,
         method: None,
         status: Some(response.status.as_u16()),
         headers: headers::recorded(&response.headers),
@@ -42,6 +46,26 @@ fn is_json_rpc(message: &EventBody) -> bool {
         EventBody::Message { payload }
             if payload.get("jsonrpc").and_then(serde_json::Value::as_str) == Some("2.0")
     )
+}
+
+/// Whether the `Host` the upstream will judge is the client's, and names a
+/// host other than the upstream's: what a `403` can then be the upstream's
+/// `Host`/`Origin` check refusing, which the summary says how to get past.
+fn judged_on_a_foreign_host(proxy: &Proxy, parts: &axum::http::request::Parts) -> bool {
+    proxy.options.preserve_host
+        && is_foreign_host(
+            parts
+                .headers
+                .get(header::HOST)
+                .and_then(|host| host.to_str().ok())
+                .or_else(|| {
+                    parts
+                        .uri
+                        .authority()
+                        .map(axum::http::uri::Authority::as_str)
+                }),
+            &proxy.options.upstream,
+        )
 }
 
 /// Records `request`, forwards it upstream, and records and relays the
@@ -67,24 +91,12 @@ pub(super) async fn forward(
         .then(|| parts.headers.get("mcp-session-id")?.to_str().ok())
         .flatten()
         .map(str::to_owned);
-    // Whether the `Host` the upstream will judge is the client's, and names a
-    // host other than the upstream's: what a `403` can then be the upstream's
-    // `Host`/`Origin` check refusing, which the summary says how to get past.
-    let foreign_host = proxy.options.preserve_host
-        && is_foreign_host(
-            parts
-                .headers
-                .get(header::HOST)
-                .and_then(|host| host.to_str().ok())
-                .or_else(|| {
-                    parts
-                        .uri
-                        .authority()
-                        .map(axum::http::uri::Authority::as_str)
-                }),
-            &proxy.options.upstream,
-        );
-    let (route, upstream_body) = proxy.record_request(&parts, body).await;
+    let foreign_host = judged_on_a_foreign_host(&proxy, &parts);
+    let uri = target(&proxy.options.upstream, parts.uri.path_and_query());
+    // The path the server is asked for, kept only where public metadata
+    // lives; the MCP endpoint's own is never recorded.
+    let well_known = records_path(uri.path()).then(|| uri.path().to_owned());
+    let (route, upstream_body) = proxy.record_request(&parts, body, well_known.clone()).await;
     let upstream_body = match upstream_body {
         Ok(body) => body,
         // The client went away mid-body; there is nothing left to answer.
@@ -93,7 +105,7 @@ pub(super) async fn forward(
     };
     let mut upstream_request = axum::http::Request::new(upstream_body);
     *upstream_request.method_mut() = parts.method;
-    *upstream_request.uri_mut() = target(&proxy.options.upstream, parts.uri.path_and_query());
+    *upstream_request.uri_mut() = uri.clone();
     // `Expect: 100-continue` was the proxy's to answer, and it has: hyper sent
     // the `100 Continue` when the body was read. `Content-Length` stays: it
     // frames a body read whole (which has exactly that length) and one
@@ -104,7 +116,6 @@ pub(super) async fn forward(
         &[header::HOST, header::ACCEPT_ENCODING, header::EXPECT]
     };
     *upstream_request.headers_mut() = headers::forwardable(&parts.headers, dropped);
-    let uri = upstream_request.uri().clone();
     // Not the client's `Host`: any client can send any name there, and a
     // redirect would then send the next client to it.
     let host = local.map(|local| local.to_string());
@@ -114,13 +125,65 @@ pub(super) async fn forward(
                 proxy.traces.end(&id);
             }
             proxy
-                .relay_response(upstream, route, host.as_deref(), standalone, foreign_host)
+                .relay_response(
+                    upstream,
+                    route,
+                    host.as_deref(),
+                    Exchange {
+                        standalone,
+                        foreign_host,
+                        well_known,
+                    },
+                )
                 .await
         }
         // A body streamed past the message limit stalled while hyper was
         // sending it: the client's doing, not the upstream's.
         Err(error) if is_stall(&error) => proxy.body_stalled(route.recorder()),
         Err(error) => proxy.upstream_failed(route.recorder(), &uri, &error),
+    }
+}
+
+/// What the request side of an exchange settles about its response.
+struct Exchange {
+    /// The answer to a GET: an event stream on it is the standalone stream.
+    standalone: bool,
+    /// The `Host` the upstream judged was the client's, naming another host.
+    foreign_host: bool,
+    /// The well-known path that was asked for, when one was.
+    well_known: Option<String>,
+}
+
+/// What to record for an answer read whole: its `http` event and the message
+/// its body parsed to. A well-known URI's answer (`fetched`) is a document,
+/// not a message: it rides the `http` event, where nothing reads it as MCP.
+fn whole_answer(
+    http: EventBody,
+    message: Option<EventBody>,
+    fetched: bool,
+) -> (EventBody, Option<EventBody>) {
+    match (http, message) {
+        (
+            EventBody::Http {
+                method,
+                status,
+                headers,
+                path,
+                ..
+            },
+            Some(EventBody::Message { payload }),
+        ) if fetched => (
+            EventBody::Http {
+                method,
+                status,
+                headers,
+                path,
+                document: Some(payload),
+            },
+            None,
+        ),
+        (http, _) if fetched => (http, None),
+        (http, message) => (http, message),
     }
 }
 
@@ -146,11 +209,14 @@ impl Proxy {
         &self,
         parts: &axum::http::request::Parts,
         body: Body,
+        well_known: Option<String>,
     ) -> (Route, Result<Body, Cut>) {
         // Metadata events cannot be refused for length (the line limit is at least
         // 1 MiB, and HTTP header blocks are bounded far below it), and a sink
         // failure is reported once, by `Recorder::finish`.
         let http = EventBody::Http {
+            path: well_known,
+            document: None,
             method: Some(parts.method.as_str().to_owned()),
             status: None,
             headers: headers::recorded(&parts.headers),
@@ -211,8 +277,7 @@ impl Proxy {
         upstream: axum::http::Response<hyper::body::Incoming>,
         route: Route,
         host: Option<&str>,
-        standalone: bool,
-        foreign_host: bool,
+        exchange: Exchange,
     ) -> Response {
         let (parts, incoming) = upstream.into_parts();
         self.count_status(parts.status);
@@ -225,13 +290,14 @@ impl Proxy {
             parts.status.is_success(),
         );
         let recorder = route.recorder();
-        let http = status_event(&parts);
+        let fetched = exchange.well_known.is_some();
+        let http = status_event(&parts, exchange.well_known);
         let mut stream = Body::new(incoming).into_data_stream();
         let mut spoke_mcp = is_event_stream(&parts.headers);
         let body = if spoke_mcp {
             self.record_together(recorder, Direction::ServerToClient, http, None);
             let events = Arc::clone(self).record_events(route.clone(), stream);
-            if standalone {
+            if exchange.standalone {
                 Body::from_stream(cut_at_stop(events, super::stopped(self.stopping.clone())))
             } else {
                 Body::from_stream(events)
@@ -241,6 +307,7 @@ impl Proxy {
             match prefix.end {
                 End::Complete => {
                     let message = self.message_of(&prefix.bytes);
+                    let (http, message) = whole_answer(http, message, fetched);
                     spoke_mcp = message.as_ref().is_some_and(is_json_rpc);
                     self.record_together(recorder, Direction::ServerToClient, http, message);
                     body::whole(prefix.bytes, prefix.held)
@@ -270,7 +337,7 @@ impl Proxy {
                 }
             }
         };
-        self.count_remarked_status(parts.status, spoke_mcp, foreign_host);
+        self.count_remarked_status(parts.status, spoke_mcp, exchange.foreign_host);
         let mut response = Response::new(body);
         *response.status_mut() = parts.status;
         *response.headers_mut() = self.response_headers(&parts.headers, host);

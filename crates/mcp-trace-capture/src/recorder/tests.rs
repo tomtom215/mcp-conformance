@@ -255,6 +255,8 @@ fn sessions_are_counted_from_initialize_requests_and_session_ids() {
         payload: serde_json::json!({"jsonrpc": "2.0", "id": id, "method": "initialize"}),
     };
     let http = |id: &str| EventBody::Http {
+        path: None,
+        document: None,
         method: None,
         status: Some(200),
         headers: [("mcp-session-id".to_owned(), id.to_owned())].into(),

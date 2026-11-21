@@ -5,10 +5,10 @@
     "pass": 44,
     "fail": 3,
     "warn": 0,
-    "excluded": 303,
+    "excluded": 300,
     "unsupported": 0,
     "not_applicable": 0,
-    "not_observed": 151
+    "not_observed": 154
   },
   "requirements": [
     {
@@ -1161,6 +1161,12 @@
       "outcome": "not-observed"
     },
     {
+      "id": "AUTH-091",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
       "id": "AUTH-097",
       "level": "SHOULD",
       "actor": "server",
@@ -1223,6 +1229,18 @@
     {
       "id": "AUTH-133",
       "level": "SHOULD",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-141",
+      "level": "MUST",
+      "actor": "server",
+      "outcome": "not-observed"
+    },
+    {
+      "id": "AUTH-142",
+      "level": "MUST",
       "actor": "server",
       "outcome": "not-observed"
     },
