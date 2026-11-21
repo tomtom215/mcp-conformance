@@ -55,7 +55,7 @@ clap_complete = { workspace = true, optional = true }
 # and the engine that confirms built tool arguments satisfy the tool's own
 # schema. Both are in the tree already (jsonschema is the validator's).
 base64 = { version = ">=0.22.1, <0.24", default-features = false, features = ["std"], optional = true }
-jsonschema = { version = ">=0.60.1, <0.61", default-features = false, optional = true }
+jsonschema = { version = ">=0.60.1, <0.62", default-features = false, optional = true }
 # The recorder, in process: the HTTP proxy for `--url` and for a client under
 # test, the stdio relay behind the bridge for `--command`. `tls` for `https://`
 # servers.
