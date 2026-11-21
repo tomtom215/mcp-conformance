@@ -93,7 +93,8 @@ in the sections below.
   `check` fetches (next item). Each judges only when the session carries the stimulus,
   and is *not observed* otherwise. `2025-11-25` now judges 123 clauses (was 102) and
   `2026-07-28` 201 (was 181). **A session that passed can now fail or warn** on these.
-- **A recording can hold a server's Protected Resource Metadata.** For a server that
+- **A recording can hold a server's Protected Resource Metadata**
+  ([ADR-0026](docs/plan/decisions/0026-one-recorded-path-the-well-known-one.md)). For a server that
   answers `401`, `check` fetches the document from where the challenge says it is (or,
   when it names no URL, from the well-known locations), with nothing of the user's on
   the request. The recorder keeps that request's path and the JSON document that came
