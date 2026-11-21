@@ -19,7 +19,7 @@ ignore = [
     # published 2026-09-14 and added to the database 2026-11-17, affecting every
     # version, so there is nothing to upgrade to. chrono 0.4.45 is in this tree
     # only as a dependency of rmcp (measured with `cargo tree -i chrono` on
-    # 2026-11-19, at rmcp 3.9.0): it reaches the everything server and the
+    # 2026-11-21, at rmcp 3.10.0): it reaches the everything server and the
     # reference host, and no code of ours calls it. The validator, the recorder
     # and `mcp-conformance` link rmcp only in their tests. rmcp's newest release
     # that day, 3.11.0, still requires chrono, so the remedy is upstream's: this

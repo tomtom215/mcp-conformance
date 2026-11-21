@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::{Body, BodyDataStream};
-use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, WWW_AUTHENTICATE};
 use axum::http::{HeaderName, HeaderValue, Method, Request, Uri};
 use futures::StreamExt as _;
 use mcp_conformance_core::trace::PROBE_AUTHORIZATION;
@@ -27,7 +27,7 @@ use serde_json::Value;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-use super::{Answer, Failure, Incoming, classify};
+use super::{Answer, Failure, Incoming, classify, metadata};
 use crate::check::request::{Credential, Outgoing, Requests};
 use crate::check::sse::Events;
 use crate::proxy;
@@ -55,6 +55,10 @@ pub(crate) struct Http {
     client: Client,
     /// The server's path and query, on the proxy.
     endpoint: Uri,
+    /// The server's origin: its scheme and authority.
+    upstream: Uri,
+    /// The last `WWW-Authenticate` the server sent.
+    challenge: Option<String>,
     /// Headers the user asked for on every request (`--header`).
     extra: Vec<(HeaderName, HeaderValue)>,
     /// The session the server assigned (legacy era), and the revision header
@@ -110,6 +114,8 @@ impl Http {
         let http = Self {
             client,
             endpoint,
+            upstream,
+            challenge: None,
             extra,
             session: None,
             revision: None,
@@ -181,6 +187,47 @@ impl Http {
         self.extra.iter().any(|(name, _)| name == AUTHORIZATION)
     }
 
+    /// Where the server's Protected Resource Metadata is to be looked for,
+    /// going by the last challenge it sent.
+    pub(crate) fn metadata_plan(&self) -> metadata::Plan {
+        let endpoint = self
+            .endpoint
+            .path_and_query()
+            .map_or("/", axum::http::uri::PathAndQuery::as_str);
+        metadata::plan(self.challenge.as_deref(), &self.upstream, endpoint)
+    }
+
+    /// Gets the well-known `path` on the server's origin, with nothing of
+    /// the user's on the request: the document there is public, and a
+    /// credential meant for the endpoint is not sent to another path.
+    pub(crate) async fn fetch(&self, path: &str, max_response: usize) -> Result<u16, Failure> {
+        let unbuilt = |error: &dyn std::fmt::Display| {
+            Failure::Transport(format!("cannot build the request: {error}"))
+        };
+        let mut parts = self.endpoint.clone().into_parts();
+        parts.path_and_query = Some(path.parse().map_err(|error| unbuilt(&error))?);
+        let uri = Uri::from_parts(parts).map_err(|error| unbuilt(&error))?;
+        let request = Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .header(ACCEPT, "application/json")
+            .body(Body::empty())
+            .map_err(|error| unbuilt(&error))?;
+        let response = self.client.request(request).await.map_err(|error| {
+            Failure::Transport(format!(
+                "the request did not reach the recording proxy: {error}"
+            ))
+        })?;
+        let status = response.status().as_u16();
+        // Read to the end, so the recorder has the whole document.
+        whole(
+            Body::new(response.into_body()).into_data_stream(),
+            max_response,
+        )
+        .await?;
+        Ok(status)
+    }
+
     /// Posts the notification (or the answer to a server's request) `out`.
     pub(crate) async fn notify(&mut self, out: &Outgoing) -> Result<(), Failure> {
         // The status is the server's to get right (202) and the validator's
@@ -198,6 +245,9 @@ impl Http {
     ) -> Result<Answer, Failure> {
         let response = self.send(Method::POST, Some(out)).await?;
         let status = response.status().as_u16();
+        if let Some(challenge) = response.headers().get(WWW_AUTHENTICATE) {
+            self.challenge = challenge.to_str().ok().map(str::to_owned);
+        }
         let session = response
             .headers()
             .get(SESSION_ID)

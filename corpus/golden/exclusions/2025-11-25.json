@@ -956,16 +956,10 @@
       "exclusion": "Support for a client registration mechanism is exercised between the client and the authorization server, off the MCP endpoint. Binds the authorization server, the separate OAuth party the page's Roles section places outside the MCP server. A client reaches it directly, never through the MCP endpoint, so a recording of the MCP exchanges holds none of its conduct."
     },
     {
-      "id": "AUTH-006",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
-    },
-    {
       "id": "AUTH-007",
       "level": "MUST",
       "actor": "client",
-      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "Which document a client used to find its authorization server is visible only in fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A fetch that does pass through is recorded with its path when that is under `/.well-known/`, but its absence from a recording does not show that the client made none."
     },
     {
       "id": "AUTH-008",
@@ -980,28 +974,16 @@
       "exclusion": "Conduct inside the client's OAuth flow (authorization server metadata discovery), which runs between the client, the user's browser and the authorization server, off the MCP endpoint. A recording of the MCP exchanges carries none of it; the only trace the flow leaves there is the token in `Authorization`, which capture never records."
     },
     {
-      "id": "AUTH-010",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
-    },
-    {
-      "id": "AUTH-011",
-      "level": "MUST",
-      "actor": "server",
-      "exclusion": "The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
-    },
-    {
       "id": "AUTH-012",
       "level": "MUST",
       "actor": "server",
-      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead, and that document is not in the trace: The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "A disjunction whose second branch a recording cannot witness. A 401 whose challenge carries no `resource_metadata` is conforming when the server serves the well-known document instead. Where that document would be is built from the MCP endpoint's own path, which a recording never holds, so a recorded `404` at one well-known path does not show that the document is at none."
     },
     {
       "id": "AUTH-013",
       "level": "MUST",
       "actor": "client",
-      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint. The Protected Resource Metadata document is not on the MCP endpoint, and a recording cannot show it. The `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite, so a client fetches the document past the proxy; the well-known fallback is built from the proxy's origin, and the proxy maps every path under the upstream's (`/.well-known/...` reaches `/mcp/.well-known/...`), where no server serves it. Where a fetch does pass through, its `http` event records no request target, so its JSON body cannot be told from any other."
+      "exclusion": "Which URLs the client requested next, and in what order, are fetches off the MCP endpoint, which an ordinary client makes past the recorder: the `resource_metadata` URL names the server's own address, which `mcp-trace-capture` does not rewrite. A recorder keeps the path of a fetch that does pass through when it is under `/.well-known/`, but saying which well-known URI comes first needs the endpoint's own path, which is never recorded."
     },
     {
       "id": "AUTH-015",
@@ -1133,7 +1115,7 @@
       "id": "AUTH-036",
       "level": "SHOULD",
       "actor": "both",
-      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records no request target, so not even the endpoint URL the client used is there."
+      "exclusion": "The canonical URI's spelling appears in the `resource` parameter of requests to the authorization server and in token audiences, neither of which a recording of the MCP endpoint carries; and an `http` event records a request path only under `/.well-known/`, so not even the endpoint URL the client used is there."
     },
     {
       "id": "AUTH-037",
@@ -1163,7 +1145,7 @@
       "id": "AUTH-041",
       "level": "MUST NOT",
       "actor": "client",
-      "exclusion": "An `http` event records the method, status and allowlisted headers, and no request target: neither the path nor the query string a request was sent to is in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
+      "exclusion": "An `http` event records the method, status and allowlisted headers, a path only when it is under `/.well-known/`, and never a query string: the query a request was sent with is not in the trace, so a token in the URI cannot be seen. Recording the query to judge this would write into every trace the very credential the clause keeps out of URIs."
     },
     {
       "id": "AUTH-043",

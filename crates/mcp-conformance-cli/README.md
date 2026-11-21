@@ -15,9 +15,11 @@ work, built on [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture)
 | `test` | Runs the pinned official conformance suite through the recorder and reports both verdicts and whether they agree (needs Node.js) |
 | `serve`, `library` | A local workbench over a library of recordings |
 
-> **Not yet released.** This crate is on `main` only; build it from the repository:
-> `cargo install --path crates/mcp-conformance-cli`. From the next release the binary is
-> in the release archives and the npm and PyPI packages.
+> **Not on crates.io.** `mcp-conformance` is a binary, distributed as one: from npm
+> (`npm install -g mcp-conformance`), PyPI (`pip install mcp-conformance`), the
+> [release archives](https://github.com/tomtom215/mcp-conformance/releases) and the
+> container image, or built from source with
+> `cargo install --locked --git https://github.com/tomtom215/mcp-conformance --tag v0.7.0 mcp-conformance-cli`.
 
 ## Checking a server
 
@@ -37,8 +39,16 @@ for is skipped and named. The session is recorded through the recorder and judge
 failed, `2` the run could not be made or judged. What the run exercised, and what it
 left alone and why, is printed to stderr and written as JSON with `--summary`.
 
-It sends only what a conforming client sends, to what the server listed; it is not a
-fuzzer or a security scanner. Bounds (`--max-requests`, `--max-tool-calls`,
+After the ordinary requests it sends a short fixed list of probes, requests made
+wrong on purpose (a prompt and a resource the server does not have, an invalid log
+level, and, for a server that answers `401`, a request with no credential, one with
+a token nobody issued, and a fetch of its Protected Resource Metadata), because the
+error-handling clauses are judged only on a session that carries their stimulus.
+None can change anything on a server, the summary names each with its answer, and
+`--no-probes` leaves them out. It is not a fuzzer or a security scanner. With no
+`--format`, the report is also written as a page to open in a browser
+(`report.html` beside the recording; `--html-report FILE` beside any other format).
+Bounds (`--max-requests`, `--max-tool-calls`,
 `--timeout`, …), `--header` for a credential, and the rest are in the book's
 [Checking a server](../../book/src/checking.md) chapter and
 [ADR-0024](../../docs/plan/decisions/0024-check-an-exerciser-that-does-only-what-a-client-does.md).

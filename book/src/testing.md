@@ -10,9 +10,10 @@ server or client, `mcp-trace-capture` records the traffic as it goes, and every 
 session is judged clause by clause. You get the suite's checks, the clause report, and
 whether the two agree — from one command.
 
-> `mcp-conformance` is on `main`, not yet released
-> ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)).
-> Build it from a checkout with `cargo install --path crates/mcp-conformance-cli`.
+> `mcp-conformance` is released from `0.7.0`
+> ([ADR-0021](https://github.com/tomtom215/mcp-conformance/blob/main/docs/plan/decisions/0021-a-workbench-people-keep-open.md)):
+> `npm install -g mcp-conformance`, `pip install mcp-conformance`, a release archive,
+> or [the other ways to install it](getting-started.md).
 
 ## Before you start
 

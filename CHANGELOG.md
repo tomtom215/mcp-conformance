@@ -11,6 +11,14 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-21
+
+**A minor release with breaking changes**, which pre-1.0 SemVer permits and
+[STABILITY.md](STABILITY.md) defines: verdicts, report formats, the trace format, the
+recorder and the Rust API all change, and the table under the highlights lists every
+one with its migration. It is also the first release of the `mcp-conformance` binary,
+of the npm and PyPI packages and of the container image.
+
 ### Highlights
 
 The short version of this release; every item is stated again, with its reasoning,
@@ -65,7 +73,7 @@ in the sections below.
   table; each finding says what was seen before it quotes the rule. The workbench gains
   an app shell, a theme switch, a filterable library table and labelled charts. Still
   one self-contained file with no script, and nothing loaded from anywhere.
-- **Thirty-five more clauses judged**, each one the registry had excluded, found
+- **Forty-one more clauses judged**, each one the registry had excluded, found
   judgeable by re-reading all 566 exclusions. Base and lifecycle: a notification
   answered (`BASE-011`, `BASE-061`), a fallback version that is not the latest
   (`LIFE-012`). Client features: roots changed with no notification (`ROOT-002`), a
@@ -79,12 +87,26 @@ in the sections below.
   integer respelled). Authorization: a token nobody issued served, or refused with
   anything but `401` and a Bearer challenge (`AUTH-042`, `AUTH-044`, `AUTH-047`,
   `AUTH-048`, `AUTH-081`, `AUTH-082` and their six `2026-07-28` counterparts), judged on
-  the public probe credential `check` sends. Each judges only when the session carries the stimulus, and is
-  *not observed* otherwise. `2025-11-25` now judges 120 clauses (was 102) and
-  `2026-07-28` 198 (was 181). **A session that passed can now fail or warn** on these.
+  the public probe credential `check` sends; and the Protected Resource Metadata a
+  challenge names not being served, or naming no authorization server (`AUTH-006`,
+  `AUTH-010`, `AUTH-011` and `AUTH-091`, `AUTH-141`, `AUTH-142`), judged on the document
+  `check` fetches (next item). Each judges only when the session carries the stimulus,
+  and is *not observed* otherwise. `2025-11-25` now judges 123 clauses (was 102) and
+  `2026-07-28` 201 (was 181). **A session that passed can now fail or warn** on these.
+- **A recording can hold a server's Protected Resource Metadata**
+  ([ADR-0026](docs/plan/decisions/0026-one-recorded-path-the-well-known-one.md)). For a server that
+  answers `401`, `check` fetches the document from where the challenge says it is (or,
+  when it names no URL, from the well-known locations), with nothing of the user's on
+  the request. The recorder keeps that request's path and the JSON document that came
+  back: an `http` event gains `path`, written only for a path under `/.well-known/`
+  (RFC 8615's home for public metadata) and never with a query, and `document`. The MCP
+  endpoint's own path is still never recorded. Such a fetch is judged only as what it
+  is; a test inserts one at three places in every corpus trace and requires that no
+  other clause's judgement moves.
 - **Every message is held to the revision's JSON Schema**, and the `2025-11-25`
   registry gains the ping, progress and cancellation pages.
-- **Current as of 2026-11-19**: Rust 1.100.0, rmcp 3.9.0 (RUSTSEC-2026-0462), every
+- **Current as of 2026-11-21**: Rust 1.100.0, rmcp 3.10.0 (3.9.0 fixed
+  RUSTSEC-2026-0462), jsonschema 0.61.2, every
   quote re-verified against the published specification, the vendored schema at
   upstream `main`.
 
@@ -93,7 +115,7 @@ in the sections below.
 records, and removes one deprecated module**, as pre-1.0 SemVer permits in a minor release
 ([STABILITY.md](STABILITY.md) says what counts as breaking). A session that
 passed under 0.6.0 can fail now with nothing in it changed: a `2025-11-25` report
-carries 206 more rows than under 0.6.0 (46 judged, 160 excluded with a reason) and a
+carries 206 more rows than under 0.6.0 (55 judged, 151 excluded with a reason) and a
 `2026-07-28` report 228 more (57 judged, 171 excluded), some clauses once excluded are judged, every message is now held to its revision's own JSON Schema, and
 several checks now catch what they missed. Other checks stop failing conforming sessions. Every change
 below is stated again in its entry, with the reasoning.
@@ -129,8 +151,13 @@ below is stated again in its entry, with the reasoning.
 | SARIF | Findings against `TRAN-074` name a new check, so their fingerprints change | An open alert for one closes and reopens once |
 | `mcp-trace-capture` traces | A message whose parsed value would differ from its text (an integer past 64 bits, a repeated member name) is recorded as its raw line over stdio and left out over HTTP; SSE events whose type is not `message` are not recorded; a forced HTTP stop ends the trace with `transport-abort` | None for a conforming peer; the summary counts what was left out |
 | `mcp-trace-capture stdio` | A stop gives the server 1 s (was 3 s) before its process group is killed, inside the official SDKs' 2 s; on Windows the exit code is the server's whole code, not its low eight bits | A server needing longer to shut down should finish on stdin closing |
-| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 348 rows (was 142) and `excluded` 246 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 320 (was 149) | Re-baseline any comparison of totals across versions |
+| Report totals | Against 0.6.0, every change in this release together (the wire-schema row above included): a `2025-11-25` report has 348 rows (was 142) and `excluded` 225 (was 86); a `2026-07-28` report has 501 (was 273) and `excluded` 300 (was 149) | Re-baseline any comparison of totals across versions |
 | Verdict, new rows | `AUTH-045`/`AUTH-049`/`AUTH-124`/`AUTH-130`: a protected server's challenge with the wrong status for its declared error (`invalid_token` not 401, `insufficient_scope` not 403); with the others of the 12 judged `AUTH` rows, from the `WWW-Authenticate` header ([ADR-0022](docs/plan/decisions/0022-judge-the-challenge-not-the-flow.md)) | Answer each error with the status the authorization page names |
+| Trace format | An `http` event may carry `path` (a request to a well-known URI, and the answer to it) and `document` (the JSON that answer carried). `trace-event.schema.json` describes both | A consumer that rejects unknown members: accept them. An event with a `path` is not MCP traffic; skip it, or use `mcp_trace_validator::fetches::split` |
+| `mcp-trace-capture http` | A request that reaches the server under `/.well-known/` is recorded with its path (never its query), and a JSON answer to it is the `document` of the response's `http` event, where 0.6.0 wrote a `message` event. Reachable only when the upstream URL has no path of its own, as under `mcp-conformance check` | Read the document from the `http` event |
+| Rust API | `mcp_conformance_core::trace::EventBody::Http` gains the fields `path` and `document` | Code that builds the variant adds `path: None, document: None`; code that matches it without `..` names them |
+| Rust API | New: `trace::RECORDED_PATH_PREFIX` and `trace::records_path`; `mcp_trace_validator::fetches` (`split`, `Fetches`) and `TraceContext::with_fetches` | A caller that builds a `TraceContext` itself splits the events first, as `engine::validate` does; nothing to change otherwise |
+| Verdict, new rows | `AUTH-006`/`AUTH-010`/`AUTH-091`/`AUTH-141`: the URL a `Bearer` challenge names as `resource_metadata`, fetched, answers anything but `200` with a JSON object. `AUTH-011`/`AUTH-142`: a returned document names no authorization server. Judged only on a recording that holds the fetch | Serve the document where the challenge says it is, with `authorization_servers` |
 | Rust API | `mcp_conformance_core::trace::RECORDED_HEADERS` and `mcp_everything_server::tap::RECORDED_HEADERS` are `[&str; 11]` (were `[&str; 10]`): `WWW-Authenticate` is recorded | Iterate the array or take it as a slice, not by its length |
 | JSON report | A report, and each summary of a multi-revision one, gains `extensions` when the session exercised an extension ([ADR-0023](docs/plan/decisions/0023-extensions-are-reported-never-scored.md)); `report.schema.json` describes it, and its `source.url` pattern also admits an extension's own publication | Accept the member; the verdict never reads it |
 | SARIF | Findings against an extension's clauses are results at level `note`, with `properties.extension` and `properties.scored: false` | A consumer treating every result as an error filters on the level or on `scored` |
@@ -1079,6 +1106,14 @@ not yet published to crates.io)
 
 ### Changed
 
+- **Every file states its licence** ([REUSE 3.3](https://reuse.software/spec-3.3/)).
+  The files that can carry a comment already carried the two-line SPDX header; the
+  1,027 that cannot (JSON, recorded traces, images, lock files, fuzz seeds, golden
+  pages) are named in `REUSE.toml`, which also records the vendored specification
+  schemas as the specification's work under its own licence. `LICENSES/` holds the
+  licence texts, `cargo xtask spdx` fails for a tracked file with neither a header nor
+  an entry, and `reuse lint` 6.3.0 reports the tree compliant.
+
 - **Tests leave nothing behind in the temporary directory.** The workbench's
   fixture libraries are removed when their test ends (a guard that deletes on
   drop); a full workspace test run left about 36 MB there, and now leaves about
@@ -1157,8 +1192,12 @@ not yet published to crates.io)
 
 ### Dependencies
 
-- Rust toolchain pin 1.99.1 → 1.100.0. rmcp 3.7.0 → 3.9.0 (RUSTSEC-2026-0462; the
-  floor is now 3.9.0), rustix 1.1.6 (RUSTSEC-2026-0486), jsonschema 0.60.2.
+- Rust toolchain pin 1.99.1 → 1.100.0. rmcp 3.7.0 → 3.10.0 (3.9.0 fixed
+  RUSTSEC-2026-0462; the floor is now 3.10.0, and `rmcp-macros` is held to the same
+  minor), rustix 1.1.6 (RUSTSEC-2026-0486), jsonschema 0.61.2 (the range admits 0.60.1
+  to 0.61.x). Every other lockfile entry moved to its newest release that had been
+  public for seven days on 2026-11-21; newer ones wait out the cooldown (rmcp 3.11.0,
+  jsonschema 0.62.0 and clap 4.6.9 among them).
   RUSTSEC-2026-0543 (chrono unmaintained, informational) is ignored by id with the
   reason in `deny.toml` and a dated row in the deferral ledger: chrono is here only
   through rmcp. The vendored `2026-07-28` schema is upstream `main` at `8a18b4b`.
@@ -4152,7 +4191,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1
 [0.5.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.0

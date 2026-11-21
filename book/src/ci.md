@@ -83,7 +83,7 @@ To judge traces a step of your own recorded:
 ```
 
 The action builds `mcp-trace-validator` from the ref you name (or, with
-`version: 0.6.0`, downloads that release's prebuilt binary and checks its checksum),
+`version: 0.7.0`, downloads that release's prebuilt binary and checks its checksum),
 prints the findings to the log and the job summary, writes `mcp-conformance.sarif`,
 `mcp-conformance-junit.xml` and `mcp-conformance-report.html` (the report as one
 self-contained page, for an upload-artifact step), and fails the step when a clause fails. Uploading the
@@ -97,8 +97,7 @@ The inputs — `revision`, `strict`, `fail-on-findings`, the output paths — ar
 The action can also take the recording: set `capture`, give it the `server` and the
 `client` command that drives it, and it runs the session through
 `mcp-trace-capture`, then judges every session recorded (with any `traces` you name
-too). This is not yet released: it is on `main`, so pin a commit for it, and it
-needs the action's own source build (`version` empty) until a release carries it.
+too). It is new in `0.7.0`: with `version` set, name that release or a later one.
 
 ```yaml
 # stdio: the client launches $MCP_SERVER_COMMAND in place of the server.
@@ -137,7 +136,7 @@ launch as a command.
 
 ## Container image
 
-From the release that follows `0.6.0`, each release also publishes both CLIs as
+From `0.7.0`, each release also publishes the CLIs as
 `ghcr.io/tomtom215/mcp-conformance:<version>` (linux/amd64), built from the
 repository's
 [`Dockerfile`](https://github.com/tomtom215/mcp-conformance/blob/main/Dockerfile) and

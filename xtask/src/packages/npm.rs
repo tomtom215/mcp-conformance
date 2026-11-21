@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright 2026 Tom F. (https://github.com/tomtom215)
+// REUSE-IgnoreStart (string literals below hold the headers this file writes
+// into other files; they are not statements about this one)
 
 //! The npm packages, as directories `npm pack` and `npm publish` take: the
 //! main package `mcp-conformance`, whose `bin` entries are launchers
@@ -213,3 +215,5 @@ mod tests {
         );
     }
 }
+
+// REUSE-IgnoreEnd

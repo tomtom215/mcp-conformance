@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright 2026 Tom F. (https://github.com/tomtom215) -->
 
-# Session handoff — 2026-11-19
+# Session handoff — 2026-11-19, last rewritten 2026-11-21
 
 A working record for the next session, not a plan document: it is dated, it is exempt from the
 living-document gates, and [the roadmap](../plan/06-roadmap.md) still owns milestone status. Delete
@@ -9,29 +9,37 @@ it when its items are done or moved there. A machine-readable copy of the checkl
 [`2026-11-19-state.json`](2026-11-19-state.json). It replaces the 2026-10-24 handoff, whose open
 items are all either done below or carried into "Next".
 
-Branch: `claude/busy-cray-9rvb8c`, on `origin`, started from `main` at `8435f7e` (the merge of
-PR 68). **No pull request is open** (none was asked for). Releases were on hold by the maintainer's
-word of 2026-10-25; this session was asked for a release worth standing behind, prepared everything
-short of the release commit, and did not bump the version, tag or publish.
+Branch: `claude/busy-cray-9rvb8c`, on `origin`, restarted from `main` at `9842607` (the merge
+of pull request 79) on 2026-11-21. The owner's word that day: record `/.well-known/` paths, narrow
+`RES-019`, then do the release; and before it, overhaul the README, state every file's licence,
+and update every dependency.
 
 ## Do this first
 
-State at 01:30 UTC on 2026-11-21. The owner accepted ADR-0024 and ADR-0025, asked for the release
-once it is judged ready, and widened the ask the same day: coverage as near 100% as feasible,
-defaults that need no flags, a redesigned report and workbench, a GitHub Marketplace listing.
+State on 2026-11-21, after the `0.7.0` release commit.
 
-1. CI on the code tip is green: all 85 check runs on `45a2523` (the push and pull-request runs
-   together) completed `success`, among them `Visual`, every test and clippy leg on Linux, macOS
-   and Windows at 1.100.0 and 1.88, and all sixteen `Mutants (PR diff)` shards. The commit that
-   carries this line changes only this file.
-2. The visual baselines are taken (`19653fd`, from run 555's artifact); nothing is owed there
-   unless the report or workbench changes again.
-3. **The `0.7.0` release commit is not made, on purpose.** See "Why not released yet".
-4. Pull request 79 is open (asked for on 2026-11-20), mergeable, and green. Its
-   `Mutants (PR diff)` job was the first full mutation run over this code: 56 survivors on
-   `57305ae` (15 of 16 shards reported), 36 on `9ef8ddb` (all 16), none on `45a2523`. Merging is
-   the owner's step.
-5. **The protected-resource metadata probes wait on a decision** (see "Authorization probes").
+1. **The release commit is made and is not tagged.** The version is `0.7.0` everywhere
+   `RELEASING.md` step 1 names, the changelog's `[0.7.0]` section is cut and dated 2026-11-21,
+   and `RELEASING.md` §v0.7.0 pre-flight records what was measured and what was not. If the tag
+   is pushed on another day, change the date in `CHANGELOG.md`'s heading (and the two links to
+   its anchor, in `README.md` and `book/src/upgrading.md`) and in `CITATION.cff`.
+2. **The owner's steps, in order:** merge the release pull request on green CI; do the one-time
+   npm organisation and PyPI pending-publisher setup (`RELEASING.md` §npm and PyPI), which
+   `0.7.0` is the first release to need and without which the Release run's npm and PyPI jobs
+   fail; run the rehearsal (`workflow_dispatch` of `release.yml`); tag `v0.7.0`; approve the
+   `release` environment; set the GHCR package public after its first push; for the
+   Marketplace, accept the developer agreement and tick "Publish this Action to the GitHub
+   Marketplace" on the release. Then rewrite `RELEASING.md`'s status paragraph.
+3. **The README now describes the released state** (npm, PyPI, the container image, release
+   archives of `mcp-conformance`). Those sentences become true when the Release run publishes,
+   and not before.
+4. **Pull request 80 is the release pull request, and it is green**: all 85 check runs on
+   `33d51f1` completed `success`, among them all sixteen `Mutants (PR diff)` shards (the
+   complete run of what stopped locally at 93 of 121 mutants) and `Visual`. The commit that
+   carries this line changes only this file and `RELEASING.md`.
+5. **Visual baselines** were re-taken on 2026-11-21 (`33d51f1`, from the pull request's own
+   run): 24 of 32 pages, each differing by the counts the metadata checks moved. One page was
+   inspected band by band; the others were accepted on unchanged page sizes.
 
 ## Landed on 2026-11-20
 
@@ -48,24 +56,31 @@ defaults that need no flags, a redesigned report and workbench, a GitHub Marketp
 
 | The invalid-token probe: 12 authorization clauses judged on the one public `Authorization` value a recorder keeps | the commit titled "the invalid-token probe" | Unit tests; six corpus traces; four end-to-end tests against a token-guarded stand-in server, one asserting the user's credential reaches no file and no output |
 
-Registry now: `2025-11-25` 120 judged of 348; `2026-07-28` 198 judged of 501.
+Registry now (2026-11-21): `2025-11-25` 123 judged of 348; `2026-07-28` 201 judged of 501.
 
 ## Authorization probes
 
 Done: the invalid-token probe (`AUTH-042`, `AUTH-044`, `AUTH-047`, `AUTH-048`, `AUTH-081`,
-`AUTH-082` and `AUTH-121`, `AUTH-123`, `AUTH-126`, `AUTH-127`, `AUTH-190`, `AUTH-191`).
-
-Not done, and waiting on the owner: the Protected Resource Metadata probes. Judging them needs
-two additions to the trace format, an `http` event's request path and the JSON document a
-metadata URL returned, and the first reverses a line of the security model ("no request target
-... is recorded at all"). The proposal is to record a path only when it starts with
-`/.well-known/`, which RFC 8615 reserves for public metadata. With that, six clauses can be judged
-soundly: `AUTH-011`/`AUTH-142` (a served document names at least one authorization server) and
+`AUTH-082` and `AUTH-121`, `AUTH-123`, `AUTH-126`, `AUTH-127`, `AUTH-190`, `AUTH-191`), and, on
+2026-11-21 with the owner's decision, the Protected Resource Metadata probes: `AUTH-011`/`AUTH-142`
+(a returned document names at least one authorization server) and
 `AUTH-006`/`AUTH-010`/`AUTH-091`/`AUTH-141` (the URL a challenge's `resource_metadata` names
-serves a document). `AUTH-012`/`AUTH-144` cannot: proving a server offers neither discovery
-mechanism needs the MCP endpoint's own path, which stays unrecorded. The audience clauses
-(`AUTH-043`, `AUTH-059`, `AUTH-083` and their three counterparts) need a real token minted for
-another audience, which only the operator can supply.
+serves a JSON object).
+
+How it is built, for whoever touches it next. The recorder keeps a request path only when the
+path the server is asked for starts with `/.well-known/` (`trace::records_path`), on the request's
+`http` event and on its answer's, with the JSON body as the answer's `document`, not as a
+`message` event. `engine::validate` takes such events out before judging the session
+(`fetches::split`), because a `GET` with no session id judged as MCP traffic fails six clauses on
+a conforming server; `tests/fetch_invariance.rs` inserts a fetch at three places in every corpus
+trace and requires that no other row moves. A fetch is tied to a challenge's URL by path alone,
+on the premise that a recording is of one server; `check` only fetches a URL on the origin it was
+given.
+
+Not judgeable, and why: `AUTH-012`/`AUTH-144` (proving a server offers neither discovery
+mechanism needs the MCP endpoint's own path, which stays unrecorded); the audience clauses
+(`AUTH-043`, `AUTH-059`, `AUTH-083` and their three counterparts), which need a real token
+minted for another audience, which only the operator can supply.
 
 ## What the classification of the exclusions found
 
@@ -96,20 +111,14 @@ rows); a recorder that keeps stream identity and SSE fields (24 rows).
 - `auth/2025-03-26-oauth-metadata-backcompat` fails in the reference host: rmcp refuses the
   fixture's issuer mismatch. Recorded in `conformance/expected-failures.yaml`.
 
-## Why not released yet
+## What the release does not claim
 
-The owner asked for the release when it is adversarially judged ready. It is not, yet:
-
-- Two owner decisions are open: whether the recorder may keep a request path that starts with
-  `/.well-known/` (see "Authorization probes"), and the `RES-019` judgement below.
-- No screen reader has been run on the redesign.
-- One judgement in the new checks is worth a second opinion before it ships as a MUST-level
-  failure: `RES-019` fails a server that refuses a read under a scheme it names nowhere with a
-  code other than `-32602`.
-
-After those: the release commit of `RELEASING.md` step 1, then the owner's steps (merge, tag,
-the npm organisation and PyPI publisher, GHCR visibility, and for the Marketplace: accept the
-developer agreement and tick "Publish this Action to the GitHub Marketplace" on the release).
+- **No screen reader has been run** on the redesigned report or the workbench.
+- **`RES-019` is narrowed** (owner's decision, 2026-11-21): it fails only on `-32002`, the
+  server's own statement that a resource does not exist. A refusal of a URI under an unlisted
+  scheme with another code is no longer reported; `-32602` there is still a pass.
+- **The local mutation run was incomplete**; the pull request's run was complete and found
+  no survivor (see "Do this first", item 4).
 
 ## Release pass
 
@@ -212,30 +221,31 @@ dated reports under `docs/reports/` still name the old handoff's path; they are 
 
 ## Not done
 
-- **`check`'s end-to-end tests on Windows.** Both test modules are `#[cfg(unix)]` (their
+- **`check`'s end-to-end tests on Windows.** Its test modules are `#[cfg(unix)]` (their
   stand-ins are `sh` scripts); the HTTP legs would run anywhere and have not been tried there.
 - **Register rows 2.13, 3.6 and 3.11** pass ninety days on 2026-11-22. Each is the open or closed
-  state of GitHub issues in other repositories, which this session's access could not read.
-- **Interop matrix pins.** `interop/rust` still pins rmcp `=3.7.0` (inside RUSTSEC-2026-0462);
-  TypeScript 1.32.2, `@modelcontextprotocol/server` 2.4.0 and `node` 2.1.2 are eligible under the
-  seven-day rule (Dependabot #76). Moving any of them means re-recording the matrix.
-- **Playwright 1.64.1** (Dependabot #66): may move every visual baseline; take them from the
-  runner again if it does.
-- **`mcpsnoop` pin** 0.26.1 against 0.28.0 (needs the binary, a re-measure and a re-triage).
+  state of GitHub issues in other repositories, which this session's access could not read (HTTP
+  403), so the weekly claims-expire run will name them until someone with access re-reads them.
+- **Dependencies inside the seven-day cooldown on 2026-11-21:** rmcp 3.11.0 (published
+  2026-11-17), jsonschema 0.62.0 (2026-11-21), and 22 lockfile entries, `clap` 4.6.9 among them.
+  `nix` 0.32 was tried and backed out: it adds a second copy beside the 0.31 that rmcp's
+  `process-wrap` requires.
 - **Truth pass over the plan documents** (`06-roadmap.md`, `04-engineering-standards.md`,
   ADR-0009/0011) from the previous handoff: not started. The charter still describes five
   artifacts and not the front-door binary.
 - **`prober`** and the stale exclusion rationales of the previous handoff: untouched.
+- **`reuse lint` is not a CI job.** The `spdx` gate checks that every tracked file has a header
+  or a `REUSE.toml` entry; the linter itself (6.3.0, compliant on 2026-11-21) is a release-time
+  step in `RELEASING.md`.
 
 ## Dependabot and issues
 
-- #72, #73, #74, #78: their content is on this branch; close them when it merges.
-- #77 (rmcp-macros 3.9.0): done here with rmcp itself; close.
-- #76 (interop npm), #66 (Playwright): open, see "Not done".
-- #71 (weekly claims-expire red): the toolchain pin, the register rows and the spec drift it
-  it was red for
-  (the issue's own table, 2026-11-16) are fixed here, and the deferral and suite-pin gates were
-  already green. It closes on a green scheduled run after the merge.
+- #77 (rmcp-macros 3.10.0), #73 and #74 (jsonschema 0.61.2, workspace and fuzz): their content
+  is in the dependency commit of 2026-11-21; they close when it merges.
+- #66 (Playwright 1.64.1): its content has been on `main` since pull request 79; it should close
+  on Dependabot's next run.
+- #71 (weekly claims-expire red): see register rows 2.13, 3.6 and 3.11 under "Not done", which
+  will keep it red after 2026-11-22.
 - #7 and #9: old, untouched.
 
 ## Observations for whoever plans the next stretch

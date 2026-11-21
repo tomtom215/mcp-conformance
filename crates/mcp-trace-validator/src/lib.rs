@@ -67,6 +67,7 @@ pub mod cli;
 pub mod context;
 pub mod declared;
 pub mod engine;
+pub mod fetches;
 pub mod fingerprint;
 #[cfg(test)]
 mod fixtures;

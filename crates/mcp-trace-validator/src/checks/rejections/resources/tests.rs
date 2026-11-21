@@ -92,7 +92,7 @@ fn the_withdrawn_code_is_reported_at_the_later_revision() {
 }
 
 #[test]
-fn any_other_code_is_reported_at_both() {
+fn any_other_code_is_reported_at_the_earlier_revision_and_unjudged_at_the_later() {
     let trace = read(UNLISTED, error(8, 4, "0"));
     let (subjects, findings) = run(OLD, &trace);
     assert_eq!((subjects, findings.len()), (1, 1), "{findings:?}");
@@ -100,11 +100,12 @@ fn any_other_code_is_reported_at_both() {
         findings[0].contains("refused with error 0 rather than -32002"),
         "{findings:?}"
     );
-    let (subjects, findings) = run(NEW, &trace);
-    assert_eq!((subjects, findings.len()), (1, 1), "{findings:?}");
-    assert!(
-        findings[0].contains("error 0, though the session's complete listings"),
-        "{findings:?}"
+    // At the later revision only the server's own "not found" is a witness:
+    // that this refusal means the resource is missing is an inference.
+    assert_eq!(run(NEW, &trace), (0, Vec::new()));
+    assert_eq!(
+        run(NEW, &read(UNLISTED, error(8, 4, "-32601"))),
+        (0, Vec::new())
     );
 }
 

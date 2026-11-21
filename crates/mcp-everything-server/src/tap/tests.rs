@@ -23,6 +23,8 @@ async fn record_json_preserves_the_body_and_records_the_message() {
     let status = (
         Direction::ServerToClient,
         EventBody::Http {
+            path: None,
+            document: None,
             method: None,
             status: Some(200),
             headers: std::collections::BTreeMap::new(),
