@@ -448,6 +448,13 @@ Not done, and not claimed:
      npm and PyPI page), and in the book `introduction.md`, `getting-started.md`,
      `ci.md`, `testing.md`, `watching.md`, `upgrading.md` and `llms.txt`.
      `grep -rn "not yet released\|<previous version>"` over those finds them.
+   - **Expect `Visual` to fail once on the release pull request.** The workbench's
+     dashboard footer prints the version, so the four
+     `workbench-dashboards-*` baselines change with every bump (0.7.1: one digit, in
+     a 10 by 12 pixel box on each). Baselines come only from the runner: take the
+     `-actual.png` files from that run's `visual-diffs` artifact, check the
+     artifact's SHA-256 against the digest GitHub lists, look at what differs, and
+     commit them.
    - **Know what the rehearsal does not run.** A `workflow_dispatch` run skips every
      step guarded by `github.ref_type == 'tag'`: the provenance and SBOM
      attestations, the GitHub release, and the crates.io, npm and PyPI publishes. A
