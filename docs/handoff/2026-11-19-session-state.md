@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright 2026 Tom F. (https://github.com/tomtom215) -->
 
-# Session handoff — 2026-11-19, last rewritten 2026-11-21
+# Session handoff — 2026-11-19, last rewritten 2026-11-22
 
 A working record for the next session, not a plan document: it is dated, it is exempt from the
 living-document gates, and [the roadmap](../plan/06-roadmap.md) still owns milestone status. Delete
@@ -16,30 +16,34 @@ and update every dependency.
 
 ## Do this first
 
-State on 2026-11-21, after the `0.7.0` release commit.
+State on 2026-11-22, after the `0.7.1` release commit.
 
-1. **The release commit is made and is not tagged.** The version is `0.7.0` everywhere
-   `RELEASING.md` step 1 names, the changelog's `[0.7.0]` section is cut and dated 2026-11-21,
-   and `RELEASING.md` §v0.7.0 pre-flight records what was measured and what was not. If the tag
-   is pushed on another day, change the date in `CHANGELOG.md`'s heading (and the two links to
-   its anchor, in `README.md` and `book/src/upgrading.md`) and in `CITATION.cff`.
-2. **The owner's steps, in order:** merge the release pull request on green CI; do the one-time
-   npm organisation and PyPI pending-publisher setup (`RELEASING.md` §npm and PyPI), which
-   `0.7.0` is the first release to need and without which the Release run's npm and PyPI jobs
-   fail; run the rehearsal (`workflow_dispatch` of `release.yml`); tag `v0.7.0`; approve the
-   `release` environment; set the GHCR package public after its first push; for the
-   Marketplace, accept the developer agreement and tick "Publish this Action to the GitHub
-   Marketplace" on the release. Then rewrite `RELEASING.md`'s status paragraph.
-3. **The README now describes the released state** (npm, PyPI, the container image, release
-   archives of `mcp-conformance`). Those sentences become true when the Release run publishes,
-   and not before.
-4. **Pull request 80 is the release pull request, and it is green**: all 85 check runs on
-   `33d51f1` completed `success`, among them all sixteen `Mutants (PR diff)` shards (the
-   complete run of what stopped locally at 93 of 121 mutants) and `Visual`. The commit that
-   carries this line changes only this file and `RELEASING.md`.
-5. **Visual baselines** were re-taken on 2026-11-21 (`33d51f1`, from the pull request's own
-   run): 24 of 32 pages, each differing by the counts the metadata checks moved. One page was
-   inspected band by band; the others were accepted on unchanged page sizes.
+1. **`0.7.0` was tagged and never published; `0.7.1` replaces it.** The owner tagged `v0.7.0`
+   at `ee9b700` on 2026-11-21 (pull request 80, merged green). Its Release run 44959348017
+   failed in `Package and attest` at the first SBOM attestation: `actions/attest` v4.2.2
+   takes a `CycloneDX` file only with a `serialNumber`, and the SBOMs here omitted it for
+   reproducibility. Every publishing job was skipped; crates.io still had `0.6.0` and no
+   GitHub release existed when this was written. The `v0.7.0` tag stays where it is
+   (`RELEASING.md`: tags are never moved).
+2. **The fix** is in `xtask/src/sbom/serial.rs`: a serial number derived from the document's
+   content, which `cargo xtask sbom` now requires. All five real SBOMs pass the action's
+   check, the same file without the serial fails it, and two generations are byte-identical.
+3. **The owner's steps:** merge the `0.7.1` pull request on green CI, run the rehearsal, tag
+   `v0.7.1`, approve the `release` environment. The PyPI pending publisher and the npm
+   organisation are set up (2026-11-21); `publish-npm` is still expected to fail once, and
+   `RELEASING.md` §npm and PyPI step 2 is the by-hand first publish. Whether `publish`
+   succeeds for `mcp-trace-capture` depends on its trusted publisher having been configured
+   after the 0.6.0 bootstrap, which only the owner's crates.io settings show.
+4. **The release is dated 2026-11-22.** If the tag goes out on another day, change the date in
+   `CHANGELOG.md`'s `[0.7.1]` heading, the link to its anchor in `book/src/upgrading.md`, and
+   `CITATION.cff`.
+5. **Tag-only steps are not rehearsed.** A `workflow_dispatch` run skips every step guarded
+   by `github.ref_type == 'tag'`: the attestations, the GitHub release, and the three
+   publishes. The SBOM refusal hid there. Of those, the provenance attestation and the image
+   attestation ran green on `v0.7.0`; the GitHub release, crates.io, npm and PyPI steps have
+   not run for this code at all, so read the `v0.7.1` run job by job.
+6. **The README describes the released state** (npm, PyPI, the container image). Those
+   sentences become true when the Release run publishes, and not before.
 
 ## Landed on 2026-11-20
 

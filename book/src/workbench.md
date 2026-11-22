@@ -40,7 +40,7 @@ A library is a directory of traces, `<id>.jsonl`, each with an optional sidecar,
               "not_recorded": ["… what the source format does not record …"] },
   "added_at": "2026-10-13T09:12:00Z",
   "recorded_at": "2026-10-12T17:40:03Z",
-  "verdict_cache": { "sha256": "…", "tool_version": "0.7.0", "reports": [ … ] }
+  "verdict_cache": { "sha256": "…", "tool_version": "0.7.1", "reports": [ … ] }
 }
 ```
 

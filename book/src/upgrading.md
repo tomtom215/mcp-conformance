@@ -16,7 +16,10 @@ state them in their opening paragraphs).
 1. **Read the release's table.** Each row names the surface (a requirement ID, a
    report format, a flag), the change, and what to do:
    [Unreleased](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#unreleased) (on `main`),
-   [0.7.0](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#070---2026-11-21),
+   [0.7.1](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#071---2026-11-22)
+   and [0.7.0](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#070---2026-11-21)
+   (tagged and never published; its table is the one that describes the move from 0.6.0 to
+   0.7.1),
    [0.6.0](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#060---2026-10-06),
    [0.5.0](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#050---2026-08-26).
 2. **Judge your recordings with both versions** and compare by requirement ID, not by
@@ -31,7 +34,7 @@ state them in their opening paragraphs).
 
    The same command with the old binary gives `findings-old.txt`; `diff` the two. A
    row in one and not the other is a verdict change the table explains. The report's
-   `wire_schema` member (from `0.7.0`) is judged beside the rows; compare
+   `wire_schema` member (from `0.7.1`) is judged beside the rows; compare
    its `outcome` too.
 3. **Expect SARIF alerts to move once** where the table says a fingerprint changed;
    an alert whose finding is unchanged keeps its fingerprint.
@@ -41,18 +44,18 @@ state them in their opening paragraphs).
 A CI gate should change its verdicts when you upgrade it, not when a release
 happens. Pin it:
 
-- `cargo install mcp-trace-validator --version 0.7.0 --locked`, or
-  `cargo binstall mcp-trace-validator@0.7.0` for the attested prebuilt binary;
-- `npm install -g mcp-conformance@0.7.0` or `pip install mcp-conformance==0.7.0` for
+- `cargo install mcp-trace-validator --version 0.7.1 --locked`, or
+  `cargo binstall mcp-trace-validator@0.7.1` for the attested prebuilt binary;
+- `npm install -g mcp-conformance@0.7.1` or `pip install mcp-conformance==0.7.1` for
   all three binaries;
-- the GitHub Action at a tag or commit (`uses: tomtom215/mcp-conformance@v0.7.0`),
-  or with `version: 0.7.0` to download that release's prebuilt binaries rather than
+- the GitHub Action at a tag or commit (`uses: tomtom215/mcp-conformance@v0.7.1`),
+  or with `version: 0.7.1` to download that release's prebuilt binaries rather than
   build from the action's source;
 - the container image by version or, stricter, by digest
-  (`ghcr.io/tomtom215/mcp-conformance:X.Y.Z@sha256:…`), from `0.7.0`;
-- `mcp-trace-validator = "=0.7.0"` for the library.
+  (`ghcr.io/tomtom215/mcp-conformance:X.Y.Z@sha256:…`), from `0.7.1`;
+- `mcp-trace-validator = "=0.7.1"` for the library.
 
-`mcp-trace-validator --version` names the build that judged a report; from 0.7.0
+`mcp-trace-validator --version` names the build that judged a report; from 0.7.1
 it also names the protocol revisions that build judges.
 
 ## Library users

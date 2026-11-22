@@ -11,7 +11,34 @@ Pre-1.0, minor releases may contain breaking changes; entries say so explicitly.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-22
+
+**A patch release, and the first release of everything `0.7.0` lists.** `0.7.0` was
+tagged on 2026-11-21 and never published: its release run stopped at the first
+SBOM attestation, before the GitHub release, crates.io, npm and PyPI steps. Nothing
+under that version exists on any registry. `0.7.1` is the same code with the release
+pipeline fixed, so **everything this release brings is listed under
+[`0.7.0`](https://github.com/tomtom215/mcp-conformance/blob/main/CHANGELOG.md#070---2026-11-21)**:
+`mcp-conformance check`, the HTML report, baselines, the npm and PyPI packages, the
+container image, forty-one more clauses judged, and a breaking-changes table that is
+what moving from `0.6.0` to `0.7.1` means.
+
+### Fixed
+
+- **The release's SBOMs carry a serial number, so they can be attested.**
+  `actions/attest` (v4.2.2) takes a file for a `CycloneDX` SBOM only when
+  `bomFormat`, `specVersion` and `serialNumber` are all present, and the SBOMs here
+  omitted the last on purpose: `cargo cyclonedx` leaves the random serial number out
+  when `SOURCE_DATE_EPOCH` makes its output reproducible. `cargo xtask sbom` now adds
+  one derived from the document's own content (a version 8 UUID of its hash), so the
+  same commit still gives the same bytes, and it refuses a document without one. That
+  check runs on every pull request and every rehearsal; the attestation steps
+  themselves run only on a tag, which is why no rehearsal had met the refusal.
+
 ## [0.7.0] - 2026-11-21
+
+> **Tagged, never published** (see `0.7.1`). Kept as written, because it is the
+> record of what changed since `0.6.0`.
 
 **A minor release with breaking changes**, which pre-1.0 SemVer permits and
 [STABILITY.md](STABILITY.md) defines: verdicts, report formats, the trace format, the
@@ -4191,7 +4218,8 @@ validator, at the gates documented in [docs/plan/04-engineering-standards.md](do
   validation, diff-scoped mutation gate on PRs, and scheduled RustSec audit + full
   mutation sweep.
 
-[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/tomtom215/mcp-conformance/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.7.1
 [0.7.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.7.0
 [0.6.0]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.6.0
 [0.5.1]: https://github.com/tomtom215/mcp-conformance/releases/tag/v0.5.1

@@ -1263,7 +1263,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "mcp-conformance-cli"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-conformance-core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "criterion",
  "proptest",
@@ -1296,7 +1296,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-everything-server"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "axum",
  "clap",
@@ -1318,7 +1318,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-reference-host"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "axum",
  "clap",
@@ -1339,7 +1339,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-trace-capture"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "axum",
  "clap",
@@ -1360,7 +1360,7 @@ dependencies = [
 
 [[package]]
 name = "mcp-trace-validator"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "clap",
  "clap_complete",
@@ -2998,7 +2998,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xtask"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "mcp-conformance-cli",
  "mcp-conformance-core",

@@ -3,11 +3,12 @@
 
 # Releasing
 
-> **Status:** v0.7.0 is prepared: its release commit is written (2026-11-21, §v0.7.0
-> pre-flight) and the tag is the owner's next step (checklist steps 2 and 3, and the
-> one-time npm and PyPI setup below, which v0.7.0 is the first release to need). The
-> latest published release is v0.6.0 (tag at `9b6ef0f`; on crates.io 2026-10-06).
-> Rewrite this paragraph once v0.7.0 is published.
+> **Status:** v0.7.1 is prepared: its release commit is written (2026-11-22, §v0.7.1
+> pre-flight) and the tag is the owner's next step. **v0.7.0 was tagged (2026-11-21, at
+> `ee9b700`) and never published**: its Release run failed at the first SBOM
+> attestation, before any publishing job (§The v0.7.0 release run). The latest
+> published release is v0.6.0 (tag at `9b6ef0f`; on crates.io 2026-10-06).
+> Rewrite this paragraph once v0.7.1 is published.
 > Every crate version since v0.2.0 has published through OIDC trusted publishing
 > except one: `mcp-trace-capture` 0.6.0, the crate's first version, published by
 > the owner's one-time bootstrap token (crates.io records
@@ -312,6 +313,71 @@ The full `--all-features` mutation sweep and the `workflow_dispatch`
 rehearsal run in CI from the `release/v0.6.0` branch; their outcomes belong in
 the release PR, not in this file.
 
+## The v0.7.0 release run (2026-11-21): tagged, not published
+
+`v0.7.0` was tagged at `ee9b700` and pushed at 22:57 UTC. Release run 44959348017
+passed `verify`, the three test jobs, the five binary builds, the container image and
+`registry-packages`, and failed in `Package and attest` at the step
+`Attest SBOM (mcp-conformance-core)`:
+
+```text
+Attestation type: SBOM
+Error: Unsupported SBOM format. Must be valid SPDX or CycloneDX JSON.
+```
+
+`github-release`, `publish`, `verify-install`, `publish-npm` and `publish-pypi` were
+skipped. Checked afterwards: crates.io's newest version of the crates was still
+`0.6.0`, and the repository's newest GitHub release was `v0.6.0`. Whether the
+`Container image` job, which succeeded, pushed `ghcr.io/tomtom215/mcp-conformance:0.7.0`
+was not checked.
+
+**Cause**, read in `actions/attest` at the pinned commit `1e69f48` (v4.2.2),
+`src/sbom.ts`: a file is taken for a `CycloneDX` SBOM only when `bomFormat`,
+`specVersion` and `serialNumber` are all present. `cargo cyclonedx` omits the serial
+number when `SOURCE_DATE_EPOCH` is set, which `cargo xtask sbom` sets so that the
+bytes are a function of the commit.
+
+**Why nothing caught it.** SBOM attestation was added on 2026-10-13, after `0.6.0`,
+and its steps run only when the ref is a tag, so no rehearsal and no earlier release
+had run them.
+
+**Fix (0.7.1).** `cargo xtask sbom` adds a serial number derived from the document's
+content and refuses a document without one (`xtask/src/sbom/serial.rs`). That task
+runs in ci.yml's `package` job on every pull request and in every rehearsal.
+
+The tag stays at `ee9b700` (§When publishing fails mid-way: tags are never moved).
+
+## v0.7.1 pre-flight (2026-11-22, release commit)
+
+Measured on the release commit's tree. `0.7.1` is `0.7.0` with the fix above, so the
+v0.7.0 pre-flight below still describes the code; these are the legs re-run.
+
+| Leg | Result |
+|-----|--------|
+| `cargo xtask sbom` (cargo-cyclonedx 0.5.9, as the workflow installs it), then `actions/attest`'s own acceptance test (`bomFormat && serialNumber && specVersion`) applied to each file | all five accepted; the same file with its `serialNumber` removed is refused; two generations are byte-identical |
+| `cargo xtask ci` (1.100.0) | green, exit 0 — every step, MSRV clippy (1.88.0) and `cargo deny` included; none skipped. 2,508 tests in the all-features run |
+| `cargo package --workspace --exclude xtask --locked` | green — six crates packaged with verification builds |
+| `cargo xtask semver` (cargo-semver-checks 0.51.0) | green — "no semver update required" for the five published crates at `0.6.0 -> 0.7.1` |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | green |
+| `reuse lint` (6.3.0) | compliant — 1,848 of 1,848 files |
+| `Cargo.lock` diff of the release commit | seven version lines, edited by hand and checked with `cargo metadata --locked` |
+
+Not done, and not claimed:
+
+- **The attestation itself has not been run.** What is shown is that the files now
+  pass the test the action failed them on, read from its source. The first real run of
+  `Attest SBOM` is the `v0.7.1` tag's.
+- **The other tag-only steps have never run for this code**: the GitHub release (its
+  notes are cut from the `[0.7.1]` changelog section, which links to `[0.7.0]` for
+  what the release contains), `publish`, `verify-install`, `publish-npm` and
+  `publish-pypi`. `publish-npm` is expected to fail once (§npm and PyPI, step 2).
+  `publish` reaches `mcp-trace-capture` last, and succeeds only if its trusted
+  publisher was configured after the 0.6.0 bootstrap, which only the owner's crates.io
+  settings show.
+- Everything under "Not done" in the v0.7.0 pre-flight still holds, except the local
+  mutation run: pull request 80's `Mutants (PR diff)` job was the complete run and was
+  green.
+
 ## v0.7.0 pre-flight (2026-11-21, release commit)
 
 Measured on the release commit's tree, not asserted. 0.7.0 is the first release
@@ -382,6 +448,12 @@ Not done, and not claimed:
      npm and PyPI page), and in the book `introduction.md`, `getting-started.md`,
      `ci.md`, `testing.md`, `watching.md`, `upgrading.md` and `llms.txt`.
      `grep -rn "not yet released\|<previous version>"` over those finds them.
+   - **Know what the rehearsal does not run.** A `workflow_dispatch` run skips every
+     step guarded by `github.ref_type == 'tag'`: the provenance and SBOM
+     attestations, the GitHub release, and the crates.io, npm and PyPI publishes. A
+     green rehearsal says nothing about them. v0.7.0 failed in one (§The v0.7.0
+     release run); what a tag-only step consumes should be checked by a step that
+     runs every time, as `cargo xtask sbom` now checks the SBOMs' form.
    - **Run `cargo xtask semver` and read its output, before tagging.** It needs
      `cargo install cargo-semver-checks --locked`; without it the task reports
      SKIPPED, which in a green log is indistinguishable from a pass. That is how
