@@ -200,6 +200,26 @@ fn get_as(address: &str, path: &str, host: &str) -> String {
     response
 }
 
+/// [`get`], with the request head written in pieces with a pause between
+/// them, as a slow or deliberate client sends it.
+fn get_in_pieces(address: &str, path: &str) -> String {
+    use std::io::{Read as _, Write as _};
+    let mut stream = std::net::TcpStream::connect(address).unwrap();
+    for piece in [
+        "GET ",
+        path,
+        " HTTP/1.1\r\nhost: ",
+        address,
+        "\r\nconnection: close\r\n\r\n",
+    ] {
+        stream.write_all(piece.as_bytes()).unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let mut response = String::new();
+    stream.read_to_string(&mut response).unwrap();
+    response
+}
+
 /// A 200 whose body is `text`, on a connection the upstream then closes.
 fn ok(text: &str) -> String {
     format!(
@@ -371,6 +391,26 @@ fn drained(lines: &Receiver<String>) -> Vec<String> {
         all.push(line);
     }
     all
+}
+
+/// A request head need not arrive in one piece: TCP delivers what it has, and
+/// a server reads until the head is whole. With `httparse` 1.9.3, the oldest
+/// version hyper's requirement admits, the proxy dropped such a connection
+/// with no response (found 2026-11-22 by the minimal-versions job, where this
+/// file's own `write!` of a request, several small writes, lost a race about
+/// once in thirty runs); the manifest now sets the floor at 1.9.4.
+#[test]
+fn a_request_head_that_arrives_in_pieces_is_served() {
+    let server = upstream(|_, _| ok("whole"));
+    let trace = scratch("pieces.jsonl");
+    let (mut proxy, address, _lines) = Proxy::start(http(&trace, &format!("http://{server}")));
+    for _ in 0..3 {
+        let response = get_in_pieces(&address, "/mcp");
+        assert!(response.starts_with("HTTP/1.1 200"), "{response:?}");
+        assert!(response.ends_with("whole"), "{response:?}");
+    }
+    assert_eq!(proxy.interrupt().code(), Some(0));
+    std::fs::remove_file(&trace).ok();
 }
 
 /// The path hint is for a client pointed at the wrong path. A 404 that carries a

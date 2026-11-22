@@ -34,6 +34,16 @@ what moving from `0.6.0` to `0.7.1` means.
   same commit still gives the same bytes, and it refuses a document without one. That
   check runs on every pull request and every rehearsal; the attestation steps
   themselves run only on a tag, which is why no rehearsal had met the refusal.
+- **A request head that arrives in pieces is served on the oldest dependency
+  versions too.** `hyper` requires `httparse` "1.9", which admits 1.9.3, and with
+  1.9.3 a request head that reaches the server in more than one read is not parsed:
+  `mcp-trace-capture`'s proxy and `mcp-everything-server`'s HTTP transport dropped
+  the connection with no response. Both now require `httparse` 1.9.4 or newer. A
+  build from this repository's lockfile, and every release binary, already had 1.10.1
+  and was never affected; a dependent that resolved the minimum was. Found by the
+  minimal-versions CI job, where a test client that wrote its request in several
+  small writes lost the race about once in thirty runs; measured by sending a head in
+  five pieces 20 ms apart (dropped 12 of 12 at 1.9.3, served 12 of 12 at 1.9.4).
 
 ## [0.7.0] - 2026-11-21
 

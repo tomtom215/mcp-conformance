@@ -360,7 +360,8 @@ v0.7.0 pre-flight below still describes the code; these are the legs re-run.
 | `cargo xtask semver` (cargo-semver-checks 0.51.0) | green — "no semver update required" for the five published crates at `0.6.0 -> 0.7.1` |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` | green |
 | `reuse lint` (6.3.0) | compliant — 1,848 of 1,848 files |
-| `Cargo.lock` diff of the release commit | seven version lines, edited by hand and checked with `cargo metadata --locked` |
+| `Cargo.lock` diff of the pull request | seven version lines, edited by hand, and two dependency-list lines naming `httparse` (already locked at 1.10.1) for the two crates that now declare it; checked with `cargo metadata --locked` |
+| The `httparse` floor (added after the pull request's `Minimal versions` job failed once) | at `httparse` 1.9.3 the new test `a_request_head_that_arrives_in_pieces_is_served` fails with a broken pipe; with the floor, a fresh `-Zminimal-versions` lockfile resolves 1.9.4 and `cli_http` passes 100 runs of 100 (it had failed 2 of 60 and 2 of 150 before); `mcp-everything-server` built from that lockfile answers the same fragmented request it had dropped 12 times of 12 |
 
 Not done, and not claimed:
 
