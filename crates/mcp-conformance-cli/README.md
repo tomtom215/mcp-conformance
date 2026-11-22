@@ -19,7 +19,7 @@ work, built on [`mcp-trace-capture`](https://crates.io/crates/mcp-trace-capture)
 > (`npm install -g mcp-conformance`), PyPI (`pip install mcp-conformance`), the
 > [release archives](https://github.com/tomtom215/mcp-conformance/releases) and the
 > container image, or built from source with
-> `cargo install --locked --git https://github.com/tomtom215/mcp-conformance --tag v0.7.0 mcp-conformance-cli`.
+> `cargo install --locked --git https://github.com/tomtom215/mcp-conformance --tag v0.7.1 mcp-conformance-cli`.
 
 ## Checking a server
 

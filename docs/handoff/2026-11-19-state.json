@@ -1,9 +1,9 @@
 {
   "branch": "claude/busy-cray-9rvb8c",
   "base": "main at 9842607 (the merge of pull request 79); branch restarted from it on 2026-11-21",
-  "date": "2026-11-19, last rewritten 2026-11-21",
-  "pull_request": "79 merged 2026-11-21; the release pull request is opened from this branch",
-  "version": "0.7.0 (release commit made 2026-11-21; not tagged, which is the owner's step)",
+  "date": "2026-11-19, last rewritten 2026-11-22",
+  "pull_request": "80 merged 2026-11-21 (release 0.7.0); the 0.7.1 pull request is opened from this branch",
+  "version": "0.7.1 (release commit made 2026-11-22). v0.7.0 was tagged at ee9b700 on 2026-11-21 and never published: Release run 44959348017 failed at the SBOM attestation",
   "local_tests": {
     "command": "cargo xtask ci",
     "date": "2026-11-21",
@@ -121,11 +121,17 @@
       "status": "done",
       "verified": "RELEASING.md §v0.7.0 pre-flight (cargo xtask ci exit 0; package; semver breaks held against the changelog table; conformance at rmcp 3.10.0; reuse lint 6.3.0)",
       "not_done": "tag, publish, screen-reader pass, complete local mutation run"
+    },
+    {
+      "id": "release-0.7.0-failed-at-sbom-attestation",
+      "status": "done",
+      "verified": "root cause read in actions/attest at 1e69f48 (src/sbom.ts checkIsCycloneDX requires serialNumber); fix in xtask/src/sbom/serial.rs; five generated SBOMs pass that check, byte-identical across two generations",
+      "not_done": "the v0.7.1 tag and its run"
     }
   ],
   "run_first_next_session": [
-    "read the release pull request's CI and its Mutants (PR diff) job",
-    "owner: npm and PyPI one-time setup, rehearsal, tag v0.7.0",
+    "read the 0.7.1 pull request's CI",
+    "owner: rehearsal, tag v0.7.1, approve the release environment; first npm publish by hand",
     "re-verify register rows 2.13, 3.6, 3.11 with access to the other repositories' issues"
   ],
   "ci": {

@@ -46,7 +46,7 @@ inputs:
       A stdio MCP server to check, as a bash command line run from the
       workspace (e.g. `python my_server.py`). The action exercises it as a
       conforming client would, read-only by default, and judges the session.
-      Needs release 0.7.0 or later when `version` is set.
+      Needs release 0.7.1 or later when `version` is set.
     required: false
     default: ""
   check-url:
@@ -122,7 +122,7 @@ inputs:
     default: mcp-conformance-capture
   version:
     description: >-
-      A release (e.g. `0.7.0`) whose prebuilt binaries to download, verified
+      A release (e.g. `0.7.1`) whose prebuilt binaries to download, verified
       against the release's SHA256SUMS-binaries. Empty (the default) builds the
       CLI from this action's own source, which always matches the action ref.
     required: false

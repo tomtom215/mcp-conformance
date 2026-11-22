@@ -57,6 +57,14 @@ axum = { workspace = true }
 hyper = { version = ">=1.11, <2", default-features = false, features = ["client", "http1", "server"] }
 hyper-util = { version = ">=0.1.20, <0.2", default-features = false, features = ["client-legacy", "http1", "server-graceful", "tokio"] }
 futures = { version = ">=0.3.30, <0.4" }
+# Minimal-versions floor shim: hyper declares httparse "1.9", which admits
+# 1.9.3, and with 1.9.3 a request head that reaches the server in more than
+# one read is not parsed: the connection is dropped with no response.
+# Measured 2026-11-22 against this crate built from a `-Zminimal-versions`
+# lockfile, by sending a head in five pieces 20 ms apart: dropped 12 times of
+# 12 at 1.9.3, served 12 of 12 at 1.9.4 and at 1.10.1, with nothing else
+# changed. Remove when hyper requires 1.9.4 or newer.
+httparse = ">=1.9.4, <2"
 # The upstream connector's timeout wraps it as a `Service`. Already in the tree
 # under axum.
 tower = { workspace = true }

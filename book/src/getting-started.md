@@ -21,7 +21,7 @@ instead of compiling (Linux x86_64 and aarch64, macOS, Windows x86_64). To build
 the unreleased source, which may be ahead of the release:
 `cargo install --locked --git https://github.com/tomtom215/mcp-conformance mcp-trace-capture mcp-trace-validator`.
 
-**From npm or PyPI.** From `0.7.0`, the same prebuilt binaries install without
+**From npm or PyPI.** From `0.7.1`, the same prebuilt binaries install without
 Rust:
 
 ```text

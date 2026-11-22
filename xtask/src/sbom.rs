@@ -24,7 +24,9 @@
 //! - `--spec-version 1.5`: the newest the tool emits (its default is 1.3);
 //! - `SOURCE_DATE_EPOCH`: the tool honours it and then omits the random serial
 //!   number, so the bytes are a function of the commit. Set from the commit
-//!   time when the caller has not set it.
+//!   time when the caller has not set it. A serial number derived from the
+//!   document's content is then added ([`serial`]), because the action that
+//!   attests the file takes none without one.
 
 // See `local_gates.rs`: rustc's `unreachable_pub` and clippy's
 // `redundant_pub_crate` disagree about items in a binary's private modules.
@@ -32,6 +34,8 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+mod serial;
 
 /// The `CycloneDX` spec version requested and checked.
 const SPEC_VERSION: &str = "1.5";
@@ -110,6 +114,7 @@ fn generate(root: &Path, out: &Path) -> Result<Vec<PathBuf>, String> {
                 generated.display()
             )
         })?;
+        let text = serial::ensure(root, text)?;
         check(&text, &package.name, &package.version)?;
         let target = out.join(format!("{}-{}.cdx.json", package.name, package.version));
         std::fs::write(&target, text)
@@ -190,10 +195,16 @@ fn commit_time(root: &Path) -> Result<String, String> {
 }
 
 /// That `text` is a `CycloneDX` document of the pinned spec version describing
-/// `name` at `version`.
+/// `name` at `version`, with the serial number `actions/attest` requires.
 fn check(text: &str, name: &str, version: &str) -> Result<(), String> {
     let bom: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| format!("{name}'s SBOM is not JSON: {error}"))?;
+    if !bom["serialNumber"].as_str().is_some_and(serial::is_serial) {
+        return Err(format!(
+            "{name}'s SBOM has no `urn:uuid:` serialNumber, without which actions/attest \
+             refuses it as an unsupported format"
+        ));
+    }
     let component = &bom["metadata"]["component"];
     let found = (
         bom["bomFormat"].as_str(),
@@ -226,7 +237,7 @@ mod tests {
     fn a_document_must_describe_its_crate_in_the_pinned_format() {
         let bom = |format: &str, spec: &str, name: &str, version: &str| {
             format!(
-                r#"{{"bomFormat":"{format}","specVersion":"{spec}","metadata":{{"component":{{"name":"{name}","version":"{version}"}}}}}}"#
+                r#"{{"bomFormat":"{format}","specVersion":"{spec}","serialNumber":"urn:uuid:01234567-89ab-8def-8123-456789abcdef","metadata":{{"component":{{"name":"{name}","version":"{version}"}}}}}}"#
             )
         };
         assert!(check(&bom("CycloneDX", "1.5", "a", "0.6.0"), "a", "0.6.0").is_ok());
@@ -235,5 +246,16 @@ mod tests {
         assert!(check(&bom("CycloneDX", "1.5", "b", "0.6.0"), "a", "0.6.0").is_err());
         assert!(check(&bom("CycloneDX", "1.5", "a", "0.5.1"), "a", "0.6.0").is_err());
         assert!(check("not json", "a", "0.6.0").is_err());
+        // Without a serial number, or with one in another form, the action
+        // that attests the file refuses it; so does this.
+        let good = bom("CycloneDX", "1.5", "a", "0.6.0");
+        let without = good.replace(
+            r#""serialNumber":"urn:uuid:01234567-89ab-8def-8123-456789abcdef","#,
+            "",
+        );
+        assert_ne!(without, good);
+        assert!(check(&without, "a", "0.6.0").is_err_and(|why| why.contains("serialNumber")));
+        let malformed = good.replace("urn:uuid:", "uuid:");
+        assert!(check(&malformed, "a", "0.6.0").is_err());
     }
 }

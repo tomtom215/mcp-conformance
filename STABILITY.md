@@ -6,7 +6,7 @@
 What you can rely on across releases of the six crates —
 `mcp-conformance-core`, `mcp-trace-validator`, `mcp-trace-capture`,
 `mcp-everything-server`, `mcp-reference-host` and `mcp-conformance` (released
-from `0.7.0`, as a binary rather than on crates.io) — and how a change to any of it
+from `0.7.1`, as a binary rather than on crates.io) — and how a change to any of it
 is made. [RELEASING.md](RELEASING.md) is the release runbook;
 [CHANGELOG.md](CHANGELOG.md) records every change this policy covers.
 
