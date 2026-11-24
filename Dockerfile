@@ -54,7 +54,7 @@ RUN rustup show active-toolchain \
     && cargo auditable build --release --locked \
         -p mcp-conformance-cli -p mcp-trace-validator -p mcp-trace-capture --bins
 
-FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:532c7a94f9e96ba9db75eb9388f4227751131c7cb0a411d1a8521af4096135de
 LABEL org.opencontainers.image.title="mcp-conformance" \
       org.opencontainers.image.description="mcp-conformance, mcp-trace-validator and mcp-trace-capture: check a Model Context Protocol server, or record sessions and judge them clause by clause" \
       org.opencontainers.image.source="https://github.com/tomtom215/mcp-conformance" \
