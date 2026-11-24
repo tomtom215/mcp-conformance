@@ -271,7 +271,7 @@ jobs:
       # carrying: such an object survives only as an unreferenced blob in
       # upstream's object store once `v2` moves again — resolvable today,
       # GC bait tomorrow, and invisible to dependabot).
-      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      - uses: EmbarkStudios/cargo-deny-action@70f81531115945ba6eb6b941ec9d39d063438eb9 # v2.1.2
         with:
           command: check
 
